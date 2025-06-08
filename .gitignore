@@ -59,4 +59,8 @@ docs/.doctrees/
 # Logs
 *.log
 
+uv.lock
+
 CLAUDE.local.md
+.claude/settings.local.json
+
