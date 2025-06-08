@@ -1048,6 +1048,172 @@ class BaseLLM(abc.ABC):
 
         return reply_list[0]
 
+    def describe_image(
+        self,
+        image: Union[str, Path, IO],
+        prompt: str = "Describe this image in detail.",
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        enable_cache: bool = False,
+        use_history: bool = False,
+        **kwargs
+    ) -> Reply:
+        """
+        단일 이미지를 간단하게 설명 요청
+        
+        이 메서드는 ask() 메서드의 편의 래퍼입니다.
+        대량 이미지 병렬 처리가 필요한 경우 describe_images()를 사용하세요.
+        
+        Args:
+            image: 이미지 파일 경로, Path 객체, 또는 파일 IO 객체
+            prompt: 이미지 설명을 위한 프롬프트 (기본값: "Describe this image in detail.")
+            system_prompt: 시스템 프롬프트 (선택사항) 
+            temperature: 생성 온도 (선택사항)
+            max_tokens: 최대 토큰 수 (선택사항)
+            enable_cache: 캐싱 활성화 여부
+            use_history: 대화 히스토리 사용 여부 (기본값: False)
+            **kwargs: ask() 메서드에 전달할 추가 파라미터
+            
+        Returns:
+            Reply: 이미지 설명이 포함된 응답
+            
+        Examples:
+            # 기본 사용
+            response = llm.describe_image("photo.jpg")
+            
+            # 대화 히스토리 포함
+            response = llm.describe_image("photo.jpg", use_history=True)
+            
+            # ask()와 동일한 결과
+            response = llm.ask("Describe this image in detail.", files=["photo.jpg"])
+        """
+        # 기존 시스템 프롬프트 임시 저장
+        original_system_prompt = self.system_prompt
+        
+        # 시스템 프롬프트가 제공된 경우 임시로 설정
+        if system_prompt is not None:
+            self.system_prompt = system_prompt
+        
+        try:
+            # temperature와 max_tokens 처리
+            # 일부 프로바이더는 이를 ask 파라미터로 받지 않으므로 임시로 인스턴스 값 변경
+            original_temperature = self.temperature
+            original_max_tokens = self.max_tokens
+            
+            if temperature is not None:
+                self.temperature = temperature
+            if max_tokens is not None:
+                self.max_tokens = max_tokens
+                
+            # ask 메서드 호출
+            result = self.ask(
+                input=prompt,
+                files=[image],
+                enable_cache=enable_cache,
+                use_history=use_history,
+                **kwargs
+            )
+        finally:
+            # 원래 값들 복원
+            self.system_prompt = original_system_prompt
+            if temperature is not None:
+                self.temperature = original_temperature
+            if max_tokens is not None:
+                self.max_tokens = original_max_tokens
+            
+        return result
+
+    async def describe_image_async(
+        self,
+        image: Union[str, Path, IO],
+        prompt: str = "Describe this image in detail.",
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        enable_cache: bool = False,
+        use_history: bool = False,
+        **kwargs
+    ) -> Reply:
+        """
+        단일 이미지를 간단하게 설명 요청 (비동기)
+        
+        이 메서드는 ask_async() 메서드의 편의 래퍼입니다.
+        
+        Args:
+            image: 이미지 파일 경로, Path 객체, 또는 파일 IO 객체
+            prompt: 이미지 설명을 위한 프롬프트 (기본값: "Describe this image in detail.")
+            system_prompt: 시스템 프롬프트 (선택사항)
+            temperature: 생성 온도 (선택사항)
+            max_tokens: 최대 토큰 수 (선택사항)
+            enable_cache: 캐싱 활성화 여부
+            use_history: 대화 히스토리 사용 여부 (기본값: False)
+            **kwargs: ask_async() 메서드에 전달할 추가 파라미터
+            
+        Returns:
+            Reply: 이미지 설명이 포함된 응답
+        """
+        # 기존 시스템 프롬프트 임시 저장
+        original_system_prompt = self.system_prompt
+        
+        # 시스템 프롬프트가 제공된 경우 임시로 설정
+        if system_prompt is not None:
+            self.system_prompt = system_prompt
+        
+        try:
+            # temperature와 max_tokens 처리
+            original_temperature = self.temperature
+            original_max_tokens = self.max_tokens
+            
+            if temperature is not None:
+                self.temperature = temperature
+            if max_tokens is not None:
+                self.max_tokens = max_tokens
+                
+            # ask_async 메서드 호출
+            result = await self.ask_async(
+                input=prompt,
+                files=[image],
+                enable_cache=enable_cache,
+                use_history=use_history,
+                **kwargs
+            )
+        finally:
+            # 원래 값들 복원
+            self.system_prompt = original_system_prompt
+            if temperature is not None:
+                self.temperature = original_temperature
+            if max_tokens is not None:
+                self.max_tokens = original_max_tokens
+            
+        return result
+
+    def extract_text_from_image(
+        self,
+        image: Union[str, Path, IO],
+        **kwargs
+    ) -> Reply:
+        """이미지에서 텍스트 추출 특화 메서드"""
+        return self.describe_image(
+            image,
+            "Extract all text from this image. Return only the text content without any additional explanation.",
+            **kwargs
+        )
+
+    def analyze_image_content(
+        self,
+        image: Union[str, Path, IO],
+        **kwargs
+    ) -> Reply:
+        """이미지 내용 분석 특화 메서드"""
+        return self.describe_image(
+            image,
+            "Analyze this image and provide: 1) Main objects and subjects 2) Dominant colors and visual style 3) Setting or context 4) Any visible text 5) Overall mood or atmosphere",
+            **kwargs
+        )
+
 
 class SequentialChain:
     def __init__(self, *args):

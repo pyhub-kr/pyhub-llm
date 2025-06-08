@@ -192,8 +192,16 @@ def encode_files(
 
             try:
                 if content_type.startswith("image/"):
+                    # ContentFile과 일반 파일 객체 구분 처리
+                    if hasattr(file, 'file'):
+                        file_obj = file.file
+                    else:
+                        # ContentFile의 경우 직접 사용
+                        file_obj = file
+                        file_obj.seek(0)
+                    
                     optimized_image, content_type = optimize_image(
-                        file.file,
+                        file_obj,
                         max_size=image_max_size,
                         optimize_jpeg=optimize_jpeg,
                         quality=image_quality,
@@ -204,6 +212,8 @@ def encode_files(
                     encoded_urls.append(f"{prefix}{b64_string}")
                 else:
                     # 이미지가 아닌 파일은 직접 base64 인코딩
+                    if hasattr(file, 'seek'):
+                        file.seek(0)
                     content = file.read()
                     if isinstance(content, str):
                         content = content.encode("utf-8")

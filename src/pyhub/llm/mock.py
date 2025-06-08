@@ -2,7 +2,7 @@
 
 import asyncio
 from pathlib import Path
-from typing import Any, AsyncGenerator, Generator, List, Optional, Union
+from typing import Any, AsyncGenerator, Generator, List, Optional, Union, IO
 
 from .base import BaseLLM
 from .types import Embed, EmbedList, LLMChatModelType, Message, Reply, Usage
@@ -22,23 +22,35 @@ class MockLLM(BaseLLM):
     
     def ask(
         self,
-        question: str,
-        system_prompt: Optional[str] = None,
-        save_history: bool = True,
+        input: Union[str, dict[str, Any]],
+        files: Optional[list[Union[str, Path, IO]]] = None,
+        model: Optional[str] = None,
+        context: Optional[dict[str, Any]] = None,
+        *,
+        choices: Optional[list[str]] = None,
+        choices_optional: bool = False,
         stream: bool = False,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        seed: Optional[int] = None,
-        files: Optional[List[Union[str, Path]]] = None,
-        choices: Optional[List[str]] = None,
-        **kwargs,
-    ) -> Union[Reply, Generator[str, None, None]]:
+        use_history: bool = True,
+        raise_errors: bool = False,
+        enable_cache: bool = False,
+        tools: Optional[list] = None,
+        tool_choice: str = "auto",
+        max_tool_calls: int = 5,
+        **kwargs
+    ) -> Union[Reply, Generator[Reply, None, None]]:
         """Ask a question to the mock LLM."""
         self.call_count += 1
+        
+        # Convert input to string if it's a dict
+        if isinstance(input, dict):
+            question = str(input)
+        else:
+            question = input
+        
         self.last_question = question
         
         # Add to history if requested
-        if save_history:
+        if use_history:
             self.history.append(Message(role="user", content=question))
         
         # Handle choices
@@ -57,7 +69,7 @@ class MockLLM(BaseLLM):
             reply = Reply(text=response_text, usage=self.mock_usage)
         
         # Add assistant response to history if requested
-        if save_history:
+        if use_history:
             self.history.append(Message(role="assistant", content=response_text))
         
         # Handle streaming
@@ -71,33 +83,45 @@ class MockLLM(BaseLLM):
     
     async def ask_async(
         self,
-        question: str,
-        system_prompt: Optional[str] = None,
-        save_history: bool = True,
+        input: Union[str, dict[str, Any]],
+        files: Optional[list[Union[str, Path, IO]]] = None,
+        model: Optional[str] = None,
+        context: Optional[dict[str, Any]] = None,
+        *,
+        choices: Optional[list[str]] = None,
+        choices_optional: bool = False,
         stream: bool = False,
-        temperature: Optional[float] = None,
-        max_tokens: Optional[int] = None,
-        seed: Optional[int] = None,
-        files: Optional[List[Union[str, Path]]] = None,
-        choices: Optional[List[str]] = None,
-        **kwargs,
-    ) -> Union[Reply, AsyncGenerator[str, None]]:
+        raise_errors: bool = False,
+        use_history: bool = True,
+        enable_cache: bool = False,
+        tools: Optional[list] = None,
+        tool_choice: str = "auto",
+        max_tool_calls: int = 5,
+    ) -> Union[Reply, AsyncGenerator[Reply, None]]:
         """Ask a question to the mock LLM asynchronously."""
         # Simulate async delay
         await asyncio.sleep(0.01)
         
+        # Convert input to string if it's a dict
+        if isinstance(input, dict):
+            question = str(input)
+        else:
+            question = input
+        
         # Use sync implementation
         result = self.ask(
-            question=question,
-            system_prompt=system_prompt,
-            save_history=save_history,
-            stream=stream,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            seed=seed,
+            input=input,
             files=files,
+            model=model,
+            context=context,
             choices=choices,
-            **kwargs
+            choices_optional=choices_optional,
+            stream=stream,
+            use_history=use_history,
+            enable_cache=enable_cache,
+            tools=tools,
+            tool_choice=tool_choice,
+            max_tool_calls=max_tool_calls,
         )
         
         # Convert generator to async generator if streaming

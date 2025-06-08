@@ -6,7 +6,7 @@ authors = [{name = "PyHub Team", email = "team@pyhub.dev"}]
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
-keywords = ["llm", "ai", "openai", "anthropic", "langchain"]
+keywords = ["llm", "ai", "openai", "anthropic", "google", "ollama", "agent", "mcp", "react"]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
@@ -16,6 +16,8 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
 dependencies = [
@@ -29,6 +31,12 @@ dependencies = [
     "aiofiles>=23.0.0",
     "pillow>=10.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pyhub-team/pyhub-llm"
+Documentation = "https://github.com/pyhub-team/pyhub-llm#readme"
+Repository = "https://github.com/pyhub-team/pyhub-llm"
+Issues = "https://github.com/pyhub-team/pyhub-llm/issues"
 
 [project.optional-dependencies]
 openai = ["openai>=1.84.0"]
@@ -57,14 +65,9 @@ docs = [
 ]
 build = ["setuptools", "wheel", "build", "twine"]
 
-[project.urls]
-Homepage = "https://github.com/pyhub-kr/pyhub-llm"
-Documentation = "https://pyhub-llm.readthedocs.io"
-Repository = "https://github.com/pyhub-kr/pyhub-llm"
-Issues = "https://github.com/pyhub-kr/pyhub-llm/issues"
 
 [project.scripts]
-pyhub-llm = "pyhub.llm.cli:app"
+pyhub-llm = "pyhub.llm.__main__:main"
 
 [build-system]
 requires = ["hatchling"]
