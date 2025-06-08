@@ -13,7 +13,7 @@ format:
 	uv run black $(PATHS)
 	uv run isort $(PATHS)
 	uv run ruff check $(PATHS) --fix
-	uv run djlint $(PATHS) --reformat
+	find $(PATHS) -name "*.html" -type f | xargs -r uv run djlint --reformat
 
 lint:
 	uv pip install -e ".[dev]"
@@ -21,7 +21,7 @@ lint:
 	uv run black $(PATHS) --check
 	uv run isort $(PATHS) --check
 	uv run ruff check $(PATHS)
-	uv run djlint $(PATHS) --check
+	find $(PATHS) -name "*.html" -type f | xargs -r uv run djlint --check
 
 clean:
 	rm -rf build/

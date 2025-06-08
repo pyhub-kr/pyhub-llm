@@ -7,11 +7,12 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 
-# from pyhub import init
-
 from pyhub.llm import LLM
 from pyhub.llm.agents import create_react_agent
 from pyhub.llm.agents.tools import tool_registry
+
+# from pyhub import init
+
 
 app = typer.Typer(
     help="Agent를 실행합니다.",

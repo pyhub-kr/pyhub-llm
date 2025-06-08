@@ -1,6 +1,5 @@
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
-from enum import Enum
 from pathlib import Path
 from typing import IO, Any, Literal, TypeAlias, Union
 
@@ -8,9 +7,9 @@ from anthropic.types import ModelParam as AnthropicChatModelType
 from openai.types import ChatModel as _OpenAIChatModel
 from typing_extensions import Optional
 
-from pyhub.llm.utils.type_utils import enum_to_flatten_set, type_to_flatten_set
-from pyhub.llm.utils.enums import TextChoices
 from pyhub.llm.exceptions import ValidationError
+from pyhub.llm.utils.enums import TextChoices
+from pyhub.llm.utils.type_utils import enum_to_flatten_set, type_to_flatten_set
 
 #
 # Vendor

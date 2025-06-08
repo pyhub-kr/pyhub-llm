@@ -12,4 +12,5 @@ class LLMError(Exception):
 
 class ValidationError(LLMError):
     """Raised when validation fails"""
+
     pass

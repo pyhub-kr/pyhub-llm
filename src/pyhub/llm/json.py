@@ -1,7 +1,9 @@
-from json import JSONDecodeError, dumps, loads, JSONEncoder as BaseJSONEncoder
-from typing import Any
-from datetime import datetime, date
+from datetime import date, datetime
 from decimal import Decimal
+from json import JSONDecodeError
+from json import JSONEncoder as BaseJSONEncoder
+from json import dumps, loads
+from typing import Any
 
 from pyhub.llm.types import Embed, EmbedList
 
@@ -15,11 +17,11 @@ class JSONEncoder(BaseJSONEncoder):
             return o.array
         if isinstance(o, EmbedList):
             return [embed.array for embed in o.arrays]
-            
+
         # Handle datetime and date objects
         if isinstance(o, (datetime, date)):
             return o.isoformat()
-            
+
         # Handle Decimal
         if isinstance(o, Decimal):
             return float(o)

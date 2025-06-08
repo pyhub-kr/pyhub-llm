@@ -2,15 +2,15 @@ import logging
 import mimetypes
 import re
 from base64 import b64decode, b64encode
+from collections import defaultdict
 from enum import Enum
+
+# IO handling utilities
 from io import BytesIO
 from pathlib import Path
 from typing import IO, Literal, Optional, Set, TypeVar, Union
 
 import httpx
-# IO handling utilities
-from io import BytesIO
-from collections import defaultdict
 from httpx import HTTPStatusError
 from PIL import Image as PILImage
 
@@ -19,23 +19,25 @@ logger = logging.getLogger(__name__)
 
 class ContentFile(BytesIO):
     """Simple replacement for Django's ContentFile"""
+
     def __init__(self, content: bytes, name: str = None):
         super().__init__(content)
         self.name = name
-        
+
     def __str__(self):
         return self.name or "<ContentFile>"
 
 
 class MultiValueDict(defaultdict):
     """Simple replacement for Django's MultiValueDict"""
+
     def __init__(self):
         super().__init__(list)
-        
+
     def getlist(self, key):
         """Get list of values for a key"""
         return self[key]
-        
+
     def setlist(self, key, values):
         """Set list of values for a key"""
         self[key] = values
@@ -193,13 +195,13 @@ def encode_files(
             try:
                 if content_type.startswith("image/"):
                     # ContentFile과 일반 파일 객체 구분 처리
-                    if hasattr(file, 'file'):
+                    if hasattr(file, "file"):
                         file_obj = file.file
                     else:
                         # ContentFile의 경우 직접 사용
                         file_obj = file
                         file_obj.seek(0)
-                    
+
                     optimized_image, content_type = optimize_image(
                         file_obj,
                         max_size=image_max_size,
@@ -212,7 +214,7 @@ def encode_files(
                     encoded_urls.append(f"{prefix}{b64_string}")
                 else:
                     # 이미지가 아닌 파일은 직접 base64 인코딩
-                    if hasattr(file, 'seek'):
+                    if hasattr(file, "seek"):
                         file.seek(0)
                     content = file.read()
                     if isinstance(content, str):

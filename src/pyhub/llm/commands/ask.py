@@ -163,7 +163,6 @@ def ask(
             import toml
 
             # from pyhub.config import Config
-
             # toml_path = Config.get_default_toml_path()
             toml_path = Path.home() / ".pyhub.toml"  # Temporary fix
             if toml_path.exists():

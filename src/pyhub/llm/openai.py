@@ -1,25 +1,20 @@
 import logging
 from pathlib import Path
-from typing import Any, AsyncGenerator, Generator, Optional, Union, cast
+from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
 import pydantic
-from typing import IO
-from pyhub.llm.utils.templates import Template
-from pyhub.llm.exceptions import LLMError
 from openai import AsyncOpenAI
 from openai import OpenAI as SyncOpenAI
 from openai.types import CreateEmbeddingResponse
 from openai.types.chat import ChatCompletion
 
+from pyhub.llm.base import BaseLLM
 from pyhub.llm.cache.utils import (
     cache_make_key_and_get,
     cache_make_key_and_get_async,
     cache_set,
     cache_set_async,
 )
-from pyhub.llm.settings import llm_settings
-
-from pyhub.llm.base import BaseLLM
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
@@ -31,6 +26,7 @@ from pyhub.llm.types import (
     Usage,
 )
 from pyhub.llm.utils.files import IOType, encode_files
+from pyhub.llm.utils.templates import Template
 
 logger = logging.getLogger(__name__)
 
@@ -220,7 +216,9 @@ class OpenAIMixin:
             logger.debug("request to openai")
             response = await async_client.chat.completions.create(**request_params)
             if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias=self.cache_alias, enable_cache=True)
+                await cache_set_async(
+                    cache_key, response.model_dump_json(), cache_alias=self.cache_alias, enable_cache=True
+                )
 
         assert response is not None
 

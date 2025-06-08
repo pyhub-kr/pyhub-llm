@@ -2,15 +2,10 @@ import abc
 import asyncio
 import logging
 from dataclasses import dataclass
-from inspect import signature
 from pathlib import Path
-from typing import Any, AsyncGenerator, Generator, Optional, Union, cast
-
-from typing import IO
+from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
 from pyhub.llm.settings import llm_settings
-from pyhub.llm.utils.templates import Template, Context, TemplateDoesNotExist, get_template, async_to_sync
-from pyhub.llm.exceptions import LLMError
 from pyhub.llm.types import (
     ChainReply,
     Embed,
@@ -19,6 +14,13 @@ from pyhub.llm.types import (
     LLMEmbeddingModelType,
     Message,
     Reply,
+)
+from pyhub.llm.utils.templates import (
+    Context,
+    Template,
+    TemplateDoesNotExist,
+    async_to_sync,
+    get_template,
 )
 
 logger = logging.getLogger(__name__)
@@ -969,84 +971,161 @@ class BaseLLM(abc.ABC):
 
     def describe_images(
         self,
-        request: Union[DescribeImageRequest, list[DescribeImageRequest]],
+        images: Union[
+            Union[str, Path, IO], list[Union[str, Path, IO]], DescribeImageRequest, list[DescribeImageRequest]
+        ],
+        prompt: Optional[str] = None,
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
         max_parallel_size: int = 4,
         raise_errors: bool = False,
         enable_cache: bool = False,
-    ) -> Reply:
-        return async_to_sync(self.describe_images_async)(request, max_parallel_size, raise_errors, enable_cache)
+        use_history: bool = False,
+    ) -> Union[Reply, list[Reply]]:
+        """
+        여러 이미지를 병렬로 처리하여 설명을 생성합니다.
+
+        Args:
+            images: 이미지 파일 경로(들) 또는 DescribeImageRequest 객체(들)
+            prompt: 모든 이미지에 적용할 프롬프트 (DescribeImageRequest 사용시 무시됨)
+            system_prompt: 시스템 프롬프트 (선택사항)
+            temperature: 생성 온도 (선택사항)
+            max_tokens: 최대 토큰 수 (선택사항)
+            max_parallel_size: 최대 병렬 처리 개수 (기본값: 4)
+            raise_errors: 에러 발생시 예외를 발생시킬지 여부
+            enable_cache: 캐싱 활성화 여부
+            use_history: 대화 히스토리 사용 여부 (기본값: False)
+
+        Returns:
+            단일 이미지인 경우 Reply, 여러 이미지인 경우 list[Reply]
+
+        Examples:
+            # 단일 이미지
+            response = llm.describe_images("photo.jpg")
+
+            # 여러 이미지
+            responses = llm.describe_images(["img1.jpg", "img2.jpg", "img3.jpg"])
+
+            # 커스텀 프롬프트
+            responses = llm.describe_images(
+                ["img1.jpg", "img2.jpg"],
+                prompt="What objects are in this image?",
+                temperature=0.5
+            )
+
+            # 기존 DescribeImageRequest 방식도 지원
+            request = DescribeImageRequest(...)
+            response = llm.describe_images(request)
+        """
+        return async_to_sync(self.describe_images_async)(
+            images,
+            prompt,
+            system_prompt,
+            temperature,
+            max_tokens,
+            max_parallel_size,
+            raise_errors,
+            enable_cache,
+            use_history,
+        )
 
     async def describe_images_async(
         self,
-        request: Union[DescribeImageRequest, list[DescribeImageRequest]],
+        images: Union[
+            Union[str, Path, IO], list[Union[str, Path, IO]], DescribeImageRequest, list[DescribeImageRequest]
+        ],
+        prompt: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
         max_parallel_size: int = 4,
         raise_errors: bool = False,
         enable_cache: bool = False,
+        use_history: bool = False,
     ) -> Union[Reply, list[Reply]]:
+        """여러 이미지를 병렬로 처리하여 설명을 생성합니다 (비동기)"""
 
-        # 최대 4개의 병렬 처리를 위한 세마포어 설정
-        semaphore = asyncio.Semaphore(max_parallel_size)
-
-        cls = self.__class__
-        sig = signature(cls.__init__)
-        is_supported_max_tokens = "max_tokens" in sig.parameters  # max_tokens is not supported in ollama
-
-        if not isinstance(request, (list, tuple)):
-            request_list = [request]
+        # 입력을 정규화하여 처리할 이미지 리스트 생성
+        is_single = False
+        if isinstance(images, (DescribeImageRequest, str, Path)) or hasattr(images, "read"):
+            is_single = True
+            images_list = [images]
         else:
-            request_list = request
+            images_list = list(images)
+
+        # DescribeImageRequest와 일반 이미지를 구분하여 처리
+        request_list = []
+        for idx, img in enumerate(images_list):
+            if isinstance(img, DescribeImageRequest):
+                request_list.append(img)
+            else:
+                # 일반 이미지를 DescribeImageRequest로 변환
+                request = DescribeImageRequest(
+                    image=img,
+                    image_path=str(img) if isinstance(img, (str, Path)) else f"image_{idx}",
+                    system_prompt=system_prompt or self.system_prompt,
+                    user_prompt=prompt or "Describe this image in detail.",
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                )
+                request_list.append(request)
+
+        # 세마포어를 통해 병렬 처리 제한
+        semaphore = asyncio.Semaphore(max_parallel_size)
 
         async def process_single_image(
             task_request: DescribeImageRequest,
             idx: int,
             total: int,
         ) -> Reply:
-            logger.info("request describe_images [%d/%d] : %s", idx + 1, total, task_request.image_path)
-
-            if is_supported_max_tokens:
-                llm = cls(
-                    model=self.model,
-                    temperature=self.temperature if task_request.temperature is None else task_request.temperature,
-                    max_tokens=self.max_tokens if task_request.max_tokens is None else task_request.max_tokens,
-                    system_prompt=task_request.system_prompt,
-                )
-            else:
-                llm = cls(
-                    model=self.model,
-                    temperature=self.temperature if task_request.temperature is None else task_request.temperature,
-                    system_prompt=task_request.system_prompt,
-                )
-                if task_request.max_tokens is not None:
-                    logger.debug("max_tokens is not supported for %s LLM", self.model)
-
-            reply = await llm.ask_async(
-                input=task_request.user_prompt,
-                files=[task_request.image],
-                context=task_request.prompt_context,
-                raise_errors=raise_errors,
-                enable_cache=enable_cache,
-            )
-            logger.debug("image description for %s : %s", task_request.image_path, repr(reply.text))
-            return reply
-
-        async def process_with_semaphore(request_item, idx, total):
             async with semaphore:
-                return await process_single_image(request_item, idx, total)
+                logger.info("request describe_images [%d/%d] : %s", idx + 1, total, task_request.image_path)
 
-        # 세마포어를 통해 병렬 처리 제한
-        tasks = [process_with_semaphore(request, idx, len(request_list)) for idx, request in enumerate(request_list)]
+                # 기존 인스턴스의 설정을 임시로 변경
+                original_system_prompt = self.system_prompt
+                original_temperature = self.temperature
+                original_max_tokens = self.max_tokens
+
+                try:
+                    # 요청별 설정 적용
+                    if task_request.system_prompt is not None:
+                        self.system_prompt = task_request.system_prompt
+                    if task_request.temperature is not None:
+                        self.temperature = task_request.temperature
+                    if task_request.max_tokens is not None:
+                        self.max_tokens = task_request.max_tokens
+
+                    # 현재 인스턴스를 사용하여 ask_async 호출
+                    reply = await self.ask_async(
+                        input=task_request.user_prompt,
+                        files=[task_request.image],
+                        context=task_request.prompt_context,
+                        raise_errors=raise_errors,
+                        enable_cache=enable_cache,
+                        use_history=use_history,
+                    )
+                    logger.debug("image description for %s : %s", task_request.image_path, repr(reply.text))
+                    return reply
+
+                finally:
+                    # 원래 설정 복원
+                    self.system_prompt = original_system_prompt
+                    self.temperature = original_temperature
+                    self.max_tokens = original_max_tokens
+
+        # 병렬로 모든 이미지 처리
+        tasks = [process_single_image(request, idx, len(request_list)) for idx, request in enumerate(request_list)]
         reply_list = await asyncio.gather(*tasks)
 
-        assert len(request_list) == len(reply_list)
+        # 파일 포인터 리셋 (IO 객체인 경우)
+        for request in request_list:
+            if hasattr(request.image, "seek"):
+                request.image.seek(0)
 
-        for _request in request_list:
-            if hasattr(_request.image, "seek"):
-                _request.image.seek(0)
-
-        if isinstance(request, (list, tuple)):
-            return reply_list
-
-        return reply_list[0]
+        # 단일 이미지였으면 Reply 반환, 여러 이미지였으면 list[Reply] 반환
+        return reply_list[0] if is_single else reply_list
 
     def describe_image(
         self,
@@ -1058,63 +1137,57 @@ class BaseLLM(abc.ABC):
         max_tokens: Optional[int] = None,
         enable_cache: bool = False,
         use_history: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Reply:
         """
         단일 이미지를 간단하게 설명 요청
-        
+
         이 메서드는 ask() 메서드의 편의 래퍼입니다.
         대량 이미지 병렬 처리가 필요한 경우 describe_images()를 사용하세요.
-        
+
         Args:
             image: 이미지 파일 경로, Path 객체, 또는 파일 IO 객체
             prompt: 이미지 설명을 위한 프롬프트 (기본값: "Describe this image in detail.")
-            system_prompt: 시스템 프롬프트 (선택사항) 
+            system_prompt: 시스템 프롬프트 (선택사항)
             temperature: 생성 온도 (선택사항)
             max_tokens: 최대 토큰 수 (선택사항)
             enable_cache: 캐싱 활성화 여부
             use_history: 대화 히스토리 사용 여부 (기본값: False)
             **kwargs: ask() 메서드에 전달할 추가 파라미터
-            
+
         Returns:
             Reply: 이미지 설명이 포함된 응답
-            
+
         Examples:
             # 기본 사용
             response = llm.describe_image("photo.jpg")
-            
+
             # 대화 히스토리 포함
             response = llm.describe_image("photo.jpg", use_history=True)
-            
+
             # ask()와 동일한 결과
             response = llm.ask("Describe this image in detail.", files=["photo.jpg"])
         """
         # 기존 시스템 프롬프트 임시 저장
         original_system_prompt = self.system_prompt
-        
+
         # 시스템 프롬프트가 제공된 경우 임시로 설정
         if system_prompt is not None:
             self.system_prompt = system_prompt
-        
+
         try:
             # temperature와 max_tokens 처리
             # 일부 프로바이더는 이를 ask 파라미터로 받지 않으므로 임시로 인스턴스 값 변경
             original_temperature = self.temperature
             original_max_tokens = self.max_tokens
-            
+
             if temperature is not None:
                 self.temperature = temperature
             if max_tokens is not None:
                 self.max_tokens = max_tokens
-                
+
             # ask 메서드 호출
-            result = self.ask(
-                input=prompt,
-                files=[image],
-                enable_cache=enable_cache,
-                use_history=use_history,
-                **kwargs
-            )
+            result = self.ask(input=prompt, files=[image], enable_cache=enable_cache, use_history=use_history, **kwargs)
         finally:
             # 원래 값들 복원
             self.system_prompt = original_system_prompt
@@ -1122,7 +1195,7 @@ class BaseLLM(abc.ABC):
                 self.temperature = original_temperature
             if max_tokens is not None:
                 self.max_tokens = original_max_tokens
-            
+
         return result
 
     async def describe_image_async(
@@ -1135,13 +1208,13 @@ class BaseLLM(abc.ABC):
         max_tokens: Optional[int] = None,
         enable_cache: bool = False,
         use_history: bool = False,
-        **kwargs
+        **kwargs,
     ) -> Reply:
         """
         단일 이미지를 간단하게 설명 요청 (비동기)
-        
+
         이 메서드는 ask_async() 메서드의 편의 래퍼입니다.
-        
+
         Args:
             image: 이미지 파일 경로, Path 객체, 또는 파일 IO 객체
             prompt: 이미지 설명을 위한 프롬프트 (기본값: "Describe this image in detail.")
@@ -1151,34 +1224,30 @@ class BaseLLM(abc.ABC):
             enable_cache: 캐싱 활성화 여부
             use_history: 대화 히스토리 사용 여부 (기본값: False)
             **kwargs: ask_async() 메서드에 전달할 추가 파라미터
-            
+
         Returns:
             Reply: 이미지 설명이 포함된 응답
         """
         # 기존 시스템 프롬프트 임시 저장
         original_system_prompt = self.system_prompt
-        
+
         # 시스템 프롬프트가 제공된 경우 임시로 설정
         if system_prompt is not None:
             self.system_prompt = system_prompt
-        
+
         try:
             # temperature와 max_tokens 처리
             original_temperature = self.temperature
             original_max_tokens = self.max_tokens
-            
+
             if temperature is not None:
                 self.temperature = temperature
             if max_tokens is not None:
                 self.max_tokens = max_tokens
-                
+
             # ask_async 메서드 호출
             result = await self.ask_async(
-                input=prompt,
-                files=[image],
-                enable_cache=enable_cache,
-                use_history=use_history,
-                **kwargs
+                input=prompt, files=[image], enable_cache=enable_cache, use_history=use_history, **kwargs
             )
         finally:
             # 원래 값들 복원
@@ -1187,31 +1256,23 @@ class BaseLLM(abc.ABC):
                 self.temperature = original_temperature
             if max_tokens is not None:
                 self.max_tokens = original_max_tokens
-            
+
         return result
 
-    def extract_text_from_image(
-        self,
-        image: Union[str, Path, IO],
-        **kwargs
-    ) -> Reply:
+    def extract_text_from_image(self, image: Union[str, Path, IO], **kwargs) -> Reply:
         """이미지에서 텍스트 추출 특화 메서드"""
         return self.describe_image(
             image,
             "Extract all text from this image. Return only the text content without any additional explanation.",
-            **kwargs
+            **kwargs,
         )
 
-    def analyze_image_content(
-        self,
-        image: Union[str, Path, IO],
-        **kwargs
-    ) -> Reply:
+    def analyze_image_content(self, image: Union[str, Path, IO], **kwargs) -> Reply:
         """이미지 내용 분석 특화 메서드"""
         return self.describe_image(
             image,
             "Analyze this image and provide: 1) Main objects and subjects 2) Dominant colors and visual style 3) Setting or context 4) Any visible text 5) Overall mood or atmosphere",
-            **kwargs
+            **kwargs,
         )
 
 

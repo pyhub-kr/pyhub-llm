@@ -3,14 +3,12 @@ import re
 from typing import Any, AsyncGenerator, Generator, Optional, Union, cast
 
 import pydantic
-from typing import IO
-from pyhub.llm.utils.templates import Template
-from pyhub.llm.exceptions import LLMError
 from ollama import AsyncClient, ChatResponse
 from ollama import Client as SyncClient
 from ollama import EmbedResponse, ListResponse
 from pydantic import ValidationError
 
+from pyhub.llm.base import BaseLLM
 from pyhub.llm.cache.utils import (
     cache_make_key_and_get,
     cache_make_key_and_get_async,
@@ -18,8 +16,6 @@ from pyhub.llm.cache.utils import (
     cache_set_async,
 )
 from pyhub.llm.settings import llm_settings
-
-from pyhub.llm.base import BaseLLM
 from pyhub.llm.types import (
     Embed,
     EmbedList,
@@ -30,6 +26,7 @@ from pyhub.llm.types import (
     Usage,
 )
 from pyhub.llm.utils.files import IOType, encode_files
+from pyhub.llm.utils.templates import Template
 
 logger = logging.getLogger(__name__)
 

@@ -7,8 +7,9 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Awaitable, Callable, List, Optional, Tuple, Type, Union
 
-from pyhub.llm.utils.templates import async_to_sync
 from pydantic import BaseModel, ValidationError
+
+from pyhub.llm.utils.templates import async_to_sync
 
 logger = logging.getLogger(__name__)
 

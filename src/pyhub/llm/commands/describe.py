@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import IO, Optional, Union
+from typing import Optional, Union
 
 import typer
 from PIL import Image as PILImage
@@ -166,52 +166,52 @@ def describe(
                 def __init__(self):
                     self.text = "[Image description unavailable due to missing imports]"
                     self.usage = None
-            
+
             for chunk in [DummyChunk()]:
-                    response_text += chunk.text
-                    if hasattr(chunk, "usage") and chunk.usage:
-                        usage = chunk.usage
+                response_text += chunk.text
+                if hasattr(chunk, "usage") and chunk.usage:
+                    usage = chunk.usage
 
-                    # 단일 파일 처리 시에만 실시간 출력
-                    if len(valid_image_paths) == 1:
-                        console.print(chunk.text, end="")
+                # 단일 파일 처리 시에만 실시간 출력
+                if len(valid_image_paths) == 1:
+                    console.print(chunk.text, end="")
 
-                elapsed_time = time.time() - start_time
+            elapsed_time = time.time() - start_time
 
-                # 결과 저장
-                result = {
-                    "image": str(image_path),
-                    "description": response_text,
-                    "model": model.value,
-                    "elapsed_time": elapsed_time,
+            # 결과 저장
+            result = {
+                "image": str(image_path),
+                "description": response_text,
+                "model": model.value,
+                "elapsed_time": elapsed_time,
+            }
+
+            if usage:
+                result["usage"] = {
+                    "input_tokens": usage.input,
+                    "output_tokens": usage.output,
+                    "total_tokens": usage.total,
                 }
+                # 전체 통계 업데이트
+                if total_usage is None:
+                    total_usage = Usage()
+                total_usage += usage
 
-                if usage:
-                    result["usage"] = {
-                        "input_tokens": usage.input,
-                        "output_tokens": usage.output,
-                        "total_tokens": usage.total,
-                    }
-                    # 전체 통계 업데이트
-                    if total_usage is None:
-                        total_usage = Usage()
-                    total_usage += usage
+            results.append(result)
 
-                results.append(result)
+            # 배치 출력 시 개별 파일 저장
+            if batch_output_dir and len(valid_image_paths) > 1:
+                output_file = batch_output_dir / f"{image_path.stem}_description.{output_format}"
+                save_result(output_file, result, output_format)
+                if is_verbose:
+                    console.print(f"[dim]저장됨: {output_file}[/dim]")
 
-                # 배치 출력 시 개별 파일 저장
-                if batch_output_dir and len(valid_image_paths) > 1:
-                    output_file = batch_output_dir / f"{image_path.stem}_description.{output_format}"
-                    save_result(output_file, result, output_format)
-                    if is_verbose:
-                        console.print(f"[dim]저장됨: {output_file}[/dim]")
-
-                # 배치 처리 시 간단한 결과 표시
-                if len(valid_image_paths) > 1:
-                    if output_format == "text":
-                        console.print(response_text[:200] + "..." if len(response_text) > 200 else response_text)
-                    else:
-                        console.print(f"[green]✓ 완료 ({elapsed_time:.2f}초)[/green]")
+            # 배치 처리 시 간단한 결과 표시
+            if len(valid_image_paths) > 1:
+                if output_format == "text":
+                    console.print(response_text[:200] + "..." if len(response_text) > 200 else response_text)
+                else:
+                    console.print(f"[green]✓ 완료 ({elapsed_time:.2f}초)[/green]")
 
         except Exception as e:
             console.print(f"[red]오류 처리 중 {image_path}: {e}[/red]")
