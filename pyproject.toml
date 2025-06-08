@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Standalone LLM library with support for multiple providers"
 authors = [{name = "PyHub Team", email = "team@pyhub.dev"}]
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 license = {text = "MIT"}
 keywords = ["llm", "ai", "openai", "anthropic", "langchain"]
 classifiers = [
@@ -12,11 +12,10 @@ classifiers = [
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
 ]
 
 dependencies = [
@@ -28,18 +27,19 @@ dependencies = [
     "jinja2>=3.1.0",
     "toml>=0.10.0",
     "aiofiles>=23.0.0",
+    "pillow>=10.0.0",
 ]
 
 [project.optional-dependencies]
-openai = ["openai>=1.0.0"]
-anthropic = ["anthropic>=0.18.0"]
-google = ["google-generativeai>=0.4.0"]
-ollama = ["ollama>=0.1.0"]
+openai = ["openai>=1.84.0"]
+anthropic = ["anthropic>=0.52.0"]
+google = ["google-genai>=1.19.0"]
+ollama = ["ollama>=0.5.0"]
 all = [
-    "openai>=1.0.0",
-    "anthropic>=0.18.0", 
-    "google-generativeai>=0.4.0",
-    "ollama>=0.1.0",
+    "pyhub-llm[openai]",
+    "pyhub-llm[anthropic]",
+    "pyhub-llm[google]",
+    "pyhub-llm[ollama]",
 ]
 dev = [
     "pytest>=7.0.0",
@@ -49,12 +49,19 @@ dev = [
     "ruff>=0.1.0",
     "mypy>=1.0.0",
 ]
+docs = [
+    "mkdocs",
+    "mkdocs-material",
+    "mkdocs-glightbox",
+    "pymdown-extensions",
+]
+build = ["setuptools", "wheel", "build", "twine"]
 
 [project.urls]
-Homepage = "https://github.com/pyhub/pyhub-llm"
+Homepage = "https://github.com/pyhub-kr/pyhub-llm"
 Documentation = "https://pyhub-llm.readthedocs.io"
-Repository = "https://github.com/pyhub/pyhub-llm"
-Issues = "https://github.com/pyhub/pyhub-llm/issues"
+Repository = "https://github.com/pyhub-kr/pyhub-llm"
+Issues = "https://github.com/pyhub-kr/pyhub-llm/issues"
 
 [project.scripts]
 pyhub-llm = "pyhub.llm.cli:app"
@@ -65,30 +72,32 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pyhub"]
+exclude = ["**/__pycache__", "**/.DS_Store"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+pythonpath = ["src", "tests"]
+python_files = ["test_*.py", "*_test.py"]
+addopts = "-ra --disable-warnings"
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
 
 [tool.black]
 line-length = 120
-target-version = ["py38"]
+target-version = ["py310", "py311", "py312", "py313"]
+include = '\.pyi?$'
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
 
 [tool.ruff]
 line-length = 120
-target-version = "py38"
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
+target-version = "py310"
 
-[tool.mypy]
-python_version = "3.8"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+# https://www.djlint.com/docs/configuration/
+[tool.djlint]
+profile = "django"
+indent = 2

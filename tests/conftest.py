@@ -92,7 +92,7 @@ def mock_llm_factory(monkeypatch):
         mock_llm.embed.return_value = Mock(embeddings=[0.1, 0.2, 0.3])
         return mock_llm
     
-    monkeypatch.setattr("pyhub.llm.factory.LLMFactory.create", _mock_factory)
+    monkeypatch.setattr("pyhub.llm.LLM.create", _mock_factory)
 
 
 # Skip markers for provider tests

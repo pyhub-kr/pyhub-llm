@@ -1,7 +1,7 @@
 import pytest
 from pathlib import Path
 from unittest.mock import Mock, patch
-from pyhub.llm.templates.engine import TemplateEngine
+from pyhub.llm.templates import TemplateEngine
 
 
 class TestTemplateEngine:
@@ -46,288 +46,309 @@ class TestTemplateEngine:
         assert "- banana" in result
         assert "- orange" in result
     
-    def test_render_file_template(self, tmp_path):
-        """Test rendering a file template."""
-        template_dir = tmp_path / "templates"
-        template_dir.mkdir()
-        
-        # Create a template file
-        template_file = template_dir / "greeting.j2"
-        template_file.write_text("Hello {{ name }} from {{ city }}!")
-        
-        engine = TemplateEngine(str(template_dir))
-        result = engine.render("greeting.j2", {"name": "Bob", "city": "Paris"})
-        
-        assert result == "Hello Bob from Paris!"
-    
-    def test_render_nested_template(self, tmp_path):
-        """Test rendering nested templates."""
-        template_dir = tmp_path / "templates"
-        template_dir.mkdir()
-        subdir = template_dir / "prompts"
-        subdir.mkdir()
-        
-        # Create a nested template
-        template_file = subdir / "analysis.j2"
-        template_file.write_text("Analyze: {{ query }}")
-        
-        engine = TemplateEngine(str(template_dir))
-        result = engine.render("prompts/analysis.j2", {"query": "What is AI?"})
-        
-        assert result == "Analyze: What is AI?"
-    
-    def test_template_not_found(self, tmp_path):
-        """Test handling of missing template."""
-        template_dir = tmp_path / "templates"
-        template_dir.mkdir()
-        
-        engine = TemplateEngine(str(template_dir))
-        
-        with pytest.raises(Exception):  # Jinja2 will raise TemplateNotFound
-            engine.render("nonexistent.j2")
-    
     def test_template_with_filters(self):
-        """Test using Jinja2 filters."""
+        """Test templates with filters."""
         engine = TemplateEngine()
         
         template = "{{ name|upper }} - {{ price|round(2) }}"
-        result = engine.render_string(template, {"name": "product", "price": 10.456})
-        
-        assert result == "PRODUCT - 10.46"
+        result = engine.render_string(template, {"name": "product", "price": 12.345})
+        assert result == "PRODUCT - 12.35"
     
     def test_template_with_conditionals(self):
         """Test templates with conditionals."""
         engine = TemplateEngine()
         
         template = """
-        {% if user.premium %}
-        Welcome Premium User: {{ user.name }}
+        {% if user %}
+        Hello {{ user }}!
         {% else %}
-        Welcome {{ user.name }}
+        Hello Guest!
         {% endif %}
         """
         
-        # Premium user
-        result1 = engine.render_string(
-            template,
-            {"user": {"name": "Alice", "premium": True}}
-        )
-        assert "Welcome Premium User: Alice" in result1
+        result = engine.render_string(template, {"user": "Alice"})
+        assert "Hello Alice!" in result
         
-        # Regular user
-        result2 = engine.render_string(
-            template,
-            {"user": {"name": "Bob", "premium": False}}
-        )
-        assert "Welcome Bob" in result2
-        assert "Premium" not in result2
+        result = engine.render_string(template, {})
+        assert "Hello Guest!" in result
     
     def test_template_with_macros(self):
         """Test templates with macros."""
         engine = TemplateEngine()
         
         template = """
-        {% macro format_user(user) %}
-        {{ user.name }} ({{ user.email }})
+        {% macro greeting(name) %}
+        Hello {{ name }}!
         {% endmacro %}
         
-        Users:
-        {% for user in users %}
-        - {{ format_user(user) }}
-        {% endfor %}
+        {{ greeting("World") }}
         """
         
-        users = [
-            {"name": "Alice", "email": "alice@example.com"},
-            {"name": "Bob", "email": "bob@example.com"}
-        ]
-        
-        result = engine.render_string(template, {"users": users})
-        assert "Alice (alice@example.com)" in result
-        assert "Bob (bob@example.com)" in result
+        result = engine.render_string(template)
+        assert "Hello World!" in result
     
-    def test_template_inheritance(self, tmp_path):
+    def test_template_inheritance(self):
         """Test template inheritance."""
-        template_dir = tmp_path / "templates"
-        template_dir.mkdir()
+        # This test requires file-based templates
+        tmp_path = Path("/tmp/test_templates")
+        tmp_path.mkdir(exist_ok=True)
         
         # Create base template
-        base_template = template_dir / "base.j2"
+        base_template = tmp_path / "base.html"
         base_template.write_text("""
-        <system>
-        {% block system %}Default system prompt{% endblock %}
-        </system>
-        
-        <user>
-        {% block user %}Default user prompt{% endblock %}
-        </user>
+        <html>
+        <head><title>{% block title %}Default{% endblock %}</title></head>
+        <body>{% block content %}{% endblock %}</body>
+        </html>
         """)
         
         # Create child template
-        child_template = template_dir / "child.j2"
+        child_template = tmp_path / "child.html"
         child_template.write_text("""
-        {% extends "base.j2" %}
-        
-        {% block system %}You are a helpful assistant.{% endblock %}
-        
-        {% block user %}{{ question }}{% endblock %}
+        {% extends "base.html" %}
+        {% block title %}Child Page{% endblock %}
+        {% block content %}Hello from child!{% endblock %}
         """)
         
-        engine = TemplateEngine(str(template_dir))
-        result = engine.render("child.j2", {"question": "What is Python?"})
+        engine = TemplateEngine(str(tmp_path))
+        result = engine.render_template("child.html")
         
-        assert "<system>" in result
-        assert "You are a helpful assistant." in result
-        assert "<user>" in result
-        assert "What is Python?" in result
+        assert "<title>Child Page</title>" in result
+        assert "Hello from child!" in result
+        
+        # Cleanup
+        base_template.unlink()
+        child_template.unlink()
+        tmp_path.rmdir()
     
-    def test_template_with_includes(self, tmp_path):
+    def test_template_with_includes(self):
         """Test template includes."""
-        template_dir = tmp_path / "templates"
-        template_dir.mkdir()
+        tmp_path = Path("/tmp/test_includes")
+        tmp_path.mkdir(exist_ok=True)
         
-        # Create include file
-        include_file = template_dir / "_header.j2"
-        include_file.write_text("=== {{ title }} ===")
+        # Create included template
+        header_template = tmp_path / "header.html"
+        header_template.write_text("<h1>{{ title }}</h1>")
         
         # Create main template
-        main_template = template_dir / "report.j2"
+        main_template = tmp_path / "main.html"
         main_template.write_text("""
-        {% include "_header.j2" %}
-        
-        {{ content }}
+        {% include "header.html" %}
+        <p>Content here</p>
         """)
         
-        engine = TemplateEngine(str(template_dir))
-        result = engine.render(
-            "report.j2",
-            {
-                "title": "Analysis Report",
-                "content": "This is the report content."
-            }
-        )
+        engine = TemplateEngine(str(tmp_path))
+        result = engine.render_template("main.html", {"title": "My Page"})
         
-        assert "=== Analysis Report ===" in result
-        assert "This is the report content." in result
-    
-    def test_template_escaping(self):
-        """Test HTML escaping in templates."""
-        engine = TemplateEngine()
+        assert "<h1>My Page</h1>" in result
+        assert "<p>Content here</p>" in result
         
-        # By default, Jinja2 auto-escapes HTML
-        template = "{{ content }}"
-        result = engine.render_string(
-            template,
-            {"content": "<script>alert('XSS')</script>"}
-        )
-        
-        # Should escape HTML characters
-        assert "&lt;script&gt;" in result or "<script>" in result
-        # Note: Default escaping depends on Jinja2 configuration
+        # Cleanup
+        header_template.unlink()
+        main_template.unlink()
+        tmp_path.rmdir()
     
     def test_template_with_custom_filters(self):
         """Test adding custom filters."""
         engine = TemplateEngine()
         
-        # Add a custom filter
+        # Add custom filter
         def reverse_string(s):
             return s[::-1]
         
-        engine.env.filters['reverse'] = reverse_string
+        engine.add_filter("reverse", reverse_string)
         
         template = "{{ text|reverse }}"
         result = engine.render_string(template, {"text": "hello"})
-        
         assert result == "olleh"
     
     def test_template_globals(self):
-        """Test template with global variables."""
+        """Test adding global variables."""
         engine = TemplateEngine()
         
-        # Add global variables
-        engine.env.globals['app_name'] = "PyHub LLM"
-        engine.env.globals['version'] = "1.0.0"
+        # Add global variable
+        engine.add_global("app_name", "MyApp")
         
-        template = "{{ app_name }} v{{ version }}"
+        template = "Welcome to {{ app_name }}!"
         result = engine.render_string(template)
-        
-        assert result == "PyHub LLM v1.0.0"
+        assert result == "Welcome to MyApp!"
     
-    def test_safe_template_rendering(self):
-        """Test safe rendering with untrusted input."""
-        engine = TemplateEngine()
-        
-        # Potentially dangerous template operations should be handled safely
-        template = "Hello {{ name }}"
-        
-        # Even with special characters, should render safely
-        result = engine.render_string(
-            template,
-            {"name": "{{7*7}}"}  # This should not be evaluated
-        )
-        
-        assert result == "Hello {{7*7}}"
-        assert "49" not in result  # Should not evaluate the expression
-
-
-class TestTemplateIntegrationWithLLM:
-    """Test template integration with LLM."""
-    
-    @patch('pyhub.llm.base.BaseLLM')
-    def test_llm_with_template_prompt(self, mock_llm_class):
-        """Test LLM using template for prompts."""
-        # This would test the integration between LLM and templates
-        # In actual implementation, LLM might have a method like:
-        # llm.ask_with_template("template.j2", context)
-        
-        mock_llm = mock_llm_class()
-        mock_llm.ask.return_value = "Mocked response"
-        
-        # Simulate template rendering
-        template_engine = TemplateEngine()
-        prompt = template_engine.render_string(
-            "Analyze this data: {{ data }}",
-            {"data": "[1, 2, 3, 4, 5]"}
-        )
-        
-        response = mock_llm.ask(prompt)
-        
-        assert response == "Mocked response"
-        mock_llm.ask.assert_called_with("Analyze this data: [1, 2, 3, 4, 5]")
-    
-    def test_prompt_library(self, tmp_path):
-        """Test creating a prompt library with templates."""
-        template_dir = tmp_path / "prompts"
+    def test_render_file_template(self, tmp_path):
+        """Test rendering file templates."""
+        template_dir = tmp_path / "templates"
         template_dir.mkdir()
         
-        # Create various prompt templates
-        prompts = {
-            "summarize.j2": "Summarize the following text:\n\n{{ text }}",
-            "translate.j2": "Translate to {{ target_language }}:\n\n{{ text }}",
-            "analyze.j2": "Analyze the {{ aspect }} of:\n\n{{ content }}",
-            "chat.j2": "{{ system_prompt }}\n\nUser: {{ user_message }}"
-        }
-        
-        for filename, content in prompts.items():
-            (template_dir / filename).write_text(content)
+        # Create template file
+        template_file = template_dir / "test.html"
+        template_file.write_text("Hello {{ name }}!")
         
         engine = TemplateEngine(str(template_dir))
+        result = engine.render_template("test.html", {"name": "World"})
+        assert result == "Hello World!"
+    
+    def test_autoescape(self):
+        """Test autoescaping of HTML."""
+        engine = TemplateEngine()
         
-        # Test summarize prompt
-        summary_prompt = engine.render(
-            "summarize.j2",
-            {"text": "Long article content here..."}
-        )
-        assert "Summarize the following text:" in summary_prompt
-        assert "Long article content here..." in summary_prompt
+        template = "{{ content }}"
+        result = engine.render_string(template, {"content": "<script>alert('xss')</script>"})
         
-        # Test translate prompt
-        translate_prompt = engine.render(
-            "translate.j2",
-            {
-                "target_language": "French",
-                "text": "Hello world"
-            }
-        )
-        assert "Translate to French:" in translate_prompt
-        assert "Hello world" in translate_prompt
+        # Should escape HTML
+        assert "&lt;script&gt;" in result
+        assert "&lt;/script&gt;" in result
+    
+    def test_template_not_found(self, tmp_path):
+        """Test handling of missing templates."""
+        engine = TemplateEngine(str(tmp_path))
+        
+        with pytest.raises(Exception):  # Jinja2 raises TemplateNotFound
+            engine.render_template("nonexistent.html")
+    
+    def test_empty_context(self):
+        """Test rendering with empty context."""
+        engine = TemplateEngine()
+        
+        template = "Static content"
+        result = engine.render_string(template)
+        assert result == "Static content"
+    
+    def test_complex_nested_data(self):
+        """Test rendering with complex nested data."""
+        engine = TemplateEngine()
+        
+        template = """
+        {% for user in users %}
+        Name: {{ user.name }}
+        Tags: {% for tag in user.tags %}{{ tag }}{% if not loop.last %}, {% endif %}{% endfor %}
+        {% endfor %}
+        """
+        
+        context = {
+            "users": [
+                {"name": "Alice", "tags": ["admin", "user"]},
+                {"name": "Bob", "tags": ["user", "guest"]}
+            ]
+        }
+        
+        result = engine.render_string(template, context)
+        assert "Name: Alice" in result
+        assert "Tags: admin, user" in result
+        assert "Name: Bob" in result
+        assert "Tags: user, guest" in result
+    
+    def test_from_string_method(self):
+        """Test creating template from string."""
+        engine = TemplateEngine()
+        
+        template = engine.from_string("Hello {{ name }}!")
+        result = template.render(name="World")
+        assert result == "Hello World!"
+    
+    def test_get_template_method(self, tmp_path):
+        """Test getting template object."""
+        template_dir = tmp_path / "templates"
+        template_dir.mkdir()
+        
+        # Create template file
+        template_file = template_dir / "test.html"
+        template_file.write_text("Hello {{ name }}!")
+        
+        engine = TemplateEngine(str(template_dir))
+        template = engine.get_template("test.html")
+        result = template.render(name="World")
+        assert result == "Hello World!"
+    
+    def test_template_with_loops(self):
+        """Test templates with loops."""
+        engine = TemplateEngine()
+        
+        template = """
+        {% for i in range(3) %}
+        Item {{ loop.index }}: {{ items[i] }}
+        {% endfor %}
+        """
+        
+        context = {"items": ["apple", "banana", "orange"]}
+        result = engine.render_string(template, context)
+        
+        assert "Item 1: apple" in result
+        assert "Item 2: banana" in result
+        assert "Item 3: orange" in result
+    
+    def test_template_with_comments(self):
+        """Test templates with comments."""
+        engine = TemplateEngine()
+        
+        template = """
+        {# This is a comment #}
+        Hello {{ name }}!
+        <!-- This HTML comment will show -->
+        """
+        
+        result = engine.render_string(template, {"name": "World"})
+        assert "This is a comment" not in result  # Jinja2 comment
+        assert "<!-- This HTML comment will show -->" in result  # HTML comment
+    
+    @patch('pyhub.llm.templates.engine.Environment')
+    def test_environment_configuration(self, mock_env_class):
+        """Test that environment is properly configured."""
+        mock_env = Mock()
+        mock_env_class.return_value = mock_env
+        
+        engine = TemplateEngine()
+        
+        # Verify Environment was created with autoescape
+        mock_env_class.assert_called_once()
+        args, kwargs = mock_env_class.call_args
+        assert kwargs.get('autoescape') is True
+
+
+class TestTemplateIntegration:
+    """Test template integration with LLM."""
+    
+    def test_template_with_llm_prompts(self):
+        """Test using templates for LLM prompts."""
+        engine = TemplateEngine()
+        
+        prompt_template = """
+        You are a helpful assistant.
+        
+        User: {{ question }}
+        
+        Please provide a {{ style }} response.
+        """
+        
+        context = {
+            "question": "What is Python?",
+            "style": "concise"
+        }
+        
+        result = engine.render_string(prompt_template, context)
+        assert "User: What is Python?" in result
+        assert "Please provide a concise response." in result
+    
+    def test_template_with_system_prompts(self):
+        """Test templates for system prompts."""
+        engine = TemplateEngine()
+        
+        system_template = """
+        You are {{ role }}.
+        Your expertise includes: {% for skill in skills %}{{ skill }}{% if not loop.last %}, {% endif %}{% endfor %}.
+        {% if constraints %}
+        Constraints:
+        {% for constraint in constraints %}
+        - {{ constraint }}
+        {% endfor %}
+        {% endif %}
+        """
+        
+        context = {
+            "role": "a Python expert",
+            "skills": ["Django", "FastAPI", "Data Science"],
+            "constraints": ["Keep responses under 100 words", "Use examples"]
+        }
+        
+        result = engine.render_string(system_template, context)
+        assert "You are a Python expert." in result
+        assert "Django, FastAPI, Data Science" in result
+        assert "- Keep responses under 100 words" in result

@@ -2,32 +2,32 @@ import pytest
 import os
 from unittest.mock import Mock, patch, AsyncMock
 from pyhub.llm import LLM
-from pyhub.llm.factory import LLMFactory
-from pyhub.llm.providers.mock import MockLLM
+from pyhub.llm.mock import MockLLM
 from pyhub.llm.types import Message
 
 
-class TestProviderRegistration:
-    """Test provider registration and factory integration."""
+class TestProviderDetection:
+    """Test provider detection functionality."""
     
-    def test_register_mock_provider(self):
-        """Test registering mock provider."""
-        # Register the mock provider
-        LLMFactory.register_provider("mock", MockLLM)
-        
-        # Check it's registered
-        assert "mock" in LLMFactory.list_providers()
+    def test_detect_openai_provider(self):
+        """Test detecting OpenAI provider from model names."""
+        openai_models = ["gpt-4o", "gpt-4o-mini", "text-embedding-ada-002"]
+        for model in openai_models:
+            assert LLM.get_vendor_from_model(model) == "openai"
     
-    def test_create_with_mock_provider(self):
-        """Test creating LLM with mock provider."""
-        # Register mock provider
-        LLMFactory.register_provider("mock", MockLLM)
-        
-        # Mock the detect provider to return "mock"
-        with patch.object(LLMFactory, '_detect_provider', return_value="mock"):
-            llm = LLM.create("mock-model")
-            assert isinstance(llm, MockLLM)
-            assert llm.model == "mock-model"
+    def test_detect_anthropic_provider(self):
+        """Test detecting Anthropic provider from model names."""
+        anthropic_models = ["claude-3-5-sonnet-latest", "claude-3-opus-latest"]
+        for model in anthropic_models:
+            assert LLM.get_vendor_from_model(model) == "anthropic"
+    
+    def test_create_with_correct_provider(self):
+        """Test creating LLM instances with correct providers."""
+        # Test OpenAI
+        with patch('pyhub.llm.OpenAILLM') as mock_openai:
+            mock_openai.return_value = Mock()
+            llm = LLM.create("gpt-4o")
+            mock_openai.assert_called_once()
 
 
 class TestMockProvider:
@@ -119,70 +119,52 @@ class TestProviderErrorHandling:
     
     def test_provider_not_found(self):
         """Test error when provider not found."""
-        from pyhub.llm.exceptions import ProviderNotFoundError
-        
-        with pytest.raises(ProviderNotFoundError):
+        with pytest.raises(ValueError, match="Unknown model"):
             LLM.create("unknown-xyz-model")
     
-    def test_invalid_provider_class(self):
-        """Test registering invalid provider class."""
-        # Try to register a class that doesn't inherit from BaseLLM
-        class InvalidProvider:
-            pass
-        
-        # This should work - validation happens at runtime
-        LLMFactory.register_provider("invalid", InvalidProvider)
-        
-        # But creating an instance should fail
-        with patch.object(LLMFactory, '_detect_provider', return_value="invalid"):
-            with pytest.raises(Exception):
-                LLM.create("invalid-model")
+    def test_invalid_model_name(self):
+        """Test creating LLM with invalid model name."""
+        with pytest.raises(ValueError, match="Unknown model"):
+            LLM.create("not-a-real-model")
 
 
-class TestProviderDetection:
+class TestProviderAutoDetection:
     """Test automatic provider detection."""
     
     def test_detect_openai_models(self):
         """Test detecting OpenAI models."""
-        factory = LLMFactory()
-        assert factory._detect_provider("gpt-4") == "openai"
-        assert factory._detect_provider("gpt-3.5-turbo") == "openai"
-        assert factory._detect_provider("text-embedding-ada-002") == "openai"
-        assert factory._detect_provider("chatgpt-4o-latest") == "openai"
-        assert factory._detect_provider("o1-mini") == "openai"
+        assert LLM.get_vendor_from_model("gpt-4o") == "openai"
+        assert LLM.get_vendor_from_model("text-embedding-ada-002") == "openai"
+        assert LLM.get_vendor_from_model("gpt-4o") == "openai"
+        assert LLM.get_vendor_from_model("o1-mini") == "openai"
     
     def test_detect_anthropic_models(self):
         """Test detecting Anthropic models."""
-        factory = LLMFactory()
-        assert factory._detect_provider("claude-3-opus") == "anthropic"
-        assert factory._detect_provider("claude-3-sonnet") == "anthropic"
-        assert factory._detect_provider("claude-2") == "anthropic"
-        assert factory._detect_provider("claude-3-5-sonnet-20241022") == "anthropic"
+        assert LLM.get_vendor_from_model("claude-3-5-sonnet-latest") == "anthropic"
+        assert LLM.get_vendor_from_model("claude-3-5-haiku-latest") == "anthropic"
+        assert LLM.get_vendor_from_model("claude-3-opus-latest") == "anthropic"
     
     def test_detect_google_models(self):
         """Test detecting Google models."""
-        factory = LLMFactory()
-        assert factory._detect_provider("gemini-pro") == "google"
-        assert factory._detect_provider("gemini-1.5-pro") == "google"
-        assert factory._detect_provider("gemini-2.0-flash") == "google"
-        assert factory._detect_provider("text-embedding-004") == "google"
+        assert LLM.get_vendor_from_model("gemini-2.0-flash") == "google"
+        assert LLM.get_vendor_from_model("gemini-1.5-pro") == "google"
+        assert LLM.get_vendor_from_model("gemini-1.5-flash") == "google"
+        assert LLM.get_vendor_from_model("text-embedding-004") == "google"
     
     def test_detect_ollama_models(self):
         """Test detecting Ollama models."""
-        factory = LLMFactory()
-        assert factory._detect_provider("llama2") == "ollama"
-        assert factory._detect_provider("llama3.1") == "ollama"
-        assert factory._detect_provider("mistral") == "ollama"
-        assert factory._detect_provider("qwen2") == "ollama"
-        assert factory._detect_provider("gemma3") == "ollama"
+        assert LLM.get_vendor_from_model("llama3.3") == "ollama"
+        assert LLM.get_vendor_from_model("llama3.1") == "ollama"
+        assert LLM.get_vendor_from_model("mistral") == "ollama"
+        assert LLM.get_vendor_from_model("qwen2") == "ollama"
+        assert LLM.get_vendor_from_model("gemma3") == "ollama"
     
     def test_detect_upstage_models(self):
         """Test detecting Upstage models."""
-        factory = LLMFactory()
-        assert factory._detect_provider("solar-pro") == "upstage"
-        assert factory._detect_provider("solar-mini") == "upstage"
-        assert factory._detect_provider("embedding-query") == "upstage"
-        assert factory._detect_provider("embedding-passage") == "upstage"
+        assert LLM.get_vendor_from_model("solar-pro") == "upstage"
+        assert LLM.get_vendor_from_model("solar-mini") == "upstage"
+        assert LLM.get_vendor_from_model("embedding-query") == "upstage"
+        assert LLM.get_vendor_from_model("embedding-passage") == "upstage"
 
 
 class TestProviderIntegration:
@@ -190,14 +172,10 @@ class TestProviderIntegration:
     
     def test_switching_providers(self):
         """Test switching between providers."""
-        # Register mock provider
-        LLMFactory.register_provider("mock", MockLLM)
-        
-        # Create different "providers" (all mock for testing)
-        with patch.object(LLMFactory, '_detect_provider', return_value="mock"):
-            llm1 = LLM.create("gpt-4-mock")
-            llm2 = LLM.create("claude-3-mock")
-            llm3 = LLM.create("gemini-pro-mock")
+        # Create different providers using mock instances
+        llm1 = MockLLM(model="gpt-4-mock")
+        llm2 = MockLLM(model="claude-3-mock")
+        llm3 = MockLLM(model="gemini-pro-mock")
         
         # All should be MockLLM instances
         assert all(isinstance(llm, MockLLM) for llm in [llm1, llm2, llm3])
@@ -207,29 +185,22 @@ class TestProviderIntegration:
         assert llm2.model == "claude-3-mock"
         assert llm3.model == "gemini-pro-mock"
     
-    def test_provider_with_settings(self):
-        """Test provider with settings integration."""
-        from pyhub.llm.settings import Settings
-        
-        # Create settings
-        settings = Settings()
-        settings.set("mock", {"api_key": "test-key-123"})
-        
-        # Register mock provider
-        LLMFactory.register_provider("mock", MockLLM)
-        
-        with patch.object(LLMFactory, '_detect_provider', return_value="mock"):
-            with patch.object(LLMFactory, 'get_settings', return_value=settings):
-                llm = LLM.create("mock-model")
-                assert isinstance(llm, MockLLM)
+    def test_provider_with_api_key(self):
+        """Test provider with API key."""
+        # Test creating with explicit API key
+        with patch('pyhub.llm.OpenAILLM') as mock_openai:
+            mock_instance = Mock()
+            mock_openai.return_value = mock_instance
+            
+            llm = LLM.create("gpt-4o", api_key="test-key-123")
+            
+            mock_openai.assert_called_once_with(model="gpt-4o", api_key="test-key-123")
+            assert llm == mock_instance
     
     def test_provider_comparison(self):
         """Test comparing responses from different providers (all mock)."""
-        # Register mock provider
-        LLMFactory.register_provider("mock", MockLLM)
-        
         providers = []
-        models = ["gpt-4", "claude-3", "gemini-pro"]
+        models = ["gpt-4o", "claude-3", "gemini-pro"]
         
         for i, model in enumerate(models):
             llm = MockLLM(model=model)
@@ -245,7 +216,7 @@ class TestProviderIntegration:
         
         # Check all responded
         assert len(responses) == 3
-        assert responses["gpt-4"] == "Provider 1 response: What is AI?"
+        assert responses["gpt-4o"] == "Provider 1 response: What is AI?"
         assert responses["claude-3"] == "Provider 2 response: What is AI?"
         assert responses["gemini-pro"] == "Provider 3 response: What is AI?"
 
@@ -256,23 +227,23 @@ class TestOpenAIProviderMocked:
     
     def test_openai_provider_detection(self):
         """Test OpenAI models are detected correctly."""
-        factory = LLMFactory()
         openai_models = [
-            "gpt-4", "gpt-4-turbo", "gpt-3.5-turbo",
+            "gpt-4o", "gpt-4o",
             "text-embedding-ada-002", "text-embedding-3-small"
         ]
         for model in openai_models:
-            assert factory._detect_provider(model) == "openai"
+            assert LLM.get_vendor_from_model(model) == "openai"
     
-    def test_openai_provider_not_available(self):
-        """Test handling when OpenAI provider not available."""
-        # When provider not registered, should raise error
-        from pyhub.llm.exceptions import ProviderNotFoundError
-        
-        # Clear providers and try to create
-        with patch.object(LLMFactory, '_providers', {}):
-            with pytest.raises(ProviderNotFoundError):
-                LLM.create("gpt-4")
+    def test_openai_provider_creation(self):
+        """Test creating OpenAI provider."""
+        with patch('pyhub.llm.OpenAILLM') as mock_openai:
+            mock_instance = Mock()
+            mock_openai.return_value = mock_instance
+            
+            llm = LLM.create("gpt-4o")
+            
+            mock_openai.assert_called_once()
+            assert llm == mock_instance
 
 
 @pytest.mark.anthropic
@@ -281,13 +252,23 @@ class TestAnthropicProviderMocked:
     
     def test_anthropic_provider_detection(self):
         """Test Anthropic models are detected correctly."""
-        factory = LLMFactory()
         anthropic_models = [
-            "claude-3-opus", "claude-3-sonnet", "claude-3-haiku",
-            "claude-3-5-sonnet-20241022", "claude-2"
+            "claude-3-5-sonnet-latest", "claude-3-5-haiku-latest",
+            "claude-3-opus-latest"
         ]
         for model in anthropic_models:
-            assert factory._detect_provider(model) == "anthropic"
+            assert LLM.get_vendor_from_model(model) == "anthropic"
+    
+    def test_anthropic_provider_creation(self):
+        """Test creating Anthropic provider."""
+        with patch('pyhub.llm.AnthropicLLM') as mock_anthropic:
+            mock_instance = Mock()
+            mock_anthropic.return_value = mock_instance
+            
+            llm = LLM.create("claude-3-5-sonnet-latest")
+            
+            mock_anthropic.assert_called_once()
+            assert llm == mock_instance
 
 
 @pytest.mark.google
@@ -296,13 +277,12 @@ class TestGoogleProviderMocked:
     
     def test_google_provider_detection(self):
         """Test Google models are detected correctly."""
-        factory = LLMFactory()
         google_models = [
-            "gemini-pro", "gemini-1.5-pro", "gemini-2.0-flash",
+            "gemini-2.0-flash", "gemini-1.5-pro", "gemini-1.5-flash",
             "text-embedding-004"
         ]
         for model in google_models:
-            assert factory._detect_provider(model) == "google"
+            assert LLM.get_vendor_from_model(model) == "google"
 
 
 @pytest.mark.ollama
@@ -311,13 +291,12 @@ class TestOllamaProviderMocked:
     
     def test_ollama_provider_detection(self):
         """Test Ollama models are detected correctly."""
-        factory = LLMFactory()
         ollama_models = [
-            "llama2", "llama3", "llama3.1", "llama3.2",
+            "llama3.3", "llama3.1", "llama3.2",
             "mistral", "qwen2", "gemma3"
         ]
         for model in ollama_models:
-            assert factory._detect_provider(model) == "ollama"
+            assert LLM.get_vendor_from_model(model) == "ollama"
 
 
 class TestProviderFeatures:

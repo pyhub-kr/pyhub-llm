@@ -2,10 +2,10 @@
 
 import asyncio
 from pathlib import Path
-from typing import AsyncGenerator, Generator, List, Optional, Union
+from typing import Any, AsyncGenerator, Generator, List, Optional, Union
 
-from ..base import BaseLLM
-from ..types import Embed, EmbedList, Message, Reply, Usage
+from .base import BaseLLM
+from .types import Embed, EmbedList, LLMChatModelType, Message, Reply, Usage
 
 
 class MockLLM(BaseLLM):
@@ -233,4 +233,67 @@ class MockLLM(BaseLLM):
         self.call_count = 0
         self.last_question = None
         self.last_messages = None
-        self.clear_history()
+        self.clear()
+    
+    # Implement abstract methods
+    def _make_request_params(
+        self,
+        input_context: dict[str, Any],
+        human_message: Message,
+        messages: list[Message],
+        model: LLMChatModelType,
+    ) -> dict:
+        """Generate request parameters for the mock LLM."""
+        return {
+            "model": model,
+            "messages": messages,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+        }
+    
+    def _make_ask(
+        self,
+        input_context: dict[str, Any],
+        human_message: Message,
+        messages: list[Message],
+        model: LLMChatModelType,
+    ) -> Reply:
+        """Generate a response using the mock LLM."""
+        response_text = f"{self.mock_response}: {human_message.content}"
+        return Reply(text=response_text, usage=self.mock_usage)
+    
+    async def _make_ask_async(
+        self,
+        input_context: dict[str, Any],
+        human_message: Message,
+        messages: list[Message],
+        model: LLMChatModelType,
+    ) -> Reply:
+        """Generate a response asynchronously using the mock LLM."""
+        await asyncio.sleep(0.01)
+        return self._make_ask(input_context, human_message, messages, model)
+    
+    def _make_ask_stream(
+        self,
+        input_context: dict[str, Any],
+        human_message: Message,
+        messages: list[Message],
+        model: LLMChatModelType,
+    ) -> Generator[Reply, None, None]:
+        """Generate a streaming response using the mock LLM."""
+        response_text = f"{self.mock_response}: {human_message.content}"
+        for word in response_text.split():
+            yield Reply(text=word + " ", usage=Usage(input=0, output=0))
+    
+    async def _make_ask_stream_async(
+        self,
+        input_context: dict[str, Any],
+        human_message: Message,
+        messages: list[Message],
+        model: LLMChatModelType,
+    ) -> AsyncGenerator[Reply, None]:
+        """Generate a streaming response asynchronously using the mock LLM."""
+        response_text = f"{self.mock_response}: {human_message.content}"
+        for word in response_text.split():
+            yield Reply(text=word + " ", usage=Usage(input=0, output=0))
+            await asyncio.sleep(0.001)

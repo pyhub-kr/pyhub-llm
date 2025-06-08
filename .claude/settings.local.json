@@ -7,7 +7,20 @@
       "Bash(make:*)",
       "Bash(grep:*)",
       "Bash(pytest:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git config:*)",
+      "Bash(python -m pytest tests/test_openai_provider.py -v)",
+      "Bash(source:*)",
+      "Bash(python:*)",
+      "Bash(rm:*)",
+      "Bash(uv build)",
+      "Bash(unzip:*)",
+      "Bash(tar:*)",
+      "Bash(echo $PYTHONPATH)",
+      "Bash(uv pip install:*)",
+      "Bash(cp:*)",
+      "Bash(uv run:*)",
+      "Bash(pip install:*)"
     ],
     "deny": []
   }

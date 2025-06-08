@@ -1,5 +1,5 @@
-"""Template system for PyHub LLM."""
+"""Template utilities for pyhub.llm."""
 
-from .engine import TemplateEngine
+from pyhub.llm.templates.engine import TemplateEngine
 
 __all__ = ["TemplateEngine"]

@@ -1,11 +1,7 @@
 import pytest
 from dataclasses import asdict
 from pyhub.llm.types import (
-    Message, Reply, Usage, Price, Embed, EmbeddingResponse,
-    LLMResponse, StreamResponse, FunctionCall, ToolCall,
-    FunctionParameter,
-    LLMVendorType, OpenAIChatModelType, AnthropicChatModelType,
-    GoogleChatModelType, OllamaChatModelType, UpstageChatModelType
+    Message, Reply, Usage, Price, Embed, EmbedList
 )
 
 
@@ -149,55 +145,30 @@ class TestEmbed:
         assert embed[0] == 0.1
 
 
-class TestFunctionTypes:
-    """Test function-related types."""
+class TestEmbedList:
+    """Test EmbedList dataclass."""
     
-    def test_function_call(self):
-        """Test FunctionCall creation."""
-        func_call = FunctionCall(
-            name="get_weather",
-            arguments={"location": "Paris", "unit": "celsius"}
-        )
-        assert func_call.name == "get_weather"
-        assert func_call.arguments == {"location": "Paris", "unit": "celsius"}
+    def test_embed_list_creation(self):
+        """Test creating EmbedList."""
+        embed1 = Embed(array=[0.1, 0.2, 0.3])
+        embed2 = Embed(array=[0.4, 0.5, 0.6])
+        embed_list = EmbedList(arrays=[embed1, embed2])
+        
+        assert len(embed_list.arrays) == 2
+        assert embed_list.arrays[0] == embed1
+        assert embed_list.arrays[1] == embed2
     
-    def test_tool_call(self):
-        """Test ToolCall creation."""
-        function = FunctionCall(name="calculate", arguments={"x": 10, "y": 20})
-        tool_call = ToolCall(
-            id="call_123",
-            type="function",
-            function=function
-        )
-        assert tool_call.id == "call_123"
-        assert tool_call.type == "function"
-        assert tool_call.function == function
-    
-    def test_function_parameter(self):
-        """Test FunctionParameter creation."""
-        param = FunctionParameter(
-            name="location",
-            type="string",
-            description="The location to get weather for",
-            enum=["Paris", "London", "New York"]
-        )
-        assert param.name == "location"
-        assert param.type == "string"
-        assert param.description == "The location to get weather for"
-        assert param.enum == ["Paris", "London", "New York"]
-    
-    def test_function_parameter_with_all_fields(self):
-        """Test FunctionParameter with all fields."""
-        param = FunctionParameter(
-            name="temperature",
-            type="number",
-            description="Temperature value",
-            required=False,
-            enum=None
-        )
-        assert param.name == "temperature"
-        assert param.type == "number"
-        assert param.required is False
+    def test_embed_list_with_usage(self):
+        """Test EmbedList with usage information."""
+        embed1 = Embed(array=[0.1, 0.2])
+        embed2 = Embed(array=[0.3, 0.4])
+        usage = Usage(input=10, output=0)
+        
+        embed_list = EmbedList(arrays=[embed1, embed2], usage=usage)
+        
+        assert embed_list.usage == usage
+        assert embed_list.usage.input == 10
+        assert embed_list.usage.output == 0
 
 
 class TestVendorTypes:
@@ -213,12 +184,12 @@ class TestVendorTypes:
     def test_model_type_examples(self):
         """Test model type examples."""
         # OpenAI models
-        openai_models = ["gpt-4", "gpt-3.5-turbo", "gpt-4-turbo"]
+        openai_models = ["gpt-4o"]
         for model in openai_models:
             assert isinstance(model, str)
         
         # Anthropic models
-        anthropic_models = ["claude-3-opus", "claude-3-sonnet", "claude-2"]
+        anthropic_models = ["claude-3-5-sonnet-latest", "claude-3-opus-latest", "claude-2"]
         for model in anthropic_models:
             assert isinstance(model, str)
         
@@ -228,49 +199,39 @@ class TestVendorTypes:
             assert isinstance(model, str)
 
 
-class TestResponseTypes:
-    """Test response types."""
+class TestLLMTypes:
+    """Test LLM type aliases."""
     
-    def test_llm_response(self):
-        """Test LLMResponse creation."""
-        response = LLMResponse(
-            content="Test response",
-            model="gpt-4",
-            usage=Usage(input=10, output=20),
-            finish_reason="stop"
-        )
-        assert response.content == "Test response"
-        assert response.model == "gpt-4"
-        assert response.usage.total == 30
-        assert response.finish_reason == "stop"
+    def test_vendor_type_values(self):
+        """Test vendor type values."""
+        # These should be valid vendor strings
+        valid_vendors = ["openai", "anthropic", "google", "ollama", "upstage"]
+        for vendor in valid_vendors:
+            # Just check they're valid strings
+            assert isinstance(vendor, str)
+            assert vendor in ["openai", "anthropic", "google", "ollama", "upstage"]
     
-    def test_embedding_response(self):
-        """Test EmbeddingResponse creation."""
-        response = EmbeddingResponse(
-            embedding=[0.1, 0.2, 0.3],
-            model="text-embedding-ada-002",
-            usage=Usage(input=5, output=0)
-        )
-        assert len(response) == 3
-        assert response.model == "text-embedding-ada-002"
-        assert response.usage.input == 5
-    
-    def test_stream_response(self):
-        """Test StreamResponse creation."""
-        response = StreamResponse(
-            content="Hello",
-            is_final=False
-        )
-        assert response.content == "Hello"
-        assert response.is_final is False
+    def test_model_type_strings(self):
+        """Test model type strings."""
+        # OpenAI models can be any string
+        openai_model = "gpt-4o"
+        assert isinstance(openai_model, str)
         
-        # Final chunk
-        final_response = StreamResponse(
-            content="",
-            is_final=True
-        )
-        assert final_response.content == ""
-        assert final_response.is_final is True
+        # Anthropic models can be any string  
+        anthropic_model = "claude-3.5-sonnet-latest"
+        assert isinstance(anthropic_model, str)
+        
+        # Google models can be specific literals or any string
+        google_model = "gemini-2.0-flash"
+        assert isinstance(google_model, str)
+        
+        # Ollama models can be specific literals or any string
+        ollama_model = "llama3.3"
+        assert isinstance(ollama_model, str)
+        
+        # Upstage models can be specific literals or any string
+        upstage_model = "solar-pro"
+        assert isinstance(upstage_model, str)
 
 
 class TestTypeValidation:

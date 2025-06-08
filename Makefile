@@ -1,19 +1,27 @@
 .PHONY: install test format lint clean build docs
 
 install:
-	pip install -e ".[dev,all]"
+	uv pip install -e ".[dev,all]"
 
 test:
-	pytest tests/ -v
+	uv pip install -e ".[dev]"
+	uv run pytest $(filter-out $@,$(MAKECMDGOALS))
 
 format:
-	black src/ tests/
-	ruff check src/ tests/ --fix
+	uv pip install -e ".[dev]"
+	$(eval PATHS := $(if $(filter-out $@,$(MAKECMDGOALS)),$(filter-out $@,$(MAKECMDGOALS)),./src ./tests))
+	uv run black $(PATHS)
+	uv run isort $(PATHS)
+	uv run ruff check $(PATHS) --fix
+	uv run djlint $(PATHS) --reformat
 
 lint:
-	black src/ tests/ --check
-	ruff check src/ tests/
-	mypy src/
+	uv pip install -e ".[dev]"
+	$(eval PATHS := $(if $(filter-out $@,$(MAKECMDGOALS)),$(filter-out $@,$(MAKECMDGOALS)),./src ./tests))
+	uv run black $(PATHS) --check
+	uv run isort $(PATHS) --check
+	uv run ruff check $(PATHS)
+	uv run djlint $(PATHS) --check
 
 clean:
 	rm -rf build/
@@ -23,10 +31,18 @@ clean:
 	find . -type f -name "*.pyc" -delete
 
 build: clean
-	python -m build
-
-docs:
-	cd docs && make html
+	uv pip install -e ".[build]"
+	uv run -m build --wheel
 
 publish: build
-	python -m twine upload dist/*
+	uv run -m twine upload dist/*
+
+
+docs:
+	uv pip install -e ".[docs]"
+	uv run mkdocs serve --dev-addr localhost:8080
+
+docs-build:
+	uv pip install -e ".[docs]"
+	uv run mkdocs build --clean --site-dir docs-build
+
