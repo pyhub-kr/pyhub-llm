@@ -1,12 +1,9 @@
 from decimal import Decimal
-from typing import Union, cast
+from typing import TYPE_CHECKING, Union, cast
 
-from pyhub.llm.anthropic import AnthropicLLM
+# Always import these as they don't have external dependencies
 from pyhub.llm.base import BaseLLM, SequentialChain
-from pyhub.llm.google import GoogleLLM
 from pyhub.llm.mock import MockLLM
-from pyhub.llm.ollama import OllamaLLM
-from pyhub.llm.openai import OpenAILLM
 from pyhub.llm.types import (
     AnthropicChatModelType,
     GoogleChatModelType,
@@ -26,8 +23,15 @@ from pyhub.llm.types import (
     UpstageEmbeddingModelType,
     Usage,
 )
-from pyhub.llm.upstage import UpstageLLM
 from pyhub.llm.utils.type_utils import get_literal_values
+
+# Type checking imports
+if TYPE_CHECKING:
+    from pyhub.llm.anthropic import AnthropicLLM
+    from pyhub.llm.google import GoogleLLM
+    from pyhub.llm.ollama import OllamaLLM
+    from pyhub.llm.openai import OpenAILLM
+    from pyhub.llm.upstage import UpstageLLM
 
 
 class LLM:
@@ -89,14 +93,19 @@ class LLM:
         #
         if model in get_literal_values(LLMChatModelType):
             if vendor == "openai":
+                from pyhub.llm.openai import OpenAILLM
                 return OpenAILLM(model=cast(OpenAIChatModelType, model), **kwargs)
             elif vendor == "upstage":
+                from pyhub.llm.upstage import UpstageLLM
                 return UpstageLLM(model=cast(UpstageChatModelType, model), **kwargs)
             elif vendor == "anthropic":
+                from pyhub.llm.anthropic import AnthropicLLM
                 return AnthropicLLM(model=cast(AnthropicChatModelType, model), **kwargs)
             elif vendor == "google":
+                from pyhub.llm.google import GoogleLLM
                 return GoogleLLM(model=cast(GoogleChatModelType, model), **kwargs)
             elif vendor == "ollama":
+                from pyhub.llm.ollama import OllamaLLM
                 if "max_tokens" in kwargs:
                     del kwargs["max_tokens"]
                 return OllamaLLM(model=cast(OllamaChatModelType, model), **kwargs)
@@ -106,21 +115,25 @@ class LLM:
         #
         elif model in get_literal_values(LLMEmbeddingModelType):
             if vendor == "openai":
+                from pyhub.llm.openai import OpenAILLM
                 return OpenAILLM(
                     embedding_model=cast(OpenAIEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "upstage":
+                from pyhub.llm.upstage import UpstageLLM
                 return UpstageLLM(
                     embedding_model=cast(UpstageEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "google":
+                from pyhub.llm.google import GoogleLLM
                 return GoogleLLM(
                     embedding_model=cast(GoogleEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "ollama":
+                from pyhub.llm.ollama import OllamaLLM
                 if "max_tokens" in kwargs:
                     del kwargs["max_tokens"]
                 return OllamaLLM(
@@ -150,6 +163,26 @@ class LLM:
             output_usd = None
 
         return Price(input_usd=input_usd, output_usd=output_usd)
+
+
+def __getattr__(name):
+    """Lazy import provider classes to avoid import errors when optional dependencies are not installed."""
+    if name == "AnthropicLLM":
+        from pyhub.llm.anthropic import AnthropicLLM
+        return AnthropicLLM
+    elif name == "GoogleLLM":
+        from pyhub.llm.google import GoogleLLM
+        return GoogleLLM
+    elif name == "OllamaLLM":
+        from pyhub.llm.ollama import OllamaLLM
+        return OllamaLLM
+    elif name == "OpenAILLM":
+        from pyhub.llm.openai import OpenAILLM
+        return OpenAILLM
+    elif name == "UpstageLLM":
+        from pyhub.llm.upstage import UpstageLLM
+        return UpstageLLM
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
 __all__ = [

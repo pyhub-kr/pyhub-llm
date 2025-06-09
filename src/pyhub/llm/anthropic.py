@@ -3,11 +3,7 @@ import re
 from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
-import anthropic.types
 import pydantic
-from anthropic import NOT_GIVEN as ANTHROPIC_NOT_GIVEN
-from anthropic import Anthropic as SyncAnthropic
-from anthropic import AsyncAnthropic
 
 from pyhub.llm.base import BaseLLM
 from pyhub.llm.cache.utils import (
@@ -44,6 +40,25 @@ class AnthropicLLM(BaseLLM):
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
     ):
+        # Lazy import anthropic
+        try:
+            import anthropic
+            import anthropic.types
+            from anthropic import NOT_GIVEN as ANTHROPIC_NOT_GIVEN
+            from anthropic import Anthropic as SyncAnthropic
+            from anthropic import AsyncAnthropic
+            
+            self._anthropic = anthropic
+            self._anthropic_types = anthropic.types
+            self._ANTHROPIC_NOT_GIVEN = ANTHROPIC_NOT_GIVEN
+            self._SyncAnthropic = SyncAnthropic
+            self._AsyncAnthropic = AsyncAnthropic
+        except ImportError:
+            raise ImportError(
+                "anthropic package not installed. "
+                "Install with: pip install pyhub-llm[anthropic]"
+            )
+        
         super().__init__(
             model=model,
             temperature=temperature,
@@ -80,14 +95,14 @@ class AnthropicLLM(BaseLLM):
         message_history = [dict(message) for message in messages]
 
         # choices가 있으면 시스템 프롬프트 수정
-        system_prompt = self.get_system_prompt(input_context, default=ANTHROPIC_NOT_GIVEN)
+        system_prompt = self.get_system_prompt(input_context, default=self._ANTHROPIC_NOT_GIVEN)
         if "choices" in input_context:
             choices_instruction = f"\n\nYou MUST select exactly one option from: {', '.join(input_context['choices'])}."
             if input_context.get("allow_none"):
                 choices_instruction += " If none are suitable, select 'None of the above'."
             choices_instruction += "\nRespond with ONLY the chosen option text, nothing else."
 
-            if system_prompt == ANTHROPIC_NOT_GIVEN:
+            if system_prompt == self._ANTHROPIC_NOT_GIVEN:
                 system_prompt = choices_instruction
             else:
                 system_prompt += choices_instruction
@@ -148,8 +163,8 @@ class AnthropicLLM(BaseLLM):
             max_tokens=self.max_tokens,
         )
 
-        # system_prompt가 ANTHROPIC_NOT_GIVEN이 아닌 경우에만 추가
-        if system_prompt != ANTHROPIC_NOT_GIVEN:
+        # system_prompt가 self._ANTHROPIC_NOT_GIVEN이 아닌 경우에만 추가
+        if system_prompt != self._ANTHROPIC_NOT_GIVEN:
             params["system"] = system_prompt
 
         return params
@@ -162,7 +177,7 @@ class AnthropicLLM(BaseLLM):
         model: AnthropicChatModelType,
     ) -> Reply:
         try:
-            sync_client = SyncAnthropic(api_key=self.api_key)
+            sync_client = self._SyncAnthropic(api_key=self.api_key)
             request_params = self._make_request_params(
                 input_context=input_context, human_message=human_message, messages=messages, model=model
             )
@@ -174,11 +189,11 @@ class AnthropicLLM(BaseLLM):
                 enable_cache=input_context.get("enable_cache", False),
             )
 
-            response: Optional[anthropic.types.Message] = None
+            response: Optional[self._anthropic_types.Message] = None
             is_cached = False
             if cached_value is not None:
                 try:
-                    response = anthropic.types.Message.model_validate_json(cached_value)
+                    response = self._anthropic_types.Message.model_validate_json(cached_value)
                     is_cached = True
                 except pydantic.ValidationError as e:
                     logger.error("cached_value is valid : %s", e)
@@ -210,7 +225,7 @@ class AnthropicLLM(BaseLLM):
         messages: list[Message],
         model: AnthropicChatModelType,
     ) -> Reply:
-        async_client = AsyncAnthropic(api_key=self.api_key)
+        async_client = self._AsyncAnthropic(api_key=self.api_key)
         request_params = self._make_request_params(
             input_context=input_context, human_message=human_message, messages=messages, model=model
         )
@@ -222,7 +237,7 @@ class AnthropicLLM(BaseLLM):
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[anthropic.types.Message] = None
+        response: Optional[self._anthropic_types.Message] = None
         is_cached = False
         if cached_value is not None:
             try:
@@ -256,7 +271,7 @@ class AnthropicLLM(BaseLLM):
         model: AnthropicChatModelType,
     ) -> Generator[Reply, None, None]:
 
-        sync_client = SyncAnthropic(api_key=self.api_key)
+        sync_client = self._SyncAnthropic(api_key=self.api_key)
         request_params = self._make_request_params(
             input_context=input_context, human_message=human_message, messages=messages, model=model
         )
@@ -321,7 +336,7 @@ class AnthropicLLM(BaseLLM):
         model: AnthropicChatModelType,
     ) -> AsyncGenerator[Reply, None]:
 
-        async_client = AsyncAnthropic(api_key=self.api_key)
+        async_client = self._AsyncAnthropic(api_key=self.api_key)
         request_params = self._make_request_params(
             input_context=input_context, human_message=human_message, messages=messages, model=model
         )
@@ -487,7 +502,7 @@ class AnthropicLLM(BaseLLM):
             anthropic_messages.append({"role": "user", "content": human_prompt})
 
         # Anthropic API 호출
-        sync_client = SyncAnthropic(api_key=self.api_key)
+        sync_client = self._SyncAnthropic(api_key=self.api_key)
         request_params = {
             "model": model or self.model,
             "messages": anthropic_messages,
@@ -532,7 +547,7 @@ class AnthropicLLM(BaseLLM):
             anthropic_messages.append({"role": "user", "content": human_prompt})
 
         # Anthropic API 호출
-        async_client = AsyncAnthropic(api_key=self.api_key)
+        async_client = self._AsyncAnthropic(api_key=self.api_key)
         request_params = {
             "model": model or self.model,
             "messages": anthropic_messages,

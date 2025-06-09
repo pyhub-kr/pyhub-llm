@@ -7,28 +7,6 @@ from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 import pydantic
 
 from pyhub.llm.utils.templates import Template
-
-try:
-    # Try new Google AI SDK
-    import google.generativeai as genai
-    from google.generativeai.types import (
-        Content,
-        GenerateContentResponse,
-        Part,
-    )
-
-    # Create placeholder types for missing imports
-    EmbedContentResponse = Any
-    GenerateContentConfig = dict
-except ImportError:
-    # Fallback to placeholder implementation
-    genai = None
-    Content = Any
-    EmbedContentResponse = Any
-    GenerateContentConfig = dict
-    GenerateContentResponse = Any
-    Part = Any
-
 from pyhub.llm.base import BaseLLM
 from pyhub.llm.cache.utils import (
     cache_make_key_and_get,
@@ -69,6 +47,28 @@ class GoogleLLM(BaseLLM):
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
     ):
+        # Lazy import google-genai
+        try:
+            import google.generativeai as genai
+            from google.generativeai.types import (
+                Content,
+                GenerateContentResponse,
+                Part,
+            )
+            
+            self._genai = genai
+            self._Content = Content
+            self._GenerateContentResponse = GenerateContentResponse
+            self._Part = Part
+            # Create placeholder types for missing imports
+            self._EmbedContentResponse = Any
+            self._GenerateContentConfig = dict
+        except ImportError:
+            raise ImportError(
+                "google-genai package not installed. "
+                "Install with: pip install pyhub-llm[google]"
+            )
+        
         super().__init__(
             model=model,
             embedding_model=embedding_model,
@@ -103,10 +103,10 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> dict:
-        contents: list[Content] = [
-            Content(
+        contents: list[self._Content] = [
+            self._Content(
                 role="user" if message.role == "user" else "model",
-                parts=[Part(text=message.content)],
+                parts=[self._Part(text=message.content)],
             )
             for message in messages
         ]
@@ -118,7 +118,7 @@ class GoogleLLM(BaseLLM):
             convert_mode="base64",
         )
 
-        image_parts: list[Part] = []
+        image_parts: list[self._Part] = []
         if image_urls:
             base64_url_pattern = r"^data:([^;]+);base64,(.+)"
 
@@ -136,11 +136,11 @@ class GoogleLLM(BaseLLM):
                     )
 
         contents.append(
-            Content(
+            self._Content(
                 role="user" if human_message.role == "user" else "model",
                 parts=[
                     *image_parts,
-                    Part(text=human_message.content),
+                    self._Part(text=human_message.content),
                 ],
             )
         )
@@ -149,7 +149,7 @@ class GoogleLLM(BaseLLM):
         if system_prompt is None:
             system_instruction = None
         else:
-            system_instruction = Content(parts=[Part(text=system_prompt)])
+            system_instruction = self._Content(parts=[self._Part(text=system_prompt)])
 
         config = GenerateContentConfig(
             system_instruction=system_instruction,
@@ -170,7 +170,7 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         cache_key, cached_value = cache_make_key_and_get(
@@ -180,11 +180,11 @@ class GoogleLLM(BaseLLM):
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[GenerateContentResponse] = None
+        response: Optional[self._GenerateContentResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = GenerateContentResponse.model_validate_json(cached_value)
+                response = self._GenerateContentResponse.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)
@@ -216,7 +216,7 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         cache_key, cached_value = await cache_make_key_and_get_async(
@@ -226,11 +226,11 @@ class GoogleLLM(BaseLLM):
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[GenerateContentResponse] = None
+        response: Optional[self._GenerateContentResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = GenerateContentResponse.model_validate_json(cached_value)
+                response = self._GenerateContentResponse.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)
@@ -262,7 +262,7 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Generator[Reply, None, None]:
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         cache_key, cached_value = cache_make_key_and_get(
@@ -310,7 +310,7 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> AsyncGenerator[Reply, None]:
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         cache_key, cached_value = await cache_make_key_and_get_async(
@@ -427,7 +427,7 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -470,7 +470,7 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -542,17 +542,23 @@ class GoogleLLM(BaseLLM):
 
     def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
         """Google Function Calling을 사용한 동기 호출"""
-        from google.genai.types import FunctionDeclaration, Tool
+        try:
+            from google.genai.types import FunctionDeclaration, Tool
+        except ImportError:
+            raise ImportError(
+                "google-genai package not installed. "
+                "Install with: pip install pyhub-llm[google]"
+            )
 
         # 메시지 준비
         google_messages = []
         for msg in messages:
             google_messages.append(
-                Content(role="user" if msg.role == "user" else "model", parts=[Part(text=msg.content)])
+                self._Content(role="user" if msg.role == "user" else "model", parts=[self._Part(text=msg.content)])
             )
 
         if human_prompt:
-            google_messages.append(Content(role="user", parts=[Part(text=human_prompt)]))
+            google_messages.append(self._Content(role="user", parts=[self._Part(text=human_prompt)]))
 
         # 도구를 Google Tool 형식으로 변환
         google_tools = []
@@ -567,11 +573,11 @@ class GoogleLLM(BaseLLM):
             google_tools = [Tool(function_declarations=function_declarations)]
 
         # Google API 호출
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
 
         system_prompt = None
         if messages and messages[0].role == "system":
-            system_prompt = Content(parts=[Part(text=messages[0].content)])
+            system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
         config = GenerateContentConfig(
@@ -605,17 +611,23 @@ class GoogleLLM(BaseLLM):
 
     async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
         """Google Function Calling을 사용한 비동기 호출"""
-        from google.genai.types import FunctionDeclaration, Tool
+        try:
+            from google.genai.types import FunctionDeclaration, Tool
+        except ImportError:
+            raise ImportError(
+                "google-genai package not installed. "
+                "Install with: pip install pyhub-llm[google]"
+            )
 
         # 메시지 준비
         google_messages = []
         for msg in messages:
             google_messages.append(
-                Content(role="user" if msg.role == "user" else "model", parts=[Part(text=msg.content)])
+                self._Content(role="user" if msg.role == "user" else "model", parts=[self._Part(text=msg.content)])
             )
 
         if human_prompt:
-            google_messages.append(Content(role="user", parts=[Part(text=human_prompt)]))
+            google_messages.append(self._Content(role="user", parts=[self._Part(text=human_prompt)]))
 
         # 도구를 Google Tool 형식으로 변환
         google_tools = []
@@ -630,11 +642,11 @@ class GoogleLLM(BaseLLM):
             google_tools = [Tool(function_declarations=function_declarations)]
 
         # Google API 호출
-        client = genai.Client(api_key=self.api_key)
+        client = self._genai.Client(api_key=self.api_key)
 
         system_prompt = None
         if messages and messages[0].role == "system":
-            system_prompt = Content(parts=[Part(text=messages[0].content)])
+            system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
         config = GenerateContentConfig(

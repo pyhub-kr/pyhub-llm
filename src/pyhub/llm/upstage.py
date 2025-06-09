@@ -1,8 +1,6 @@
 import logging
 from typing import Any, Optional, Union
 
-from openai import OpenAI as SyncOpenAI
-
 from pyhub.llm.base import BaseLLM
 from pyhub.llm.openai import OpenAIMixin
 from pyhub.llm.settings import llm_settings
@@ -41,6 +39,25 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
         base_url: Optional[str] = None,
         tools: Optional[list] = None,
     ):
+        # Lazy import openai (same as OpenAI since Upstage uses OpenAI SDK)
+        try:
+            import openai
+            from openai import AsyncOpenAI
+            from openai import OpenAI as SyncOpenAI
+            from openai.types import CreateEmbeddingResponse
+            from openai.types.chat import ChatCompletion
+            
+            self._openai = openai
+            self._AsyncOpenAI = AsyncOpenAI
+            self._SyncOpenAI = SyncOpenAI
+            self._CreateEmbeddingResponse = CreateEmbeddingResponse
+            self._ChatCompletion = ChatCompletion
+        except ImportError:
+            raise ImportError(
+                "openai package not installed. "
+                "Install with: pip install pyhub-llm[upstage]"
+            )
+            
         super().__init__(
             model=model,
             embedding_model=embedding_model,
@@ -110,7 +127,7 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
         if len(messages) != 2:
             raise ValueError("Groundedness check requires exactly 2 messages")
 
-        sync_client = SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         try:
             response = sync_client.chat.completions.create(
                 model=model,

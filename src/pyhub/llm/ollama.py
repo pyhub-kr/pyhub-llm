@@ -3,9 +3,6 @@ import re
 from typing import Any, AsyncGenerator, Generator, Optional, Union, cast
 
 import pydantic
-from ollama import AsyncClient, ChatResponse
-from ollama import Client as SyncClient
-from ollama import EmbedResponse, ListResponse
 from pydantic import ValidationError
 
 from pyhub.llm.base import BaseLLM
@@ -68,6 +65,23 @@ class OllamaLLM(BaseLLM):
             base_url: Ollama API 기본 URL
             timeout: API 요청 타임아웃 (초)
         """
+        
+        # Lazy import ollama
+        try:
+            from ollama import AsyncClient, ChatResponse
+            from ollama import Client as SyncClient
+            from ollama import EmbedResponse, ListResponse
+            
+            self._AsyncClient = AsyncClient
+            self._SyncClient = SyncClient
+            self._ChatResponse = ChatResponse
+            self._EmbedResponse = EmbedResponse
+            self._ListResponse = ListResponse
+        except ImportError:
+            raise ImportError(
+                "ollama package not installed. "
+                "Install with: pip install pyhub-llm[ollama]"
+            )
 
         if ":" not in model:
             model += ":latest"
@@ -94,9 +108,9 @@ class OllamaLLM(BaseLLM):
         def add_error(msg: str, hint: str = None):
             errors.append({"msg": msg, "hint": hint, "obj": self})
 
-        client = SyncClient(host=self.base_url)
+        client = self._SyncClient(host=self.base_url)
         try:
-            response: ListResponse = client.list()
+            response: self._ListResponse = client.list()
         except ConnectionError:
             add_error(f"Unable to connect to Ollama server at {self.base_url}.")
         else:
@@ -187,7 +201,7 @@ class OllamaLLM(BaseLLM):
         Ollama API를 사용하여 동기적으로 응답을 생성합니다.
         """
 
-        sync_client = SyncClient(host=self.base_url)
+        sync_client = self._SyncClient(host=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -202,11 +216,11 @@ class OllamaLLM(BaseLLM):
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[ChatResponse] = None
+        response: Optional[self._ChatResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = ChatResponse.model_validate_json(cached_value)
+                response = self._ChatResponse.model_validate_json(cached_value)
                 is_cached = True
             except ValidationError:
                 logger.error("Invalid cached value : %s", cached_value)
@@ -239,7 +253,7 @@ class OllamaLLM(BaseLLM):
         Ollama API를 사용하여 비동기적으로 응답을 생성합니다.
         """
 
-        async_client = AsyncClient(host=self.base_url)
+        async_client = self._AsyncClient(host=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -253,11 +267,11 @@ class OllamaLLM(BaseLLM):
             cache_alias="ollama",
             enable_cache=input_context.get("enable_cache", False),
         )
-        response: Optional[ChatResponse] = None
+        response: Optional[self._ChatResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = ChatResponse.model_validate_json(cached_value)
+                response = self._ChatResponse.model_validate_json(cached_value)
                 is_cached = True
             except ValidationError:
                 logger.error("Invalid cached value : %s", cached_value)
@@ -265,7 +279,7 @@ class OllamaLLM(BaseLLM):
 
         if response is None:
             logger.debug("request to ollama")
-            response: ChatResponse = await async_client.chat(**request_params)
+            response: self._ChatResponse = await async_client.chat(**request_params)
             if cache_key is not None:
                 await cache_set_async(cache_key, response.model_dump_json(), cache_alias="ollama", enable_cache=True)
 
@@ -291,7 +305,7 @@ class OllamaLLM(BaseLLM):
         Ollama API를 사용하여 동기적으로 스트리밍 응답을 생성합니다.
         """
 
-        sync_client = SyncClient(host=self.base_url)
+        sync_client = self._SyncClient(host=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -343,7 +357,7 @@ class OllamaLLM(BaseLLM):
         """
         Ollama API를 사용하여 비동기적으로 스트리밍 응답을 생성합니다.
         """
-        async_client = AsyncClient(host=self.base_url)
+        async_client = self._AsyncClient(host=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -395,7 +409,7 @@ class OllamaLLM(BaseLLM):
         """
         embedding_model = model or self.embedding_model
 
-        sync_client = SyncClient(host=self.base_url)
+        sync_client = self._SyncClient(host=self.base_url)
         request_params = dict(
             model=cast(str, embedding_model),
             input=input,
@@ -408,11 +422,11 @@ class OllamaLLM(BaseLLM):
             enable_cache=enable_cache,
         )
 
-        response: Optional[EmbedResponse] = None
+        response: Optional[self._EmbedResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = EmbedResponse.model_validate_json(cached_value)
+                response = self._EmbedResponse.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)
@@ -445,7 +459,7 @@ class OllamaLLM(BaseLLM):
 
         embedding_model = model or self.embedding_model
 
-        async_client = AsyncClient(host=self.base_url)
+        async_client = self._AsyncClient(host=self.base_url)
         request_params = dict(
             model=cast(str, embedding_model),
             input=input,
@@ -458,11 +472,11 @@ class OllamaLLM(BaseLLM):
             enable_cache=enable_cache,
         )
 
-        response: Optional[EmbedResponse] = None
+        response: Optional[self._EmbedResponse] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = EmbedResponse.model_validate_json(cached_value)
+                response = self._EmbedResponse.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)

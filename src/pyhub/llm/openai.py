@@ -3,10 +3,6 @@ from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
 import pydantic
-from openai import AsyncOpenAI
-from openai import OpenAI as SyncOpenAI
-from openai.types import CreateEmbeddingResponse
-from openai.types.chat import ChatCompletion
 
 from pyhub.llm.base import BaseLLM
 from pyhub.llm.cache.utils import (
@@ -140,7 +136,7 @@ class OpenAIMixin:
         messages: list[Message],
         model: OpenAIChatModelType,
     ) -> Reply:
-        sync_client = SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -155,18 +151,18 @@ class OpenAIMixin:
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[ChatCompletion] = None
+        response: Optional[self._ChatCompletion] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = ChatCompletion.model_validate_json(cached_value)
+                response = self._ChatCompletion.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to openai")
-            response: ChatCompletion = sync_client.chat.completions.create(**request_params)
+            response: self._ChatCompletion = sync_client.chat.completions.create(**request_params)
             if cache_key is not None:
                 cache_set(cache_key, response.model_dump_json(), cache_alias=self.cache_alias, enable_cache=True)
 
@@ -188,7 +184,7 @@ class OpenAIMixin:
         messages: list[Message],
         model: OpenAIChatModelType,
     ) -> Reply:
-        async_client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -203,11 +199,11 @@ class OpenAIMixin:
             enable_cache=input_context.get("enable_cache", False),
         )
 
-        response: Optional[ChatCompletion] = None
+        response: Optional[self._ChatCompletion] = None
         is_cached = False
         if cached_value is not None:
             try:
-                response = ChatCompletion.model_validate_json(cached_value)
+                response = self._ChatCompletion.model_validate_json(cached_value)
                 is_cached = True
             except pydantic.ValidationError as e:
                 logger.error("Invalid cached value : %s", e)
@@ -238,7 +234,7 @@ class OpenAIMixin:
         messages: list[Message],
         model: OpenAIChatModelType,
     ) -> Generator[Reply, None, None]:
-        sync_client = SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -323,7 +319,7 @@ class OpenAIMixin:
         messages: list[Message],
         model: OpenAIChatModelType,
     ) -> AsyncGenerator[Reply, None]:
-        async_client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = self._make_request_params(
             input_context=input_context,
             human_message=human_message,
@@ -434,7 +430,7 @@ class OpenAIMixin:
             openai_messages.append(openai_msg)
 
         # OpenAI API 호출
-        sync_client = SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = {
             "model": model or self.model,
             "messages": openai_messages,
@@ -572,7 +568,7 @@ class OpenAIMixin:
             openai_messages.append(openai_msg)
 
         # OpenAI API 호출
-        async_client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = {
             "model": model or self.model,
             "messages": openai_messages,
@@ -757,7 +753,7 @@ class OpenAIMixin:
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(OpenAIEmbeddingModelType, model or self.embedding_model)
 
-        sync_client = SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = dict(input=input, model=str(embedding_model))
 
         cache_key, cached_value = cache_make_key_and_get(
@@ -767,9 +763,9 @@ class OpenAIMixin:
             enable_cache=enable_cache,
         )
 
-        response: Optional[CreateEmbeddingResponse] = None
+        response: Optional[self._CreateEmbeddingResponse] = None
         if cached_value is not None:
-            response = cast(CreateEmbeddingResponse, cached_value)
+            response = cast(self._CreateEmbeddingResponse, cached_value)
             response.usage.prompt_tokens = 0  # 캐싱된 응답이기에 clear usage
             response.usage.completion_tokens = 0
 
@@ -791,7 +787,7 @@ class OpenAIMixin:
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(OpenAIEmbeddingModelType, model or self.embedding_model)
 
-        async_client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = dict(input=input, model=str(embedding_model))
 
         cache_key, cached_value = await cache_make_key_and_get_async(
@@ -801,9 +797,9 @@ class OpenAIMixin:
             enable_cache=enable_cache,
         )
 
-        response: Optional[CreateEmbeddingResponse] = None
+        response: Optional[self._CreateEmbeddingResponse] = None
         if cached_value is not None:
-            response = cast(CreateEmbeddingResponse, cached_value)
+            response = cast(self._CreateEmbeddingResponse, cached_value)
             response.usage.prompt_tokens = 0  # 캐싱된 응답이기에 clear usage
             response.usage.completion_tokens = 0
 
@@ -844,6 +840,25 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
         base_url: Optional[str] = None,
         tools: Optional[list] = None,
     ):
+        # Lazy import openai
+        try:
+            import openai
+            from openai import AsyncOpenAI
+            from openai import OpenAI as SyncOpenAI
+            from openai.types import CreateEmbeddingResponse
+            from openai.types.chat import ChatCompletion
+            
+            self._openai = openai
+            self._AsyncOpenAI = AsyncOpenAI
+            self._SyncOpenAI = SyncOpenAI
+            self._CreateEmbeddingResponse = CreateEmbeddingResponse
+            self._ChatCompletion = ChatCompletion
+        except ImportError:
+            raise ImportError(
+                "openai package not installed. "
+                "Install with: pip install pyhub-llm[openai]"
+            )
+        
         super().__init__(
             model=model,
             embedding_model=embedding_model,

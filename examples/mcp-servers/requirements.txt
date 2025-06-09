@@ -1,0 +1,9 @@
+# MCP Server Examples Requirements
+mcp>=1.0.0
+fastapi>=0.104.0
+uvicorn>=0.24.0
+websockets>=12.0
+sse-starlette>=1.6.0
+httpx>=0.25.0
+pydantic>=2.5.0
+python-multipart>=0.0.6
