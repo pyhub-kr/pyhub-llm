@@ -62,5 +62,6 @@ docs/.doctrees/
 uv.lock
 
 CLAUDE.local.md
+CLAUDE.md
 .claude/settings.local.json
 
