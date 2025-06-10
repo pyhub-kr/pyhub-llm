@@ -367,12 +367,44 @@ print(result.values["text"])  # 번역 후 요약된 결과
 
 ### 7. 캐싱 사용
 
+#### 기본 캐싱 (ask 메서드에서 활성화)
+
 ```python
-# 캐싱 활성화
+# ask 메서드에서 캐싱 활성화
 reply = llm.ask("복잡한 질문...", enable_cache=True)
 
 # 같은 질문 재요청시 캐시에서 반환 (빠르고 비용 없음)
 cached_response = llm.ask("복잡한 질문...", enable_cache=True)
+```
+
+#### 캐시 인젝션 패턴 (생성자에서 캐시 설정)
+
+```python
+from pyhub.llm.cache import MemoryCache, FileCache
+
+# 메모리 캐시 사용
+memory_cache = MemoryCache(ttl=3600)  # 1시간 TTL
+llm = LLM.create("gpt-4o-mini", cache=memory_cache)
+
+# 파일 캐시 사용  
+file_cache = FileCache(cache_dir=".cache", ttl=7200)  # 2시간 TTL
+llm = LLM.create("gpt-4o-mini", cache=file_cache)
+
+# 캐시가 설정된 LLM은 enable_cache=True 시 자동으로 캐시 사용
+reply = llm.ask("질문", enable_cache=True)
+
+# 커스텀 캐시 백엔드 구현
+class CustomCache(BaseCache):
+    def get(self, key: str):
+        # Redis, Database 등 커스텀 캐시 로직
+        pass
+    
+    def set(self, key: str, value: Any, ttl: Optional[int] = None):
+        # 커스텀 저장 로직
+        pass
+
+custom_cache = CustomCache()
+llm = LLM.create("gpt-4o-mini", cache=custom_cache)
 ```
 
 ### 8. 템플릿 사용
