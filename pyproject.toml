@@ -2,7 +2,7 @@
 name = "pyhub-llm"
 version = "0.4.0"
 description = "Standalone LLM library with support for multiple providers"
-authors = [{name = "PyHub Team", email = "team@pyhub.dev"}]
+authors = [{name = "PyHub Team", email = "me@pyhub.kr"}]
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
