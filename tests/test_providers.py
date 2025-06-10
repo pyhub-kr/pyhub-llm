@@ -24,11 +24,15 @@ class TestProviderDetection:
 
     def test_create_with_correct_provider(self):
         """Test creating LLM instances with correct providers."""
-        # Test OpenAI
-        with patch("pyhub.llm.OpenAILLM") as mock_openai:
-            mock_openai.return_value = Mock()
+        # Test OpenAI - patch where it's actually imported
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
+            mock_instance = Mock()
+            mock_openai_class.return_value = mock_instance
+
             llm = LLM.create("gpt-4o")
-            mock_openai.assert_called_once()
+
+            mock_openai_class.assert_called_once_with(model="gpt-4o")
+            assert llm == mock_instance
 
 
 class TestMockProvider:
@@ -189,13 +193,13 @@ class TestProviderIntegration:
     def test_provider_with_api_key(self):
         """Test provider with API key."""
         # Test creating with explicit API key
-        with patch("pyhub.llm.OpenAILLM") as mock_openai:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock()
-            mock_openai.return_value = mock_instance
+            mock_openai_class.return_value = mock_instance
 
             llm = LLM.create("gpt-4o", api_key="test-key-123")
 
-            mock_openai.assert_called_once_with(model="gpt-4o", api_key="test-key-123")
+            mock_openai_class.assert_called_once_with(model="gpt-4o", api_key="test-key-123")
             assert llm == mock_instance
 
     def test_provider_comparison(self):
@@ -234,13 +238,13 @@ class TestOpenAIProviderMocked:
 
     def test_openai_provider_creation(self):
         """Test creating OpenAI provider."""
-        with patch("pyhub.llm.OpenAILLM") as mock_openai:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock()
-            mock_openai.return_value = mock_instance
+            mock_openai_class.return_value = mock_instance
 
             llm = LLM.create("gpt-4o")
 
-            mock_openai.assert_called_once()
+            mock_openai_class.assert_called_once_with(model="gpt-4o")
             assert llm == mock_instance
 
 
@@ -256,13 +260,13 @@ class TestAnthropicProviderMocked:
 
     def test_anthropic_provider_creation(self):
         """Test creating Anthropic provider."""
-        with patch("pyhub.llm.AnthropicLLM") as mock_anthropic:
+        with patch("pyhub.llm.anthropic.AnthropicLLM") as mock_anthropic_class:
             mock_instance = Mock()
-            mock_anthropic.return_value = mock_instance
+            mock_anthropic_class.return_value = mock_instance
 
             llm = LLM.create("claude-3-5-sonnet-latest")
 
-            mock_anthropic.assert_called_once()
+            mock_anthropic_class.assert_called_once_with(model="claude-3-5-sonnet-latest")
             assert llm == mock_instance
 
 

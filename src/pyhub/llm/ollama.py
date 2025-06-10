@@ -6,12 +6,7 @@ import pydantic
 from pydantic import ValidationError
 
 from pyhub.llm.base import BaseLLM
-from pyhub.llm.cache.utils import (
-    cache_make_key_and_get,
-    cache_make_key_and_get_async,
-    cache_set,
-    cache_set_async,
-)
+from pyhub.llm.cache.utils import generate_cache_key
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
@@ -33,6 +28,8 @@ class OllamaLLM(BaseLLM):
     Ollama API를 사용하여 LLM 기능을 제공하는 클래스입니다.
     """
 
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE]  # Ollama는 기본적으로 이미지만 지원
+
     EMBEDDING_DIMENSIONS = {
         "nomic-embed-text": 768,
         "avr/sfr-embedding-mistral": 4096,
@@ -50,6 +47,7 @@ class OllamaLLM(BaseLLM):
         initial_messages: Optional[list[Message]] = None,
         base_url: Optional[str] = None,
         timeout: int = 60,
+        **kwargs,
     ):
         """
         Ollama LLM 클래스 초기화
@@ -65,23 +63,20 @@ class OllamaLLM(BaseLLM):
             base_url: Ollama API 기본 URL
             timeout: API 요청 타임아웃 (초)
         """
-        
+
         # Lazy import ollama
         try:
             from ollama import AsyncClient, ChatResponse
             from ollama import Client as SyncClient
             from ollama import EmbedResponse, ListResponse
-            
+
             self._AsyncClient = AsyncClient
             self._SyncClient = SyncClient
             self._ChatResponse = ChatResponse
             self._EmbedResponse = EmbedResponse
             self._ListResponse = ListResponse
         except ImportError:
-            raise ImportError(
-                "ollama package not installed. "
-                "Install with: pip install pyhub-llm[ollama]"
-            )
+            raise ImportError("ollama package not installed. " "Install with: pip install pyhub-llm[ollama]")
 
         if ":" not in model:
             model += ":latest"
@@ -98,6 +93,7 @@ class OllamaLLM(BaseLLM):
             prompt=prompt,
             output_key=output_key,
             initial_messages=initial_messages,
+            **kwargs,
         )
         self.base_url = base_url or llm_settings.ollama_base_url
         self.timeout = timeout
@@ -147,10 +143,12 @@ class OllamaLLM(BaseLLM):
             message_history.insert(0, system_message)
 
         # https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
+        # Ollama는 PDF를 직접 지원하지 않으므로 이미지로 변환
         image_urls = encode_files(
             human_message.files,
-            allowed_types=IOType.IMAGE,
+            allowed_types=[IOType.IMAGE, IOType.PDF],  # PDF도 받지만 이미지로 변환됨
             convert_mode="base64",
+            pdf_to_image_for_unsupported=True,  # PDF를 이미지로 변환
         )
 
         if image_urls:
@@ -209,15 +207,16 @@ class OllamaLLM(BaseLLM):
             model=model,
         )
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Cache handling
+        cache_key = None
+        cached_value = None
+        is_cached = False
+
+        if self.cache and input_context.get("enable_cache", False):
+            cache_key = generate_cache_key("ollama", **request_params)
+            cached_value = self.cache.get(cache_key)
 
         response: Optional[self._ChatResponse] = None
-        is_cached = False
         if cached_value is not None:
             try:
                 response = self._ChatResponse.model_validate_json(cached_value)
@@ -228,8 +227,10 @@ class OllamaLLM(BaseLLM):
         if response is None:
             logger.debug("request to ollama")
             response = sync_client.chat(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response.model_dump_json(), cache_alias="ollama", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -261,27 +262,30 @@ class OllamaLLM(BaseLLM):
             model=model,
         )
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=input_context.get("enable_cache", False),
-        )
-        response: Optional[self._ChatResponse] = None
+        # Cache handling
+        cache_key = None
+        cached_value = None
         is_cached = False
+
+        if self.cache and input_context.get("enable_cache", False):
+            cache_key = generate_cache_key("ollama", **request_params)
+            cached_value = self.cache.get(cache_key)  # Assuming cache is synchronous
+
+        response: Optional[self._ChatResponse] = None
         if cached_value is not None:
             try:
                 response = self._ChatResponse.model_validate_json(cached_value)
                 is_cached = True
             except ValidationError:
                 logger.error("Invalid cached value : %s", cached_value)
-                cached_value = None
 
         if response is None:
             logger.debug("request to ollama")
             response: self._ChatResponse = await async_client.chat(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias="ollama", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())  # Assuming cache is synchronous
 
         assert response is not None
 
@@ -314,38 +318,30 @@ class OllamaLLM(BaseLLM):
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # TODO: Streaming cache support not implemented yet
+        # For now, streaming responses are not cached
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
-        if cached_value is not None:
-            reply_list = cast(list[Reply], cached_value)
-            # 캐시된 스트림 응답은 usage가 0으로 설정됨
-            for reply in reply_list:
-                yield reply
-        else:
-            logger.debug("request to ollama")
+        logger.debug("request to ollama")
 
-            response_stream = sync_client.chat(**request_params)
+        response_stream = sync_client.chat(**request_params)
 
-            reply_list: list[Reply] = []
-            for chunk in response_stream:
-                # 스트림 응답에서는 usage 정보가 제한적이므로 기본값 사용
-                usage = None
-                if hasattr(chunk, "usage") and chunk.usage:
-                    usage_input = getattr(chunk.usage, "prompt_tokens", 0)
-                    usage_output = getattr(chunk.usage, "completion_tokens", 0)
-                    usage = Usage(input=usage_input, output=usage_output)
+        reply_list: list[Reply] = []
+        for chunk in response_stream:
+            # 스트림 응답에서는 usage 정보가 제한적이므로 기본값 사용
+            usage = None
+            if hasattr(chunk, "usage") and chunk.usage:
+                usage_input = getattr(chunk.usage, "prompt_tokens", 0)
+                usage_output = getattr(chunk.usage, "completion_tokens", 0)
+                usage = Usage(input=usage_input, output=usage_output)
 
-                reply = Reply(text=chunk.message.content or "", usage=usage)
-                reply_list.append(reply)
-                yield reply
+            reply = Reply(text=chunk.message.content or "", usage=usage)
+            reply_list.append(reply)
+            yield reply
 
-            if cache_key is not None:
-                cache_set(cache_key, reply_list, cache_alias="ollama", enable_cache=True)
+        # TODO: Streaming cache not implemented yet
 
     async def _make_ask_stream_async(
         self,
@@ -366,37 +362,30 @@ class OllamaLLM(BaseLLM):
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=input_context.get("enable_cache", False),
-        )
-        if cached_value is not None:
-            reply_list = cast(list[Reply], cached_value)
-            # 캐시된 스트림 응답은 usage가 0으로 설정됨
-            for reply in reply_list:
-                yield reply
-        else:
-            logger.debug("request to ollama")
+        # TODO: Streaming cache support not implemented yet
+        # For now, streaming responses are not cached
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
-            response = await async_client.chat(**request_params)
+        logger.debug("request to ollama")
 
-            reply_list: list[Reply] = []
-            async for chunk in response:
-                # 스트림 응답에서는 usage 정보가 제한적이므로 기본값 사용
-                usage = None
-                if hasattr(chunk, "usage") and chunk.usage:
-                    usage_input = getattr(chunk.usage, "prompt_tokens", 0)
-                    usage_output = getattr(chunk.usage, "completion_tokens", 0)
-                    usage = Usage(input=usage_input, output=usage_output)
+        response = await async_client.chat(**request_params)
 
-                reply = Reply(text=chunk.message.content or "", usage=usage)
-                reply_list.append(reply)
-                yield reply
+        reply_list: list[Reply] = []
+        async for chunk in response:
+            # 스트림 응답에서는 usage 정보가 제한적이므로 기본값 사용
+            usage = None
+            if hasattr(chunk, "usage") and chunk.usage:
+                usage_input = getattr(chunk.usage, "prompt_tokens", 0)
+                usage_output = getattr(chunk.usage, "completion_tokens", 0)
+                usage = Usage(input=usage_input, output=usage_output)
 
-            if cache_key is not None:
-                await cache_set_async(cache_key, reply_list, cache_alias="ollama", enable_cache=True)
+            reply = Reply(text=chunk.message.content or "", usage=usage)
+            reply_list.append(reply)
+            yield reply
+
+        # TODO: Streaming cache not implemented yet
 
     def embed(
         self,
@@ -415,15 +404,16 @@ class OllamaLLM(BaseLLM):
             input=input,
         )
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=enable_cache,
-        )
+        # Cache handling
+        cache_key = None
+        cached_value = None
+        is_cached = False
+
+        if self.cache and enable_cache:
+            cache_key = generate_cache_key("ollama", **request_params)
+            cached_value = self.cache.get(cache_key)
 
         response: Optional[self._EmbedResponse] = None
-        is_cached = False
         if cached_value is not None:
             try:
                 response = self._EmbedResponse.model_validate_json(cached_value)
@@ -434,8 +424,10 @@ class OllamaLLM(BaseLLM):
         if response is None:
             logger.debug("request to ollama")
             response = sync_client.embed(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response.model_dump_json(), cache_alias="ollama", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         # 캐시된 응답인 경우 usage를 0으로 설정하여 비용 중복 계산 방지
         usage = None
@@ -465,15 +457,16 @@ class OllamaLLM(BaseLLM):
             input=input,
         )
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "ollama",
-            request_params,
-            cache_alias="ollama",
-            enable_cache=enable_cache,
-        )
+        # Cache handling
+        cache_key = None
+        cached_value = None
+        is_cached = False
+
+        if self.cache and enable_cache:
+            cache_key = generate_cache_key("ollama", **request_params)
+            cached_value = self.cache.get(cache_key)  # Assuming cache is synchronous
 
         response: Optional[self._EmbedResponse] = None
-        is_cached = False
         if cached_value is not None:
             try:
                 response = self._EmbedResponse.model_validate_json(cached_value)
@@ -484,8 +477,10 @@ class OllamaLLM(BaseLLM):
         if response is None:
             logger.debug("request to ollama")
             response = await async_client.embed(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias="ollama", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())  # Assuming cache is synchronous
 
         # 캐시된 응답인 경우 usage를 0으로 설정하여 비용 중복 계산 방지
         usage = None

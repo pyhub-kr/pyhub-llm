@@ -46,18 +46,15 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
             from openai import OpenAI as SyncOpenAI
             from openai.types import CreateEmbeddingResponse
             from openai.types.chat import ChatCompletion
-            
+
             self._openai = openai
             self._AsyncOpenAI = AsyncOpenAI
             self._SyncOpenAI = SyncOpenAI
             self._CreateEmbeddingResponse = CreateEmbeddingResponse
             self._ChatCompletion = ChatCompletion
         except ImportError:
-            raise ImportError(
-                "openai package not installed. "
-                "Install with: pip install pyhub-llm[upstage]"
-            )
-            
+            raise ImportError("openai package not installed. " "Install with: pip install pyhub-llm[upstage]")
+
         super().__init__(
             model=model,
             embedding_model=embedding_model,

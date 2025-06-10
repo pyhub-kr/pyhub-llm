@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
+from pyhub.llm.cache.base import BaseCache
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     ChainReply,
@@ -15,6 +16,7 @@ from pyhub.llm.types import (
     Message,
     Reply,
 )
+from pyhub.llm.utils.files import IOType
 from pyhub.llm.utils.templates import (
     Context,
     Template,
@@ -46,6 +48,7 @@ class DescribeImageRequest:
 
 class BaseLLM(abc.ABC):
     EMBEDDING_DIMENSIONS = {}
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE]  # 기본값: 이미지만 지원
 
     def __init__(
         self,
@@ -59,6 +62,7 @@ class BaseLLM(abc.ABC):
         initial_messages: Optional[list[Message]] = None,
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
+        cache: Optional[BaseCache] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -69,6 +73,7 @@ class BaseLLM(abc.ABC):
         self.output_key = output_key
         self.history = initial_messages or []
         self.api_key = api_key
+        self.cache = cache
 
         # 기본 도구 설정
         self.default_tools = []

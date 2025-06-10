@@ -2,7 +2,6 @@
 
 from unittest.mock import Mock, patch
 
-
 from pyhub.llm import LLM
 from pyhub.llm.openai import OpenAILLM
 from pyhub.llm.types import Reply
@@ -11,7 +10,7 @@ from pyhub.llm.types import Reply
 class TestOpenAIIntegration:
     """Test OpenAI provider integration with factory."""
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_create_openai_via_factory(self, mock_openai_class):
         """Test creating OpenAI LLM via factory."""
         mock_client = Mock()

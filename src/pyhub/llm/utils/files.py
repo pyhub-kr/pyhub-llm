@@ -91,6 +91,7 @@ def encode_files(
     image_max_size: int = 512,
     image_quality: int = 60,
     image_resampling: PILImage.Resampling = PILImage.Resampling.LANCZOS,
+    pdf_to_image_for_unsupported: bool = False,
 ) -> list[str]:
     """파일을 인코딩하여 반환합니다.
 
@@ -186,11 +187,33 @@ def encode_files(
                 continue
 
             if content_type not in allowed_mimetypes:
-                logger.warning(
-                    f"IO type not allowed: {content_type} for {file.name}. "
-                    f"Allowed types: {', '.join(allowed_mimetypes)}"
-                )
-                continue
+                # PDF 파일이고 pdf_to_image_for_unsupported가 True인 경우 이미지로 변환
+                if content_type == "application/pdf" and pdf_to_image_for_unsupported:
+                    logger.warning(
+                        f"PDF 파일 '{file.name}'을 이미지로 변환합니다. " f"이 Provider는 PDF를 직접 지원하지 않습니다."
+                    )
+                    # PDF를 이미지로 변환
+                    if hasattr(file, "seek"):
+                        file.seek(0)
+
+                    pdf_images = pdf_to_images(file, dpi=600, format="PNG", enhance_text=True)
+                    if not pdf_images:
+                        logger.error(f"PDF 변환 실패: {file.name}")
+                        continue
+
+                    # 변환된 이미지들을 모두 인코딩
+                    for img_data, img_mime_type in pdf_images:
+                        prefix = f"data:{img_mime_type};base64,"
+                        b64_string = b64encode(img_data).decode("utf-8")
+                        encoded_urls.append(f"{prefix}{b64_string}")
+
+                    continue
+                else:
+                    logger.warning(
+                        f"IO type not allowed: {content_type} for {file.name}. "
+                        f"Allowed types: {', '.join(allowed_mimetypes)}"
+                    )
+                    continue
 
             try:
                 if content_type.startswith("image/"):
@@ -291,6 +314,90 @@ def optimize_image(
             img.save(buffer, format=original_format)
 
     return buffer.getvalue(), content_type
+
+
+def pdf_to_images(
+    pdf_file: IO,
+    dpi: int = 600,
+    format: str = "PNG",
+    zoom: float = 1.0,
+    enhance_text: bool = True,
+) -> list[tuple[bytes, str]]:
+    """PDF를 고품질 이미지로 변환합니다.
+
+    Args:
+        pdf_file: PDF 파일 객체
+        dpi: 해상도 (기본값: 600 - 한글 문서에 적합)
+        format: 이미지 포맷 (PNG 또는 JPEG)
+        zoom: 추가 확대율 (기본값: 1.0)
+        enhance_text: 텍스트 향상 여부
+
+    Returns:
+        list[tuple[bytes, str]]: 각 페이지의 (이미지 바이트, MIME 타입) 튜플 리스트
+    """
+    try:
+        import fitz  # PyMuPDF
+    except ImportError:
+        logger.error("PyMuPDF가 설치되지 않았습니다. pip install PyMuPDF 명령으로 설치해주세요.")
+        return []
+
+    images = []
+
+    try:
+        # PDF 열기
+        if hasattr(pdf_file, "seek"):
+            pdf_file.seek(0)
+        pdf_data = pdf_file.read()
+        doc = fitz.open(stream=pdf_data, filetype="pdf")
+
+        # DPI를 zoom factor로 변환 (기본 72 DPI 기준)
+        base_zoom = dpi / 72.0
+        final_zoom = base_zoom * zoom
+
+        # 매트릭스 생성
+        mat = fitz.Matrix(final_zoom, final_zoom)
+
+        logger.info(f"PDF를 이미지로 변환 중... (페이지 수: {doc.page_count}, DPI: {dpi}, zoom: {final_zoom:.2f})")
+
+        for page_num, page in enumerate(doc):
+            # 페이지를 이미지로 렌더링
+            pix = page.get_pixmap(matrix=mat, alpha=False)
+
+            # PIL 이미지로 변환
+            img_data = pix.pil_tobytes(format=format.upper())
+            img = PILImage.open(BytesIO(img_data))
+
+            # 텍스트 향상 처리
+            if enhance_text and format.upper() == "PNG":
+                from PIL import ImageEnhance
+
+                # 선명도 향상
+                enhancer = ImageEnhance.Sharpness(img)
+                img = enhancer.enhance(1.5)
+
+                # 대비 향상
+                enhancer = ImageEnhance.Contrast(img)
+                img = enhancer.enhance(1.2)
+
+            # 바이트로 변환
+            buffer = BytesIO()
+            if format.upper() == "JPEG":
+                img.save(buffer, format="JPEG", quality=95, optimize=True)
+                mime_type = "image/jpeg"
+            else:
+                img.save(buffer, format="PNG", optimize=True)
+                mime_type = "image/png"
+
+            images.append((buffer.getvalue(), mime_type))
+            logger.debug(f"페이지 {page_num + 1}/{doc.page_count} 변환 완료")
+
+        doc.close()
+
+    except Exception as e:
+        logger.error(f"PDF 변환 중 오류 발생: {str(e)}")
+        return []
+
+    return images
 
 
 def extract_base64_files(request_dict: dict, base64_field_name_postfix: str = "__base64") -> MultiValueDict:

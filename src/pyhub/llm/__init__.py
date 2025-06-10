@@ -94,18 +94,23 @@ class LLM:
         if model in get_literal_values(LLMChatModelType):
             if vendor == "openai":
                 from pyhub.llm.openai import OpenAILLM
+
                 return OpenAILLM(model=cast(OpenAIChatModelType, model), **kwargs)
             elif vendor == "upstage":
                 from pyhub.llm.upstage import UpstageLLM
+
                 return UpstageLLM(model=cast(UpstageChatModelType, model), **kwargs)
             elif vendor == "anthropic":
                 from pyhub.llm.anthropic import AnthropicLLM
+
                 return AnthropicLLM(model=cast(AnthropicChatModelType, model), **kwargs)
             elif vendor == "google":
                 from pyhub.llm.google import GoogleLLM
+
                 return GoogleLLM(model=cast(GoogleChatModelType, model), **kwargs)
             elif vendor == "ollama":
                 from pyhub.llm.ollama import OllamaLLM
+
                 if "max_tokens" in kwargs:
                     del kwargs["max_tokens"]
                 return OllamaLLM(model=cast(OllamaChatModelType, model), **kwargs)
@@ -116,24 +121,28 @@ class LLM:
         elif model in get_literal_values(LLMEmbeddingModelType):
             if vendor == "openai":
                 from pyhub.llm.openai import OpenAILLM
+
                 return OpenAILLM(
                     embedding_model=cast(OpenAIEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "upstage":
                 from pyhub.llm.upstage import UpstageLLM
+
                 return UpstageLLM(
                     embedding_model=cast(UpstageEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "google":
                 from pyhub.llm.google import GoogleLLM
+
                 return GoogleLLM(
                     embedding_model=cast(GoogleEmbeddingModelType, model),
                     **kwargs,
                 )
             elif vendor == "ollama":
                 from pyhub.llm.ollama import OllamaLLM
+
                 if "max_tokens" in kwargs:
                     del kwargs["max_tokens"]
                 return OllamaLLM(
@@ -169,18 +178,23 @@ def __getattr__(name):
     """Lazy import provider classes to avoid import errors when optional dependencies are not installed."""
     if name == "AnthropicLLM":
         from pyhub.llm.anthropic import AnthropicLLM
+
         return AnthropicLLM
     elif name == "GoogleLLM":
         from pyhub.llm.google import GoogleLLM
+
         return GoogleLLM
     elif name == "OllamaLLM":
         from pyhub.llm.ollama import OllamaLLM
+
         return OllamaLLM
     elif name == "OpenAILLM":
         from pyhub.llm.openai import OpenAILLM
+
         return OpenAILLM
     elif name == "UpstageLLM":
         from pyhub.llm.upstage import UpstageLLM
+
         return UpstageLLM
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
