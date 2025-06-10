@@ -11,10 +11,6 @@ test-cov:
 	uv pip install -e ".[dev]"
 	uv run pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html $(filter-out $@,$(MAKECMDGOALS))
 
-cov:
-	uv pip install -e ".[dev]"
-	uv run pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html $(filter-out $@,$(MAKECMDGOALS))
-
 test-cov-report: test-cov
 	@if [ "$$(uname)" = "Darwin" ]; then \
 		open htmlcov/index.html; \
@@ -62,4 +58,3 @@ docs:
 docs-build:
 	uv pip install -e ".[docs]"
 	uv run mkdocs build --clean --site-dir docs-build
-

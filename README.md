@@ -57,8 +57,8 @@ from pyhub.llm import LLM
 llm = LLM.create("gpt-4o-mini")
 
 # 질문하기
-response = llm.ask("Python의 장점은 무엇인가요?")
-print(response.text)
+reply = llm.ask("Python의 장점은 무엇인가요?")
+print(reply.text)
 ```
 
 ### 모델별 직접 사용
@@ -84,18 +84,18 @@ from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
 
 # OpenAI (OPENAI_API_KEY 환경변수 필요)
 openai_llm = OpenAILLM(model="gpt-4o-mini")
-response = openai_llm.ask("안녕하세요!")
+reply = openai_llm.ask("안녕하세요!")
 
 # API 키 직접 전달
 openai_llm = OpenAILLM(model="gpt-4o-mini", api_key="your-api-key")
 
 # Anthropic (ANTHROPIC_API_KEY 환경변수 필요)
 claude_llm = AnthropicLLM(model="claude-3-haiku-20240307")
-response = claude_llm.ask("안녕하세요!")
+reply = claude_llm.ask("안녕하세요!")
 
 # Google (GOOGLE_API_KEY 환경변수 필요)
 gemini_llm = GoogleLLM(model="gemini-1.5-flash")
-response = gemini_llm.ask("안녕하세요!")
+reply = gemini_llm.ask("안녕하세요!")
 ```
 
 ## 주요 기능 예제
@@ -122,8 +122,8 @@ llm = LLM.create("gpt-4o-mini")
 llm.ask("제 이름은 김철수입니다", use_history=True)
 
 # 두 번째 질문 (이전 대화 기억)
-response = llm.ask("제 이름이 뭐라고 했죠?", use_history=True)
-print(response.text)  # "김철수라고 하셨습니다"
+reply = llm.ask("제 이름이 뭐라고 했죠?", use_history=True)
+print(reply.text)  # "김철수라고 하셨습니다"
 
 # 대화 히스토리 초기화
 llm.clear()
@@ -133,11 +133,11 @@ llm.clear()
 
 ```python
 # 단일 이미지 설명
-response = llm.describe_image("photo.jpg")
-print(response.text)
+reply = llm.describe_image("photo.jpg")
+print(reply.text)
 
 # 커스텀 프롬프트로 이미지 분석
-response = llm.describe_image(
+reply = llm.describe_image(
     "photo.jpg",
     prompt="이 이미지에서 보이는 색상은 무엇인가요?"
 )
@@ -157,13 +157,13 @@ text = llm.extract_text_from_image("document.jpg")
 
 ```python
 # 선택지 중에서만 응답
-response = llm.ask(
+reply = llm.ask(
     "이 리뷰의 감정은?",
     context={"review": "정말 최고의 제품입니다!"},
     choices=["긍정", "부정", "중립"]
 )
-print(response.choice)  # "긍정"
-print(response.confidence)  # 0.95
+print(reply.choice)  # "긍정"
+print(reply.confidence)  # 0.95
 ```
 
 ### 5. 도구/함수 호출
@@ -189,11 +189,11 @@ weather_tool = Tool(
 )
 
 # 도구와 함께 LLM 사용
-response = llm.ask(
+reply = llm.ask(
     "서울의 날씨는 어때?",
     tools=[weather_tool]
 )
-print(response.text)  # "서울의 날씨는 맑음입니다."
+print(reply.text)  # "서울의 날씨는 맑음입니다."
 ```
 
 ### 6. LLM 체이닝
@@ -222,7 +222,7 @@ print(result.values["text"])  # 번역 후 요약된 결과
 
 ```python
 # 캐싱 활성화
-response = llm.ask("복잡한 질문...", enable_cache=True)
+reply = llm.ask("복잡한 질문...", enable_cache=True)
 
 # 같은 질문 재요청시 캐시에서 반환 (빠르고 비용 없음)
 cached_response = llm.ask("복잡한 질문...", enable_cache=True)
@@ -239,7 +239,7 @@ llm = LLM.create(
 )
 
 # 템플릿 변수와 함께 사용
-response = llm.ask({
+reply = llm.ask({
     "role": "수학 교사",
     "question": "피타고라스 정리란?"
 })
@@ -375,7 +375,7 @@ mcp_client = MCPClient("localhost:8080")
 
 # MCP 도구를 LLM과 함께 사용
 llm = LLM.create("gpt-4o", tools=mcp_client.get_tools())
-response = llm.ask("현재 시스템 상태를 확인해주세요")
+reply = llm.ask("현재 시스템 상태를 확인해주세요")
 ```
 
 ## 개발
@@ -463,7 +463,7 @@ llm = OpenAILLM(api_key="your-key")
 
 ```python
 # 캐싱 활성화
-response = llm.ask("...", enable_cache=True)
+reply = llm.ask("...", enable_cache=True)
 
 # 더 빠른 모델 사용
 llm = LLM.create("gpt-3.5-turbo")
