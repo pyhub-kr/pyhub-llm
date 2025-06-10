@@ -1,4 +1,4 @@
-.PHONY: install test format lint clean build docs
+.PHONY: install test test-cov cov test-cov-report format lint clean build docs
 
 install:
 	uv pip install -e ".[dev,all]"
@@ -6,6 +6,23 @@ install:
 test:
 	uv pip install -e ".[dev]"
 	uv run pytest $(filter-out $@,$(MAKECMDGOALS))
+
+test-cov:
+	uv pip install -e ".[dev]"
+	uv run pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html $(filter-out $@,$(MAKECMDGOALS))
+
+cov:
+	uv pip install -e ".[dev]"
+	uv run pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html $(filter-out $@,$(MAKECMDGOALS))
+
+test-cov-report: test-cov
+	@if [ "$$(uname)" = "Darwin" ]; then \
+		open htmlcov/index.html; \
+	elif [ "$$(uname)" = "Linux" ]; then \
+		xdg-open htmlcov/index.html; \
+	else \
+		echo "Please open htmlcov/index.html manually"; \
+	fi
 
 format:
 	uv pip install -e ".[dev]"

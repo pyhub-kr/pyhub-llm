@@ -14,7 +14,7 @@ from pathlib import Path
 # Add pyhub-llm to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
-from pyhub.llm import LLMFactory
+from pyhub.llm import LLM
 from pyhub.llm.agents.mcp import MCPClient, load_mcp_tools
 
 # Configure logging
