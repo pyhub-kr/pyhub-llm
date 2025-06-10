@@ -42,7 +42,8 @@ git clone https://github.com/pyhub-kr/pyhub-llm.git
 cd pyhub-llm
 
 # 개발 환경 설치
-make install
+pip install -e ".[dev,all]"
+# 혹은 make install
 ```
 
 ## 빠른 시작
@@ -50,10 +51,10 @@ make install
 ### 기본 사용법
 
 ```python
-from pyhub.llm import LLMFactory
+from pyhub.llm import LLM
 
 # LLM 인스턴스 생성
-llm = LLMFactory.create("gpt-4o-mini")
+llm = LLM.create("gpt-4o-mini")
 
 # 질문하기
 response = llm.ask("Python의 장점은 무엇인가요?")
@@ -62,18 +63,37 @@ print(response.text)
 
 ### 모델별 직접 사용
 
+각 프로바이더를 사용하려면 해당 라이브러리를 먼저 설치해야 합니다:
+
+```bash
+# OpenAI 사용시
+pip install "pyhub-llm[openai]"
+
+# Anthropic 사용시
+pip install "pyhub-llm[anthropic]"
+
+# Google 사용시
+pip install "pyhub-llm[google]"
+
+# Ollama 사용시 (로컬 실행)
+pip install "pyhub-llm[ollama]"
+```
+
 ```python
 from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
 
-# OpenAI
+# OpenAI (OPENAI_API_KEY 환경변수 필요)
 openai_llm = OpenAILLM(model="gpt-4o-mini")
 response = openai_llm.ask("안녕하세요!")
 
-# Anthropic
+# API 키 직접 전달
+openai_llm = OpenAILLM(model="gpt-4o-mini", api_key="your-api-key")
+
+# Anthropic (ANTHROPIC_API_KEY 환경변수 필요)
 claude_llm = AnthropicLLM(model="claude-3-haiku-20240307")
 response = claude_llm.ask("안녕하세요!")
 
-# Google
+# Google (GOOGLE_API_KEY 환경변수 필요)
 gemini_llm = GoogleLLM(model="gemini-1.5-flash")
 response = gemini_llm.ask("안녕하세요!")
 ```
@@ -96,7 +116,7 @@ async for chunk in await llm.ask_async("긴 이야기를 들려주세요", strea
 
 ```python
 # 대화 컨텍스트 유지
-llm = LLMFactory.create("gpt-4o-mini")
+llm = LLM.create("gpt-4o-mini")
 
 # 첫 번째 질문
 llm.ask("제 이름은 김철수입니다", use_history=True)
@@ -180,12 +200,12 @@ print(response.text)  # "서울의 날씨는 맑음입니다."
 
 ```python
 # 번역 체인 구성
-translator = LLMFactory.create(
+translator = LLM.create(
     "gpt-4o-mini",
     prompt="다음 텍스트를 영어로 번역하세요: {text}"
 )
 
-summarizer = LLMFactory.create(
+summarizer = LLM.create(
     "gpt-4o-mini",
     prompt="다음 영어 텍스트를 한 문장으로 요약하세요: {text}"
 )
@@ -212,7 +232,7 @@ cached_response = llm.ask("복잡한 질문...", enable_cache=True)
 
 ```python
 # 프롬프트 템플릿 설정
-llm = LLMFactory.create(
+llm = LLM.create(
     "gpt-4o-mini",
     system_prompt="당신은 {role}입니다.",
     prompt="질문: {question}\n답변:"
@@ -225,16 +245,45 @@ response = llm.ask({
 })
 ```
 
-## 환경 설정
+## API 키 설정
 
-### 환경 변수 설정
+### 필요한 API 키
 
+각 프로바이더를 사용하려면 해당 API 키가 필요합니다:
+
+- **OpenAI**: `OPENAI_API_KEY` - [API 키 발급](https://platform.openai.com/api-keys)
+- **Anthropic**: `ANTHROPIC_API_KEY` - [API 키 발급](https://console.anthropic.com/settings/keys)
+- **Google**: `GOOGLE_API_KEY` - [API 키 발급](https://makersuite.google.com/app/apikey)
+- **Upstage**: `UPSTAGE_API_KEY` - [API 키 발급](https://console.upstage.ai/)
+
+### 설정 방법
+
+#### 1. 환경 변수로 설정
 ```bash
-# .env 파일
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GOOGLE_API_KEY="your-google-key"
+```
+
+#### 2. .env 파일 사용
+```bash
+# .env 파일 생성
 OPENAI_API_KEY=your-openai-key
 ANTHROPIC_API_KEY=your-anthropic-key
 GOOGLE_API_KEY=your-google-key
 ```
+
+#### 3. 코드에서 직접 전달
+```python
+from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
+
+# API 키를 직접 전달
+llm = OpenAILLM(api_key="your-api-key")
+llm = AnthropicLLM(api_key="your-api-key")
+llm = GoogleLLM(api_key="your-api-key")
+```
+
+## 환경 설정
 
 ### pyproject.toml 설정
 
@@ -304,7 +353,7 @@ from pyhub.llm.tools import WebSearchTool, CalculatorTool
 
 # 도구를 가진 에이전트 생성
 agent = ReactAgent(
-    llm=LLMFactory.create("gpt-4o"),
+    llm=LLM.create("gpt-4o"),
     tools=[WebSearchTool(), CalculatorTool()],
     max_iterations=5
 )
@@ -325,7 +374,7 @@ from pyhub.llm.agents.mcp import MCPClient
 mcp_client = MCPClient("localhost:8080")
 
 # MCP 도구를 LLM과 함께 사용
-llm = LLMFactory.create("gpt-4o", tools=mcp_client.get_tools())
+llm = LLM.create("gpt-4o", tools=mcp_client.get_tools())
 response = llm.ask("현재 시스템 상태를 확인해주세요")
 ```
 
@@ -338,10 +387,21 @@ response = llm.ask("현재 시스템 상태를 확인해주세요")
 make test
 
 # 특정 테스트
-pytest tests/test_openai.py -v
+make test tests/test_openai.py
 
-# 커버리지 포함
-pytest --cov=pyhub.llm
+# 커버리지 포함 테스트
+make test-cov
+# 또는
+make cov
+
+# 커버리지 HTML 리포트 보기
+make test-cov-report
+
+# 특정 파일만 커버리지 테스트
+make cov tests/test_optional_dependencies.py
+
+# pytest 직접 실행
+pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html
 ```
 
 ### 코드 품질 검사
@@ -406,14 +466,14 @@ llm = OpenAILLM(api_key="your-key")
 response = llm.ask("...", enable_cache=True)
 
 # 더 빠른 모델 사용
-llm = LLMFactory.create("gpt-3.5-turbo")
+llm = LLM.create("gpt-3.5-turbo")
 ```
 
 **Q: 메모리 사용량이 높습니다**
 
 ```python
 # 대화 히스토리 제한
-llm = LLMFactory.create(
+llm = LLM.create(
     "gpt-4o-mini",
     initial_messages=[]  # 히스토리 없이 시작
 )
