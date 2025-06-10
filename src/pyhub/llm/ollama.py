@@ -212,7 +212,7 @@ class OllamaLLM(BaseLLM):
         cached_value = None
         is_cached = False
 
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             cache_key = generate_cache_key("ollama", **request_params)
             cached_value = self.cache.get(cache_key)
 
@@ -229,7 +229,7 @@ class OllamaLLM(BaseLLM):
             response = sync_client.chat(**request_params)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
@@ -267,7 +267,7 @@ class OllamaLLM(BaseLLM):
         cached_value = None
         is_cached = False
 
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             cache_key = generate_cache_key("ollama", **request_params)
             cached_value = self.cache.get(cache_key)  # Assuming cache is synchronous
 
@@ -284,7 +284,7 @@ class OllamaLLM(BaseLLM):
             response: self._ChatResponse = await async_client.chat(**request_params)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())  # Assuming cache is synchronous
 
         assert response is not None
@@ -320,7 +320,7 @@ class OllamaLLM(BaseLLM):
 
         # TODO: Streaming cache support not implemented yet
         # For now, streaming responses are not cached
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -364,7 +364,7 @@ class OllamaLLM(BaseLLM):
 
         # TODO: Streaming cache support not implemented yet
         # For now, streaming responses are not cached
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -391,7 +391,6 @@ class OllamaLLM(BaseLLM):
         self,
         input: Union[str, list[str]],
         model: Optional[OllamaEmbeddingModelType] = None,
-        enable_cache: bool = False,
     ) -> Union[Embed, EmbedList]:
         """
         Ollama API를 사용하여 텍스트를 임베딩합니다.
@@ -409,7 +408,7 @@ class OllamaLLM(BaseLLM):
         cached_value = None
         is_cached = False
 
-        if self.cache and enable_cache:
+        if self.cache:
             cache_key = generate_cache_key("ollama", **request_params)
             cached_value = self.cache.get(cache_key)
 
@@ -426,7 +425,7 @@ class OllamaLLM(BaseLLM):
             response = sync_client.embed(**request_params)
 
             # Store in cache if enabled
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         # 캐시된 응답인 경우 usage를 0으로 설정하여 비용 중복 계산 방지
@@ -443,7 +442,6 @@ class OllamaLLM(BaseLLM):
         self,
         input: Union[str, list[str]],
         model: Optional[str] = None,
-        enable_cache: bool = False,
     ) -> Union[Embed, EmbedList]:
         """
         Ollama API를 사용하여 비동기적으로 텍스트를 임베딩합니다.
@@ -462,7 +460,7 @@ class OllamaLLM(BaseLLM):
         cached_value = None
         is_cached = False
 
-        if self.cache and enable_cache:
+        if self.cache:
             cache_key = generate_cache_key("ollama", **request_params)
             cached_value = self.cache.get(cache_key)  # Assuming cache is synchronous
 
@@ -479,7 +477,7 @@ class OllamaLLM(BaseLLM):
             response = await async_client.embed(**request_params)
 
             # Store in cache if enabled
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())  # Assuming cache is synchronous
 
         # 캐시된 응답인 경우 usage를 0으로 설정하여 비용 중복 계산 방지

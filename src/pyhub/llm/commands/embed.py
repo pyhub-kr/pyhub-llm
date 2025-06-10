@@ -71,7 +71,13 @@ def fill_jsonl(
         log_level = logging.INFO
     # init(debug=True, log_level=log_level)
 
-    llm = LLM.create(embedding_model)
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
+    llm = LLM.create(embedding_model, cache=cache)
 
     if is_verbose:
         table = Table(show_header=True, header_style="bold blue")
@@ -100,7 +106,7 @@ def fill_jsonl(
                     # Create embedding field if it doesn't exist
                     embedding = obj.get("embedding")
                     if not embedding:
-                        embedding = llm.embed(obj["page_content"], enable_cache=enable_cache)
+                        embedding = llm.embed(obj["page_content"])
                         obj["embedding"] = embedding
                         usage = embedding.usage
                         total_usage += usage
@@ -161,14 +167,20 @@ def text(
         log_level = logging.INFO
     # init(debug=True, log_level=log_level)
 
-    llm = LLM.create(embedding_model)
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
+    llm = LLM.create(embedding_model, cache=cache)
 
     if is_verbose:
         console.print(f"[dim]임베딩 모델: {llm.embedding_model} (차원: {llm.get_embed_size()})[/dim]")
         console.print(f"[dim]입력 텍스트 길이: {len(query)} 문자[/dim]")
 
     # 임베딩 생성
-    embedding_result = llm.embed(query, enable_cache=enable_cache)
+    embedding_result = llm.embed(query)
 
     # 출력 형식에 따라 처리
     if output_format == "json":
@@ -259,14 +271,20 @@ def similarity(
 
     if text1 and text2:
         # 텍스트를 임베딩으로 변환
-        llm = LLM.create(embedding_model)
+        # Create cache if requested
+        cache = None
+        if enable_cache:
+            from pyhub.llm.cache import MemoryCache
+            cache = MemoryCache()
+
+        llm = LLM.create(embedding_model, cache=cache)
         if is_verbose:
             console.print(f"[dim]임베딩 모델: {llm.embedding_model}[/dim]")
             console.print(f"[dim]텍스트 1 길이: {len(text1)} 문자[/dim]")
             console.print(f"[dim]텍스트 2 길이: {len(text2)} 문자[/dim]")
 
-        embed1 = llm.embed(text1, enable_cache=enable_cache)
-        embed2 = llm.embed(text2, enable_cache=enable_cache)
+        embed1 = llm.embed(text1)
+        embed2 = llm.embed(text2)
         vec1 = np.array(embed1.array)
         vec2 = np.array(embed2.array)
     else:
@@ -388,7 +406,13 @@ def batch(
     # init(debug=True, log_level=log_level)
 
     # LLM 생성
-    llm = LLM.create(embedding_model)
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
+    llm = LLM.create(embedding_model, cache=cache)
 
     if is_verbose:
         console.print(f"[dim]임베딩 모델: {llm.embedding_model} (차원: {llm.get_embed_size()})[/dim]")
@@ -427,7 +451,7 @@ def batch(
                 batch_usage = Usage()
 
                 for text in batch:
-                    embed_result = llm.embed(text, enable_cache=enable_cache)
+                    embed_result = llm.embed(text)
                     batch_results.append(
                         {
                             "text": text,

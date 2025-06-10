@@ -89,8 +89,8 @@ class TestCacheInjection:
 
         # Mock the cache key generation to return our test key
         with patch("pyhub.llm.cache.utils.generate_cache_key", return_value=cache_key):
-            # Make request with cache enabled
-            response = llm.ask("Test question", enable_cache=True)
+            # Make request (cache is automatically used since llm has cache)
+            response = llm.ask("Test question")
 
             # Should get cached response
             assert response.text == "Cached response"
@@ -128,8 +128,8 @@ class TestCacheInjection:
         # Create LLM with cache
         llm = LLM.create("gpt-4o", cache=mock_cache)
 
-        # Make request with cache enabled
-        response = llm.ask("Test question", enable_cache=True)
+        # Make request (cache is automatically used since llm has cache)
+        response = llm.ask("Test question")
 
         # Should get fresh response
         assert response.text == "Fresh response"
@@ -141,11 +141,8 @@ class TestCacheInjection:
         assert len(mock_cache.storage) == 1
 
     @patch("openai.OpenAI")
-    def test_cache_disabled_skips_cache(self, mock_openai_class):
-        """Test that cache is skipped when enable_cache=False."""
-        # Setup mock cache
-        mock_cache = MockCache()
-
+    def test_cache_disabled_when_no_cache_injected(self, mock_openai_class):
+        """Test that cache is not used when no cache is injected."""
         # Setup mock OpenAI
         mock_client = Mock()
         mock_openai_class.return_value = mock_client
@@ -158,15 +155,14 @@ class TestCacheInjection:
 
         mock_client.chat.completions.create.return_value = mock_response
 
-        # Create LLM with cache
-        llm = LLM.create("gpt-4o", cache=mock_cache)
+        # Create LLM without cache (cache=None)
+        llm = LLM.create("gpt-4o")  # No cache injected
 
-        # Make request with cache disabled (default)
-        response = llm.ask("Test question")  # enable_cache=False by default
+        # Make request (no cache to use)
+        response = llm.ask("Test question")
 
-        # Cache should not be used
-        assert mock_cache.get_called == 0
-        assert mock_cache.set_called == 0
+        # No cache operations should occur
+        assert llm.cache is None
 
         # API should be called
         mock_client.chat.completions.create.assert_called_once()
@@ -259,8 +255,8 @@ class TestCacheInjection:
         # Create LLM with cache
         llm = LLM.create("gpt-4o", cache=mock_cache)
 
-        # Make async request
-        response = await llm.ask_async("Test question", enable_cache=True)
+        # Make async request (cache is automatically used since llm has cache)
+        response = await llm.ask_async("Test question")
 
         assert response.text == "Async response"
         assert mock_cache.set_called == 1
@@ -299,14 +295,14 @@ class TestCacheKeyGeneration:
         llm = LLM.create("gpt-4o", cache=mock_cache, temperature=0.5, max_tokens=100)
 
         # Make two identical requests without saving history
-        llm.ask("Same question", enable_cache=True, use_history=False)
+        llm.ask("Same question", use_history=False)
 
         # Check cache was populated
         assert len(mock_cache.storage) == 1
         assert mock_cache.set_called == 1
 
         # Make same request again
-        llm.ask("Same question", enable_cache=True, use_history=False)
+        llm.ask("Same question", use_history=False)
 
         # Should only call API once (second is cached)
         assert mock_client.chat.completions.create.call_count == 1
@@ -314,7 +310,7 @@ class TestCacheKeyGeneration:
 
         # Make request with different parameters
         llm2 = LLM.create("gpt-4o", cache=mock_cache, temperature=0.8, max_tokens=100)
-        llm2.ask("Same question", enable_cache=True)
+        llm2.ask("Same question")
 
         # Should call API again (different temperature)
         assert mock_client.chat.completions.create.call_count == 2

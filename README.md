@@ -367,17 +367,7 @@ print(result.values["text"])  # 번역 후 요약된 결과
 
 ### 7. 캐싱 사용
 
-#### 기본 캐싱 (ask 메서드에서 활성화)
-
-```python
-# ask 메서드에서 캐싱 활성화
-reply = llm.ask("복잡한 질문...", enable_cache=True)
-
-# 같은 질문 재요청시 캐시에서 반환 (빠르고 비용 없음)
-cached_response = llm.ask("복잡한 질문...", enable_cache=True)
-```
-
-#### 캐시 인젝션 패턴 (생성자에서 캐시 설정)
+#### 캐시 인젝션 패턴
 
 ```python
 from pyhub.llm.cache import MemoryCache, FileCache
@@ -390,8 +380,8 @@ llm = LLM.create("gpt-4o-mini", cache=memory_cache)
 file_cache = FileCache(cache_dir=".cache", ttl=7200)  # 2시간 TTL
 llm = LLM.create("gpt-4o-mini", cache=file_cache)
 
-# 캐시가 설정된 LLM은 enable_cache=True 시 자동으로 캐시 사용
-reply = llm.ask("질문", enable_cache=True)
+# 캐시가 설정된 LLM은 자동으로 캐시 사용
+reply = llm.ask("질문")
 
 # 커스텀 캐시 백엔드 구현
 class CustomCache(BaseCache):
@@ -641,8 +631,11 @@ llm = OpenAILLM(api_key="your-key")
 **Q: 속도가 느립니다**
 
 ```python
-# 캐싱 활성화
-reply = llm.ask("...", enable_cache=True)
+# 캐시 인젝션으로 캐싱 활성화
+from pyhub.llm.cache import MemoryCache
+cache = MemoryCache()
+llm = LLM.create("gpt-4o-mini", cache=cache)
+reply = llm.ask("...")
 
 # 더 빠른 모델 사용
 llm = LLM.create("gpt-3.5-turbo")

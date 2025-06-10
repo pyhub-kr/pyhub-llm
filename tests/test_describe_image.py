@@ -58,7 +58,7 @@ class TestDescribeImage:
 
         # Test with additional options
         response = llm.describe_image(
-            "test.jpg", system_prompt="You are an art critic.", temperature=0.8, max_tokens=500, enable_cache=True
+            "test.jpg", system_prompt="You are an art critic.", temperature=0.8, max_tokens=500
         )
         assert isinstance(response, Reply)
         assert "Mock response: Describe this image in detail." in response.text
@@ -119,13 +119,12 @@ class TestDescribeImage:
                 system_prompt="Custom system",
                 temperature=0.5,
                 max_tokens=200,
-                enable_cache=True,
                 use_history=True,
             )
 
             # Check that ask was called with correct parameters
             mock_ask.assert_called_once_with(
-                input="Custom prompt", files=["test.jpg"], enable_cache=True, use_history=True
+                input="Custom prompt", files=["test.jpg"], use_history=True
             )
 
             # Check that original values were restored

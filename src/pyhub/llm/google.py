@@ -165,7 +165,7 @@ class GoogleLLM(BaseLLM):
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", **request_params)
@@ -191,7 +191,7 @@ class GoogleLLM(BaseLLM):
             response = generative_model.generate_content(contents=contents, generation_config=config)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 # TODO: Implement proper caching for GenerateContentResponse
                 pass  # self.cache.set(cache_key, response.model_dump_json())
 
@@ -226,7 +226,7 @@ class GoogleLLM(BaseLLM):
         cache_key = None
 
         # Check cache if enabled (using synchronous cache methods in async context)
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", **request_params)
@@ -252,7 +252,7 @@ class GoogleLLM(BaseLLM):
             response = await generative_model.generate_content_async(contents=contents, generation_config=config)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 # TODO: Implement proper caching for GenerateContentResponse
                 pass  # self.cache.set(cache_key, response.model_dump_json())
 
@@ -285,7 +285,7 @@ class GoogleLLM(BaseLLM):
         # Check cache if enabled
         cache_key = None
         cached_value = None
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", stream=True, **request_params)
@@ -327,7 +327,7 @@ class GoogleLLM(BaseLLM):
                 yield reply
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, reply_list)
 
     async def _make_ask_stream_async(
@@ -345,7 +345,7 @@ class GoogleLLM(BaseLLM):
         # Check cache if enabled (using synchronous cache methods in async context)
         cache_key = None
         cached_value = None
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", stream=True, **request_params)
@@ -391,7 +391,7 @@ class GoogleLLM(BaseLLM):
                 yield reply
 
             # Store in cache if enabled (using synchronous cache methods in async context)
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, reply_list)
 
     def ask(
@@ -406,7 +406,6 @@ class GoogleLLM(BaseLLM):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -421,7 +420,6 @@ class GoogleLLM(BaseLLM):
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -439,7 +437,6 @@ class GoogleLLM(BaseLLM):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -454,7 +451,6 @@ class GoogleLLM(BaseLLM):
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -464,7 +460,6 @@ class GoogleLLM(BaseLLM):
         self,
         input: Union[str, list[str]],
         model: Optional[GoogleEmbeddingModelType] = None,
-        enable_cache: bool = False,
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
@@ -480,7 +475,7 @@ class GoogleLLM(BaseLLM):
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and enable_cache:
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", **request_params)
@@ -498,7 +493,7 @@ class GoogleLLM(BaseLLM):
             response = self._genai.embed_content(**request_params)
 
             # Store in cache if enabled
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 # TODO: Implement proper caching for GenerateContentResponse
                 pass  # self.cache.set(cache_key, response.model_dump_json())
 
@@ -512,7 +507,6 @@ class GoogleLLM(BaseLLM):
         self,
         input: Union[str, list[str]],
         model: Optional[GoogleEmbeddingModelType] = None,
-        enable_cache: bool = False,
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
@@ -528,7 +522,7 @@ class GoogleLLM(BaseLLM):
         cache_key = None
 
         # Check cache if enabled (using synchronous cache methods in async context)
-        if self.cache and enable_cache:
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("google", **request_params)
@@ -545,7 +539,7 @@ class GoogleLLM(BaseLLM):
             response = await self._genai.embed_content_async(**request_params)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 # TODO: Implement proper caching for GenerateContentResponse
                 pass  # self.cache.set(cache_key, response.model_dump_json())
 
@@ -591,7 +585,7 @@ class GoogleLLM(BaseLLM):
 
         return tool_calls
 
-    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files):
         """Google Function Calling을 사용한 동기 호출"""
         try:
             from google.genai.types import FunctionDeclaration, Tool
@@ -659,7 +653,7 @@ class GoogleLLM(BaseLLM):
             logger.error(f"Google API error: {e}")
             return Reply(text=f"API Error: {str(e)}")
 
-    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files):
         """Google Function Calling을 사용한 비동기 호출"""
         try:
             from google.genai.types import FunctionDeclaration, Tool

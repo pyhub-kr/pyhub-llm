@@ -313,7 +313,6 @@ class BaseLLM(abc.ABC):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
     ):
         """동기 또는 비동기 응답을 생성하는 내부 메서드 (일반/스트리밍)"""
         current_messages = [*self.history] if use_history else []
@@ -327,8 +326,8 @@ class BaseLLM(abc.ABC):
         if context:
             input_context.update(context)
 
-        # enable_cache를 context에 추가
-        input_context["enable_cache"] = enable_cache
+        # cache 객체가 있으면 캐시 사용
+        input_context["enable_cache"] = self.cache is not None
 
         # choices 처리
         if choices:
@@ -500,7 +499,6 @@ class BaseLLM(abc.ABC):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -523,7 +521,6 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
-                enable_cache=enable_cache,
                 is_async=False,
             )
         else:
@@ -538,7 +535,6 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
-                enable_cache=enable_cache,
             )
 
     async def ask_async(
@@ -553,7 +549,6 @@ class BaseLLM(abc.ABC):
         stream: bool = False,
         raise_errors: bool = False,
         use_history: bool = True,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -576,7 +571,6 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
-                enable_cache=enable_cache,
                 is_async=True,
             )
         else:
@@ -591,7 +585,6 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
-                enable_cache=enable_cache,
             )
 
         if stream:
@@ -639,7 +632,6 @@ class BaseLLM(abc.ABC):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         is_async: bool = False,
     ):
         """도구와 함께 LLM 호출을 처리합니다.
@@ -675,7 +667,6 @@ class BaseLLM(abc.ABC):
                 stream,
                 use_history,
                 raise_errors,
-                enable_cache,
             )
         else:
             return self._ask_with_tools_sync(
@@ -693,7 +684,6 @@ class BaseLLM(abc.ABC):
                 stream,
                 use_history,
                 raise_errors,
-                enable_cache,
             )
 
     def _ask_with_tools_sync(
@@ -712,7 +702,6 @@ class BaseLLM(abc.ABC):
         stream,
         use_history,
         raise_errors,
-        enable_cache,
     ):
         """동기 버전의 도구 호출 처리"""
         # Trace 시작
@@ -740,7 +729,6 @@ class BaseLLM(abc.ABC):
                     tool_choice,
                     model,
                     files if call_count == 0 else None,
-                    enable_cache,
                 )
 
                 # 도구 호출 추출
@@ -811,7 +799,7 @@ class BaseLLM(abc.ABC):
                 final_messages = []
 
             final_response = self._make_ask(
-                input_context={"enable_cache": enable_cache},
+                input_context={},
                 human_message=final_human_message,
                 messages=final_messages,
                 model=model,
@@ -838,7 +826,6 @@ class BaseLLM(abc.ABC):
         stream,
         use_history,
         raise_errors,
-        enable_cache,
     ):
         """비동기 버전의 도구 호출 처리"""
         # 초기 메시지 준비
@@ -856,7 +843,6 @@ class BaseLLM(abc.ABC):
                     tool_choice,
                     model,
                     files if call_count == 0 else None,
-                    enable_cache,
                 )
 
                 # 도구 호출 추출
@@ -903,7 +889,7 @@ class BaseLLM(abc.ABC):
                 final_messages = []
 
             final_response = await self._make_ask_async(
-                input_context={"enable_cache": enable_cache},
+                input_context={},
                 human_message=final_human_message,
                 messages=final_messages,
                 model=model,
@@ -924,7 +910,7 @@ class BaseLLM(abc.ABC):
         # 기본적으로 빈 리스트 반환
         return []
 
-    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files):
         """도구와 함께 동기 LLM 호출 (하위 클래스에서 구현)"""
         # 기본적으로 일반 ask 호출
         return self._make_ask(
@@ -934,7 +920,7 @@ class BaseLLM(abc.ABC):
             model=model,
         )
 
-    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files):
         """도구와 함께 비동기 LLM 호출 (하위 클래스에서 구현)"""
         # 기본적으로 일반 ask 호출
         return await self._make_ask_async(
@@ -986,7 +972,6 @@ class BaseLLM(abc.ABC):
         max_tokens: Optional[int] = None,
         max_parallel_size: int = 4,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         use_history: bool = False,
     ) -> Union[Reply, list[Reply]]:
         """
@@ -1032,7 +1017,6 @@ class BaseLLM(abc.ABC):
             max_tokens,
             max_parallel_size,
             raise_errors,
-            enable_cache,
             use_history,
         )
 
@@ -1047,7 +1031,6 @@ class BaseLLM(abc.ABC):
         max_tokens: Optional[int] = None,
         max_parallel_size: int = 4,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         use_history: bool = False,
     ) -> Union[Reply, list[Reply]]:
         """여러 이미지를 병렬로 처리하여 설명을 생성합니다 (비동기)"""
@@ -1108,7 +1091,6 @@ class BaseLLM(abc.ABC):
                         files=[task_request.image],
                         context=task_request.prompt_context,
                         raise_errors=raise_errors,
-                        enable_cache=enable_cache,
                         use_history=use_history,
                     )
                     logger.debug("image description for %s : %s", task_request.image_path, repr(reply.text))
@@ -1140,7 +1122,6 @@ class BaseLLM(abc.ABC):
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        enable_cache: bool = False,
         use_history: bool = False,
         **kwargs,
     ) -> Reply:
@@ -1192,7 +1173,7 @@ class BaseLLM(abc.ABC):
                 self.max_tokens = max_tokens
 
             # ask 메서드 호출
-            result = self.ask(input=prompt, files=[image], enable_cache=enable_cache, use_history=use_history, **kwargs)
+            result = self.ask(input=prompt, files=[image], use_history=use_history, **kwargs)
         finally:
             # 원래 값들 복원
             self.system_prompt = original_system_prompt
@@ -1211,7 +1192,6 @@ class BaseLLM(abc.ABC):
         system_prompt: Optional[str] = None,
         temperature: Optional[float] = None,
         max_tokens: Optional[int] = None,
-        enable_cache: bool = False,
         use_history: bool = False,
         **kwargs,
     ) -> Reply:
@@ -1252,7 +1232,7 @@ class BaseLLM(abc.ABC):
 
             # ask_async 메서드 호출
             result = await self.ask_async(
-                input=prompt, files=[image], enable_cache=enable_cache, use_history=use_history, **kwargs
+                input=prompt, files=[image], use_history=use_history, **kwargs
             )
         finally:
             # 원래 값들 복원

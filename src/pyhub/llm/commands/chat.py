@@ -157,15 +157,22 @@ def chat(
             if conversation_context:
                 current_system_prompt = base_system_prompt + conversation_context
 
+            # Create cache if requested
+            cache = None
+            if enable_cache:
+                from pyhub.llm.cache import MemoryCache
+                cache = MemoryCache()
+
             llm = LLM.create(
                 model=model,
                 system_prompt=current_system_prompt,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                cache=cache,
             )
 
             # 스트리밍 응답
-            for chunk in llm.ask(user_input, stream=True, enable_cache=enable_cache):
+            for chunk in llm.ask(user_input, stream=True):
                 if markdown_mode and "\n" in chunk.text:
                     # 마크다운 모드에서는 전체 응답을 모아서 렌더링
                     response_text += chunk.text

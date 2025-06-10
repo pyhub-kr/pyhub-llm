@@ -204,7 +204,7 @@ class OpenAIMixin:
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("openai", **request_params)
@@ -222,7 +222,7 @@ class OpenAIMixin:
             response: self._ChatCompletion = sync_client.chat.completions.create(**request_params)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
@@ -256,7 +256,7 @@ class OpenAIMixin:
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("openai", **request_params)
@@ -274,7 +274,7 @@ class OpenAIMixin:
             response = await async_client.chat.completions.create(**request_params)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
@@ -305,7 +305,7 @@ class OpenAIMixin:
         request_params["stream"] = True
 
         # Streaming responses are not cached for now
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -378,7 +378,7 @@ class OpenAIMixin:
         request_params["stream"] = True
 
         # Streaming responses are not cached for now
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -446,7 +446,7 @@ class OpenAIMixin:
 
         return tool_calls
 
-    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files):
         """OpenAI Function Calling을 사용한 동기 호출"""
         from .types import Message
 
@@ -584,7 +584,7 @@ class OpenAIMixin:
                 error_details += f"\nResponse: {e.response.text[:500]}"
             return Reply(text=f"API Error: {error_details}")
 
-    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files):
         """OpenAI Function Calling을 사용한 비동기 호출"""
         from .types import Message
 
@@ -732,7 +732,6 @@ class OpenAIMixin:
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -747,7 +746,6 @@ class OpenAIMixin:
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -765,7 +763,6 @@ class OpenAIMixin:
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -780,14 +777,13 @@ class OpenAIMixin:
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
         )
 
     def embed(
-        self, input: Union[str, list[str]], model: Optional[OpenAIEmbeddingModelType] = None, enable_cache: bool = False
+        self, input: Union[str, list[str]], model: Optional[OpenAIEmbeddingModelType] = None
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(OpenAIEmbeddingModelType, model or self.embedding_model)
 
@@ -799,7 +795,7 @@ class OpenAIMixin:
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and enable_cache:
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("openai", **request_params)
@@ -817,7 +813,7 @@ class OpenAIMixin:
             response = sync_client.embeddings.create(**request_params)
 
             # Store in cache if enabled
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
@@ -831,7 +827,7 @@ class OpenAIMixin:
         return EmbedList([Embed(v.embedding) for v in response.data], usage=usage)
 
     async def embed_async(
-        self, input: Union[str, list[str]], model: Optional[OpenAIEmbeddingModelType] = None, enable_cache: bool = False
+        self, input: Union[str, list[str]], model: Optional[OpenAIEmbeddingModelType] = None
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(OpenAIEmbeddingModelType, model or self.embedding_model)
 
@@ -843,7 +839,7 @@ class OpenAIMixin:
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and enable_cache:
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("openai", **request_params)
@@ -861,7 +857,7 @@ class OpenAIMixin:
             response = await async_client.embeddings.create(**request_params)
 
             # Store in cache if enabled
-            if self.cache and enable_cache and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None

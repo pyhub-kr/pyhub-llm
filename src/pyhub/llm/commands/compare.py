@@ -102,11 +102,18 @@ def compare(
     def query_model(model_enum):
         """단일 모델에 질의"""
         try:
+            # Create cache if requested
+            cache = None
+            if enable_cache:
+                from pyhub.llm.cache import MemoryCache
+                cache = MemoryCache()
+
             llm = LLM.create(
                 model=model_enum,
                 system_prompt=system_prompt,
                 temperature=temperature,
                 max_tokens=max_tokens,
+                cache=cache,
             )
 
             start_time = time.time()
@@ -114,7 +121,7 @@ def compare(
             usage = None
 
             # 스트리밍 대신 일반 응답으로 받기 (비교를 위해)
-            response = llm.ask(query, stream=False, enable_cache=enable_cache)
+            response = llm.ask(query, stream=False)
             response_text = response.text
             usage = response.usage if hasattr(response, "usage") else None
 
