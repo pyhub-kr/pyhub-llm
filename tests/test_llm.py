@@ -91,15 +91,16 @@ class TestLLMCore:
 
     def test_with_cache(self, memory_cache):
         """Test LLM with caching enabled."""
-        llm = MockLLM(model="mock-model")
+        # Create LLM with cache injected
+        llm = MockLLM(model="mock-model", cache=memory_cache)
 
-        # First call with caching enabled
-        response1 = llm.ask("What is AI?", save_history=False, enable_cache=True)
+        # First call (caching is automatic with injected cache)
+        response1 = llm.ask("What is AI?", save_history=False)
         assert response1.text == "Mock response: What is AI?"
 
-        # Second call with same question and caching enabled
+        # Second call with same question
         # In real implementation, this might return cached response
-        response2 = llm.ask("What is AI?", save_history=False, enable_cache=True)
+        response2 = llm.ask("What is AI?", save_history=False)
         # Since our mock doesn't actually use cache, response will be same
         assert response2.text == "Mock response: What is AI?"
 

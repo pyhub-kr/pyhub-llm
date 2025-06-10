@@ -129,11 +129,18 @@ def describe(
         batch_output_dir.mkdir(parents=True, exist_ok=True)
 
     # LLM 생성
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
     llm = LLM.create(
         model=model,
         system_prompt=system_prompt,
         temperature=temperature,
         max_tokens=max_tokens,
+        cache=cache,
     )
 
     # 전체 통계
@@ -160,7 +167,7 @@ def describe(
             response_text = ""
             usage = None
 
-            # for chunk in llm.ask(query, files=files, stream=True, enable_cache=enable_cache):
+            # for chunk in llm.ask(query, files=files, stream=True):
             # Temporary fix - just create dummy response
             class DummyChunk:
                 def __init__(self):

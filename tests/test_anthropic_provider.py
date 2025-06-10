@@ -265,16 +265,18 @@ class TestAnthropicLLM:
 
         mock_client.messages.create.return_value = mock_response
 
-        # Create LLM - cache is handled via enable_cache parameter
-        llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are Claude.")
+        # Create LLM with cache for testing
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+        llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are Claude.", cache=cache)
 
         # First call - should hit API
-        reply1 = llm.ask("Hello", enable_cache=True)
+        reply1 = llm.ask("Hello")
         assert mock_client.messages.create.call_count == 1
 
         # Second call - cache doesn't work perfectly in tests due to timestamp differences
         # and the ANTHROPIC_NOT_GIVEN serialization issues, so it makes another call
-        reply2 = llm.ask("Hello", enable_cache=True)
+        reply2 = llm.ask("Hello")
         # In a real scenario with proper cache, this would be 1, but in tests it's 2
         assert mock_client.messages.create.call_count == 2
 

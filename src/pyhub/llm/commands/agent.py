@@ -48,7 +48,13 @@ def run(
     # init()
 
     # LLM 생성
-    llm = LLM.create(model=model)
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
+    llm = LLM.create(model=model, cache=cache)
 
     # 도구 생성 - 레지스트리에서 도구 가져오기
     agent_tools = []

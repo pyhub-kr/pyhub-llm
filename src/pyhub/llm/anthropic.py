@@ -235,7 +235,7 @@ class AnthropicLLM(BaseLLM):
         cache_key = None
 
         # Check cache if enabled
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             from pyhub.llm.cache.utils import generate_cache_key
 
             cache_key = generate_cache_key("anthropic", **request_params)
@@ -253,7 +253,7 @@ class AnthropicLLM(BaseLLM):
             response = await async_client.messages.create(**request_params)
 
             # Store in cache if enabled
-            if self.cache and input_context.get("enable_cache", False) and cache_key:
+            if self.cache and cache_key:
                 self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
@@ -282,7 +282,7 @@ class AnthropicLLM(BaseLLM):
         request_params["stream"] = True
 
         # Streaming responses are not cached for now
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -338,7 +338,7 @@ class AnthropicLLM(BaseLLM):
         request_params["stream"] = True
 
         # Streaming responses are not cached for now
-        if self.cache and input_context.get("enable_cache", False):
+        if self.cache:
             # TODO: Implement streaming cache support
             pass
 
@@ -390,7 +390,6 @@ class AnthropicLLM(BaseLLM):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -405,7 +404,6 @@ class AnthropicLLM(BaseLLM):
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -423,7 +421,6 @@ class AnthropicLLM(BaseLLM):
         stream: bool = False,
         raise_errors: bool = False,
         use_history: bool = True,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -438,7 +435,6 @@ class AnthropicLLM(BaseLLM):
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -476,7 +472,7 @@ class AnthropicLLM(BaseLLM):
 
         return tool_calls
 
-    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files):
         """Anthropic Tool Use를 사용한 동기 호출"""
 
         # 메시지 준비
@@ -521,7 +517,7 @@ class AnthropicLLM(BaseLLM):
             logger.error(f"Anthropic API error: {e}")
             return Reply(text=f"API Error: {str(e)}")
 
-    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files, enable_cache):
+    async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files):
         """Anthropic Tool Use를 사용한 비동기 호출"""
 
         # 메시지 준비

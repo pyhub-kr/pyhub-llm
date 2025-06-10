@@ -31,9 +31,9 @@ class TestLLMIntegration:
 
             llm = LLM.create("gpt-4o", api_key="test-key")
 
-            # Cache is handled via enable_cache parameter, not constructor
-            # Test that the LLM can make cached calls
-            response = llm.ask("Test question", enable_cache=True)
+            # Cache is now handled via constructor injection
+            # Test that the LLM can make calls
+            response = llm.ask("Test question")
             assert response.text == "Mock response: Test question"
 
     def test_create_anthropic_llm(self):
@@ -106,11 +106,12 @@ class TestCacheIntegration:
 
     def test_memory_cache_integration(self, memory_cache):
         """Test LLM with memory cache."""
-        llm = MockLLM(model="mock-model")
+        # Create LLM with cache injected
+        llm = MockLLM(model="mock-model", cache=memory_cache)
 
-        # Make same request twice with caching enabled
-        response1 = llm.ask("Cached question", save_history=False, enable_cache=True)
-        response2 = llm.ask("Cached question", save_history=False, enable_cache=True)
+        # Make same request twice (caching is automatic with injected cache)
+        response1 = llm.ask("Cached question", save_history=False)
+        response2 = llm.ask("Cached question", save_history=False)
 
         # Both should return same response
         assert response1.text == response2.text
@@ -122,10 +123,11 @@ class TestCacheIntegration:
     def test_file_cache_integration(self, temp_cache_dir):
         """Test LLM with file cache."""
         file_cache = FileCache(str(temp_cache_dir))
-        llm = MockLLM(model="mock-model")
+        # Create LLM with cache injected
+        llm = MockLLM(model="mock-model", cache=file_cache)
 
-        # Make request with caching enabled
-        response = llm.ask("File cached question", save_history=False, enable_cache=True)
+        # Make request (caching is automatic with injected cache)
+        response = llm.ask("File cached question", save_history=False)
         assert response.text == "Mock response: File cached question"
 
         # Test file cache directly

@@ -184,16 +184,19 @@ class TestDescribeImagesRefactor:
         assert isinstance(response, Reply)
         assert len(llm.history) == 2  # user + assistant messages
 
-    def test_enable_cache(self, tmp_path):
-        """Test with caching enabled."""
-        llm = MockLLM(model="mock-model")
+    def test_with_cache_injection(self, tmp_path):
+        """Test with cache injection."""
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+        # Create LLM with cache injected
+        llm = MockLLM(model="mock-model", cache=cache)
 
         img_path = tmp_path / "test.png"
         img = create_test_image()
         img_path.write_bytes(img.getvalue())
 
-        # 캐싱 활성화로 호출
-        response = llm.describe_images(str(img_path), enable_cache=True)
+        # 캐싱은 자동으로 활성화됨 (cache가 주입되었으므로)
+        response = llm.describe_images(str(img_path))
 
         assert isinstance(response, Reply)
         # MockLLM은 캐싱을 실제로 구현하지 않지만 에러 없이 동작해야 함

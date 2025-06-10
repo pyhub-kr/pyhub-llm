@@ -298,11 +298,18 @@ def ask(
             table.add_row("JSON Schema", str(schema_path))
         console.print(table)
 
+    # Create cache if requested
+    cache = None
+    if enable_cache:
+        from pyhub.llm.cache import MemoryCache
+        cache = MemoryCache()
+
     llm = LLM.create(
         model=model,
         system_prompt=system_prompt,
         temperature=temperature,
         max_tokens=max_tokens,
+        cache=cache,
     )
     if is_verbose:
         console.print(f"Using llm {llm.model}")
@@ -363,9 +370,9 @@ def ask(
         if output_json or choices:
             # 구조화된 응답
             if all_tools:
-                response = llm.ask(query, choices=choices, enable_cache=enable_cache, tools=all_tools)
+                response = llm.ask(query, choices=choices, tools=all_tools)
             else:
-                response = llm.ask(query, choices=choices, enable_cache=enable_cache)
+                response = llm.ask(query, choices=choices)
             usage = response.usage if hasattr(response, "usage") else None
             if output_json:
                 import json
@@ -410,9 +417,9 @@ def ask(
                 if is_verbose:
                     console.print("[dim]디버그: 비스트리밍 모드 사용[/dim]")
                 if all_tools:
-                    response = llm.ask(query, stream=False, enable_cache=enable_cache, tools=all_tools)
+                    response = llm.ask(query, stream=False, tools=all_tools)
                 else:
-                    response = llm.ask(query, stream=False, enable_cache=enable_cache)
+                    response = llm.ask(query, stream=False)
                 response_text = response.text
                 usage = response.usage
                 console.print(response_text)
@@ -421,9 +428,9 @@ def ask(
                 if is_verbose:
                     console.print("[dim]디버그: 스트리밍 시작...[/dim]")
                 if all_tools:
-                    chunks = llm.ask(query, stream=True, enable_cache=enable_cache, tools=all_tools)
+                    chunks = llm.ask(query, stream=True, tools=all_tools)
                 else:
-                    chunks = llm.ask(query, stream=True, enable_cache=enable_cache)
+                    chunks = llm.ask(query, stream=True)
                 for chunk in chunks:
                     if chunk.text:  # 텍스트가 있는 경우에만 출력
                         console.print(chunk.text, end="")
@@ -503,15 +510,15 @@ def ask(
             console.print("AI:", end=" ")
             if no_stream:
                 if all_tools:
-                    response = llm.ask(query, stream=False, enable_cache=enable_cache, tools=all_tools)
+                    response = llm.ask(query, stream=False, tools=all_tools)
                 else:
-                    response = llm.ask(query, stream=False, enable_cache=enable_cache)
+                    response = llm.ask(query, stream=False)
                 console.print(response.text)
             else:
                 if all_tools:
-                    chunks = llm.ask(query, stream=True, enable_cache=enable_cache, tools=all_tools)
+                    chunks = llm.ask(query, stream=True, tools=all_tools)
                 else:
-                    chunks = llm.ask(query, stream=True, enable_cache=enable_cache)
+                    chunks = llm.ask(query, stream=True)
                 for chunk in chunks:
                     console.print(chunk.text, end="")
                 console.print()
