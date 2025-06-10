@@ -42,7 +42,8 @@ git clone https://github.com/pyhub-kr/pyhub-llm.git
 cd pyhub-llm
 
 # 개발 환경 설치
-make install
+pip install -e ".[dev,all]"
+# 혹은 make install
 ```
 
 ## 빠른 시작
@@ -50,32 +51,51 @@ make install
 ### 기본 사용법
 
 ```python
-from pyhub.llm import LLMFactory
+from pyhub.llm import LLM
 
 # LLM 인스턴스 생성
-llm = LLMFactory.create("gpt-4o-mini")
+llm = LLM.create("gpt-4o-mini")
 
 # 질문하기
-response = llm.ask("Python의 장점은 무엇인가요?")
-print(response.text)
+reply = llm.ask("Python의 장점은 무엇인가요?")
+print(reply.text)
 ```
 
 ### 모델별 직접 사용
 
+각 프로바이더를 사용하려면 해당 라이브러리를 먼저 설치해야 합니다:
+
+```bash
+# OpenAI 사용시
+pip install "pyhub-llm[openai]"
+
+# Anthropic 사용시
+pip install "pyhub-llm[anthropic]"
+
+# Google 사용시
+pip install "pyhub-llm[google]"
+
+# Ollama 사용시 (로컬 실행)
+pip install "pyhub-llm[ollama]"
+```
+
 ```python
 from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
 
-# OpenAI
+# OpenAI (OPENAI_API_KEY 환경변수 필요)
 openai_llm = OpenAILLM(model="gpt-4o-mini")
-response = openai_llm.ask("안녕하세요!")
+reply = openai_llm.ask("안녕하세요!")
 
-# Anthropic
+# API 키 직접 전달
+openai_llm = OpenAILLM(model="gpt-4o-mini", api_key="your-api-key")
+
+# Anthropic (ANTHROPIC_API_KEY 환경변수 필요)
 claude_llm = AnthropicLLM(model="claude-3-haiku-20240307")
-response = claude_llm.ask("안녕하세요!")
+reply = claude_llm.ask("안녕하세요!")
 
-# Google
+# Google (GOOGLE_API_KEY 환경변수 필요)
 gemini_llm = GoogleLLM(model="gemini-1.5-flash")
-response = gemini_llm.ask("안녕하세요!")
+reply = gemini_llm.ask("안녕하세요!")
 ```
 
 ## 주요 기능 예제
@@ -96,28 +116,48 @@ async for chunk in await llm.ask_async("긴 이야기를 들려주세요", strea
 
 ```python
 # 대화 컨텍스트 유지
-llm = LLMFactory.create("gpt-4o-mini")
+llm = LLM.create("gpt-4o-mini")
 
 # 첫 번째 질문
 llm.ask("제 이름은 김철수입니다", use_history=True)
 
 # 두 번째 질문 (이전 대화 기억)
-response = llm.ask("제 이름이 뭐라고 했죠?", use_history=True)
-print(response.text)  # "김철수라고 하셨습니다"
+reply = llm.ask("제 이름이 뭐라고 했죠?", use_history=True)
+print(reply.text)  # "김철수라고 하셨습니다"
 
 # 대화 히스토리 초기화
 llm.clear()
 ```
 
-### 3. 이미지 처리
+### 3. 파일 처리 (이미지 및 PDF)
 
 ```python
-# 단일 이미지 설명
-response = llm.describe_image("photo.jpg")
-print(response.text)
+# 이미지 파일 처리
+reply = llm.ask(
+    "이 이미지를 설명해주세요",
+    files=["photo.jpg"]
+)
+
+# PDF 파일 처리 (Provider별 지원 현황)
+# - OpenAI, Anthropic, Google: PDF 직접 지원
+# - Ollama: PDF를 이미지로 자동 변환하여 처리
+reply = llm.ask(
+    "이 PDF 문서를 요약해주세요",
+    files=["document.pdf"]
+)
+
+# 여러 파일 동시 처리
+reply = llm.ask(
+    "이 파일들의 내용을 비교해주세요",
+    files=["doc1.pdf", "image1.jpg", "doc2.pdf"]
+)
+
+# 단일 이미지 설명 (편의 메서드)
+reply = llm.describe_image("photo.jpg")
+print(reply.text)
 
 # 커스텀 프롬프트로 이미지 분석
-response = llm.describe_image(
+reply = llm.describe_image(
     "photo.jpg",
     prompt="이 이미지에서 보이는 색상은 무엇인가요?"
 )
@@ -133,17 +173,28 @@ responses = llm.describe_images([
 text = llm.extract_text_from_image("document.jpg")
 ```
 
+#### Provider별 파일 지원 현황
+
+| Provider | 이미지 | PDF | 비고 |
+|----------|--------|-----|------|
+| OpenAI | ✅ | ✅ | PDF 직접 지원 |
+| Anthropic | ✅ | ✅ | PDF 베타 지원 |
+| Google Gemini | ✅ | ✅ | PDF 네이티브 지원 |
+| Ollama | ✅ | ⚠️ | PDF→이미지 자동 변환 |
+
+> **참고**: Ollama에서 PDF 파일 사용 시 자동으로 이미지로 변환되며, 경고 로그가 출력됩니다.
+
 ### 4. 선택지 제한
 
 ```python
 # 선택지 중에서만 응답
-response = llm.ask(
+reply = llm.ask(
     "이 리뷰의 감정은?",
     context={"review": "정말 최고의 제품입니다!"},
     choices=["긍정", "부정", "중립"]
 )
-print(response.choice)  # "긍정"
-print(response.confidence)  # 0.95
+print(reply.choice)  # "긍정"
+print(reply.confidence)  # 0.95
 ```
 
 ### 5. 도구/함수 호출
@@ -169,23 +220,23 @@ weather_tool = Tool(
 )
 
 # 도구와 함께 LLM 사용
-response = llm.ask(
+reply = llm.ask(
     "서울의 날씨는 어때?",
     tools=[weather_tool]
 )
-print(response.text)  # "서울의 날씨는 맑음입니다."
+print(reply.text)  # "서울의 날씨는 맑음입니다."
 ```
 
 ### 6. LLM 체이닝
 
 ```python
 # 번역 체인 구성
-translator = LLMFactory.create(
+translator = LLM.create(
     "gpt-4o-mini",
     prompt="다음 텍스트를 영어로 번역하세요: {text}"
 )
 
-summarizer = LLMFactory.create(
+summarizer = LLM.create(
     "gpt-4o-mini",
     prompt="다음 영어 텍스트를 한 문장으로 요약하세요: {text}"
 )
@@ -202,7 +253,7 @@ print(result.values["text"])  # 번역 후 요약된 결과
 
 ```python
 # 캐싱 활성화
-response = llm.ask("복잡한 질문...", enable_cache=True)
+reply = llm.ask("복잡한 질문...", enable_cache=True)
 
 # 같은 질문 재요청시 캐시에서 반환 (빠르고 비용 없음)
 cached_response = llm.ask("복잡한 질문...", enable_cache=True)
@@ -212,29 +263,58 @@ cached_response = llm.ask("복잡한 질문...", enable_cache=True)
 
 ```python
 # 프롬프트 템플릿 설정
-llm = LLMFactory.create(
+llm = LLM.create(
     "gpt-4o-mini",
     system_prompt="당신은 {role}입니다.",
     prompt="질문: {question}\n답변:"
 )
 
 # 템플릿 변수와 함께 사용
-response = llm.ask({
+reply = llm.ask({
     "role": "수학 교사",
     "question": "피타고라스 정리란?"
 })
 ```
 
-## 환경 설정
+## API 키 설정
 
-### 환경 변수 설정
+### 필요한 API 키
 
+각 프로바이더를 사용하려면 해당 API 키가 필요합니다:
+
+- **OpenAI**: `OPENAI_API_KEY` - [API 키 발급](https://platform.openai.com/api-keys)
+- **Anthropic**: `ANTHROPIC_API_KEY` - [API 키 발급](https://console.anthropic.com/settings/keys)
+- **Google**: `GOOGLE_API_KEY` - [API 키 발급](https://makersuite.google.com/app/apikey)
+- **Upstage**: `UPSTAGE_API_KEY` - [API 키 발급](https://console.upstage.ai/)
+
+### 설정 방법
+
+#### 1. 환경 변수로 설정
 ```bash
-# .env 파일
+export OPENAI_API_KEY="your-openai-key"
+export ANTHROPIC_API_KEY="your-anthropic-key"
+export GOOGLE_API_KEY="your-google-key"
+```
+
+#### 2. .env 파일 사용
+```bash
+# .env 파일 생성
 OPENAI_API_KEY=your-openai-key
 ANTHROPIC_API_KEY=your-anthropic-key
 GOOGLE_API_KEY=your-google-key
 ```
+
+#### 3. 코드에서 직접 전달
+```python
+from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
+
+# API 키를 직접 전달
+llm = OpenAILLM(api_key="your-api-key")
+llm = AnthropicLLM(api_key="your-api-key")
+llm = GoogleLLM(api_key="your-api-key")
+```
+
+## 환경 설정
 
 ### pyproject.toml 설정
 
@@ -304,7 +384,7 @@ from pyhub.llm.tools import WebSearchTool, CalculatorTool
 
 # 도구를 가진 에이전트 생성
 agent = ReactAgent(
-    llm=LLMFactory.create("gpt-4o"),
+    llm=LLM.create("gpt-4o"),
     tools=[WebSearchTool(), CalculatorTool()],
     max_iterations=5
 )
@@ -325,8 +405,8 @@ from pyhub.llm.agents.mcp import MCPClient
 mcp_client = MCPClient("localhost:8080")
 
 # MCP 도구를 LLM과 함께 사용
-llm = LLMFactory.create("gpt-4o", tools=mcp_client.get_tools())
-response = llm.ask("현재 시스템 상태를 확인해주세요")
+llm = LLM.create("gpt-4o", tools=mcp_client.get_tools())
+reply = llm.ask("현재 시스템 상태를 확인해주세요")
 ```
 
 ## 개발
@@ -338,10 +418,21 @@ response = llm.ask("현재 시스템 상태를 확인해주세요")
 make test
 
 # 특정 테스트
-pytest tests/test_openai.py -v
+make test tests/test_openai.py
 
-# 커버리지 포함
-pytest --cov=pyhub.llm
+# 커버리지 포함 테스트
+make test-cov
+# 또는
+make cov
+
+# 커버리지 HTML 리포트 보기
+make test-cov-report
+
+# 특정 파일만 커버리지 테스트
+make cov tests/test_optional_dependencies.py
+
+# pytest 직접 실행
+pytest --cov=src/pyhub/llm --cov-report=term --cov-report=html
 ```
 
 ### 코드 품질 검사
@@ -403,17 +494,17 @@ llm = OpenAILLM(api_key="your-key")
 
 ```python
 # 캐싱 활성화
-response = llm.ask("...", enable_cache=True)
+reply = llm.ask("...", enable_cache=True)
 
 # 더 빠른 모델 사용
-llm = LLMFactory.create("gpt-3.5-turbo")
+llm = LLM.create("gpt-3.5-turbo")
 ```
 
 **Q: 메모리 사용량이 높습니다**
 
 ```python
 # 대화 히스토리 제한
-llm = LLMFactory.create(
+llm = LLM.create(
     "gpt-4o-mini",
     initial_messages=[]  # 히스토리 없이 시작
 )

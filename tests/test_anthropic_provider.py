@@ -12,7 +12,7 @@ from pyhub.llm.types import Message, Reply
 class TestAnthropicLLM:
     """Test Anthropic LLM provider."""
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_initialization(self, mock_anthropic_class):
         """Test Anthropic LLM initialization."""
         # Test with valid API key
@@ -39,7 +39,7 @@ class TestAnthropicLLM:
 
         assert llm.api_key == "sk-ant-settings-key"
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_ask_simple(self, mock_anthropic_class):
         """Test simple ask method."""
         # Mock Anthropic client and response
@@ -77,7 +77,7 @@ class TestAnthropicLLM:
         assert reply.usage.input == 12
         assert reply.usage.output == 8
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_ask_with_choices(self, mock_anthropic_class):
         """Test ask with choices constraint."""
         mock_client = Mock()
@@ -100,7 +100,7 @@ class TestAnthropicLLM:
         # The current implementation doesn't add allow_none text unless it's explicitly set
         assert call_args["temperature"] == 0.1  # Lower temperature for choices
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     @patch("pyhub.llm.anthropic.encode_files")
     def test_ask_with_images(self, mock_encode_files, mock_anthropic_class):
         """Test ask with image files."""
@@ -130,7 +130,7 @@ class TestAnthropicLLM:
         assert any(block["type"] == "image" for block in message_content)
         assert any(block["type"] == "text" for block in message_content)
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_streaming(self, mock_anthropic_class):
         """Test streaming response."""
         mock_client = Mock()
@@ -157,7 +157,7 @@ class TestAnthropicLLM:
         assert chunks[3].text == ""  # Final usage chunk
         assert mock_client.messages.create.call_args[1]["stream"] is True
 
-    @patch("pyhub.llm.anthropic.AsyncAnthropic")
+    @patch("anthropic.AsyncAnthropic")
     @pytest.mark.asyncio
     async def test_ask_async(self, mock_anthropic_class):
         """Test async ask method."""
@@ -179,7 +179,7 @@ class TestAnthropicLLM:
         assert reply.usage.input == 10
         assert reply.usage.output == 5
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_messages(self, mock_anthropic_class):
         """Test messages method."""
         mock_client = Mock()
@@ -213,7 +213,7 @@ class TestAnthropicLLM:
         assert call_args["messages"][2]["role"] == "assistant"
         assert call_args["messages"][3]["role"] == "user"
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_error_handling(self, mock_anthropic_class):
         """Test error handling."""
         mock_client = Mock()
@@ -241,7 +241,7 @@ class TestAnthropicLLM:
 
             asyncio.run(llm.embed_async("text"))
 
-    @patch("pyhub.llm.anthropic.SyncAnthropic")
+    @patch("anthropic.Anthropic")
     def test_caching(self, mock_anthropic_class):
         """Test response caching."""
         mock_client = Mock()

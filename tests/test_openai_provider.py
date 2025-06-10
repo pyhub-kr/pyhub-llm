@@ -20,7 +20,7 @@ class TestOpenAILLM:
         assert llm.temperature == 0.2  # Default from BaseLLM
         assert llm.max_tokens == 1000  # Default from BaseLLM
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_ask_simple(self, mock_openai_class):
         """Test simple ask method."""
         # Mock OpenAI client and response
@@ -51,7 +51,7 @@ class TestOpenAILLM:
         assert reply.usage.output == 8
         assert reply.usage.total == 18
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_ask_with_kwargs(self, mock_openai_class):
         """Test ask method with additional parameters."""
         mock_client = Mock()
@@ -71,7 +71,7 @@ class TestOpenAILLM:
         # Just verify SyncOpenAI was called
         mock_openai_class.assert_called()
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_ask_with_history(self, mock_openai_class):
         """Test ask method with conversation history."""
         mock_client = Mock()
@@ -96,7 +96,7 @@ class TestOpenAILLM:
         assert reply.text == "I can help with that!"
         assert reply.usage.total == 30
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_error_handling(self, mock_openai_class):
         """Test error handling."""
         mock_client = Mock()
@@ -112,7 +112,7 @@ class TestOpenAILLM:
         assert "API Error" in reply.text
         assert reply.text.startswith("Error:")
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_streaming(self, mock_openai_class):
         """Test streaming functionality."""
         mock_client = Mock()
@@ -146,7 +146,7 @@ class TestOpenAILLM:
         assert chunks[3].usage.output == 3
 
     @pytest.mark.asyncio
-    @patch("pyhub.llm.openai.AsyncOpenAI")
+    @patch("openai.AsyncOpenAI")
     async def test_async_ask(self, mock_async_openai_class):
         """Test async ask functionality."""
         mock_client = Mock()
@@ -168,7 +168,7 @@ class TestOpenAILLM:
         assert reply.usage.input == 10
         assert reply.usage.output == 5
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_embed(self, mock_openai_class):
         """Test embed functionality."""
         mock_client = Mock()
@@ -190,7 +190,7 @@ class TestOpenAILLM:
         assert result.array == [0.1, 0.2, 0.3, 0.4]
         assert result.usage.input == 5
 
-    @patch("pyhub.llm.openai.SyncOpenAI")
+    @patch("openai.OpenAI")
     def test_empty_content_handling(self, mock_openai_class):
         """Test handling of empty content in response."""
         mock_client = Mock()

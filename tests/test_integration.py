@@ -15,19 +15,19 @@ class TestLLMIntegration:
 
     def test_create_openai_llm(self):
         """Test creating an OpenAI LLM."""
-        with patch("pyhub.llm.OpenAILLM") as mock_openai:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = MockLLM(model="gpt-4o")  # Use MockLLM for testing
-            mock_openai.return_value = mock_instance
+            mock_openai_class.return_value = mock_instance
 
             llm = LLM.create("gpt-4o", api_key="test-key")
             assert llm.model == "gpt-4o"
-            mock_openai.assert_called_once_with(model="gpt-4o", api_key="test-key")
+            mock_openai_class.assert_called_once_with(model="gpt-4o", api_key="test-key")
 
     def test_create_with_cache(self, memory_cache):
         """Test creating LLM with cache."""
-        with patch("pyhub.llm.OpenAILLM") as mock_openai:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = MockLLM(model="gpt-4o")
-            mock_openai.return_value = mock_instance
+            mock_openai_class.return_value = mock_instance
 
             llm = LLM.create("gpt-4o", api_key="test-key")
 
@@ -38,13 +38,13 @@ class TestLLMIntegration:
 
     def test_create_anthropic_llm(self):
         """Test creating an Anthropic LLM."""
-        with patch("pyhub.llm.AnthropicLLM") as mock_anthropic:
+        with patch("pyhub.llm.anthropic.AnthropicLLM") as mock_anthropic_class:
             mock_instance = MockLLM(model="claude-3-5-sonnet-latest")
-            mock_anthropic.return_value = mock_instance
+            mock_anthropic_class.return_value = mock_instance
 
             llm = LLM.create("claude-3-5-sonnet-latest", api_key="test-key")
             assert llm.model == "claude-3-5-sonnet-latest"
-            mock_anthropic.assert_called_once_with(model="claude-3-5-sonnet-latest", api_key="test-key")
+            mock_anthropic_class.assert_called_once_with(model="claude-3-5-sonnet-latest", api_key="test-key")
 
 
 class TestMockLLMIntegration:
