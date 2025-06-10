@@ -80,7 +80,7 @@ pip install "pyhub-llm[ollama]"
 ```
 
 ```python
-from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
+from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM, OllamaLLM
 
 # OpenAI (OPENAI_API_KEY 환경변수 필요)
 openai_llm = OpenAILLM(model="gpt-4o-mini")
@@ -96,7 +96,123 @@ reply = claude_llm.ask("안녕하세요!")
 # Google (GOOGLE_API_KEY 환경변수 필요)
 gemini_llm = GoogleLLM(model="gemini-1.5-flash")
 reply = gemini_llm.ask("안녕하세요!")
+
+# Ollama (로컬 실행, API 키 불필요)
+ollama_llm = OllamaLLM(model="mistral")
+reply = ollama_llm.ask("안녕하세요!")
 ```
+
+## Ollama 로컬 모델 사용
+
+Ollama는 로컬에서 LLM을 실행할 수 있는 오픈소스 도구입니다. API 키가 필요 없고, 데이터가 외부로 전송되지 않아 개인정보 보호에 유리합니다.
+
+### Ollama 설치
+
+#### macOS
+```bash
+# Homebrew 사용
+brew install ollama
+
+# 또는 공식 설치 프로그램 다운로드
+curl -fsSL https://ollama.ai/install.sh | sh
+```
+
+#### Linux
+```bash
+# 설치 스크립트 실행
+curl -fsSL https://ollama.ai/install.sh | sh
+
+# 또는 Docker 사용
+docker run -d -v ollama:/root/.ollama -p 11434:11434 --name ollama ollama/ollama
+```
+
+#### Windows
+```bash
+# PowerShell에서 실행
+iex (irm https://ollama.ai/install.ps1)
+
+# 또는 공식 웹사이트에서 설치 프로그램 다운로드
+# https://ollama.ai/download/windows
+```
+
+### 모델 다운로드 및 실행
+
+```bash
+# Ollama 서비스 시작 (필요한 경우)
+ollama serve
+
+# Mistral 모델 다운로드
+ollama pull mistral
+
+# 다른 인기 모델들
+ollama pull llama3.3
+ollama pull gemma2
+ollama pull qwen2
+
+# 모델 목록 확인
+ollama list
+
+# 모델 직접 실행 (테스트용)
+ollama run mistral
+```
+
+### pyhub-llm에서 Ollama 사용
+
+```python
+from pyhub.llm import OllamaLLM
+
+# 기본 사용법
+llm = OllamaLLM(model="mistral")
+reply = llm.ask("Python으로 웹 스크래핑하는 방법을 알려주세요")
+print(reply.text)
+
+# 스트리밍으로 실시간 응답 받기
+for chunk in llm.ask("긴 이야기를 들려주세요", stream=True):
+    print(chunk.text, end="", flush=True)
+
+# 이미지와 함께 질문하기
+reply = llm.ask(
+    "이 이미지에 무엇이 보이나요?",
+    files=["image.jpg"]
+)
+
+# PDF 파일 처리 (자동으로 이미지로 변환됨)
+reply = llm.ask(
+    "이 PDF 문서를 요약해주세요",
+    files=["document.pdf"]  # 자동으로 고품질 이미지로 변환
+)
+
+# 비동기 사용
+async def async_example():
+    reply = await llm.ask_async("비동기로 질문합니다")
+    return reply.text
+
+# 커스텀 설정
+llm = OllamaLLM(
+    model="mistral",
+    temperature=0.7,
+    max_tokens=2000,
+    base_url="http://localhost:11434"  # 커스텀 Ollama 서버
+)
+```
+
+### Ollama 장점
+
+- **🔒 개인정보 보호**: 모든 데이터가 로컬에서 처리
+- **💰 비용 절감**: API 호출 비용 없음
+- **⚡ 빠른 응답**: 네트워크 지연 없음  
+- **🌐 오프라인 사용**: 인터넷 연결 불필요
+- **🎛️ 완전한 제어**: 모델 파라미터 자유 조정
+
+### 지원 모델
+
+- **Llama 계열**: llama3.3, llama3.1, llama3.2
+- **Mistral**: mistral, mixtral
+- **Gemma**: gemma2, gemma3  
+- **Qwen**: qwen2, qwen2.5
+- **기타**: phi3, codellama, vicuna 등
+
+> **참고**: PDF 파일 처리 시 Ollama는 자동으로 고품질 이미지로 변환하여 처리합니다. 한국어 텍스트 보존을 위해 600 DPI로 변환됩니다.
 
 ## 주요 기능 예제
 
