@@ -16,6 +16,7 @@ from pyhub.llm.types import (
     Message,
     Reply,
 )
+from pyhub.llm.utils.files import IOType
 from pyhub.llm.utils.templates import (
     Context,
     Template,
@@ -47,6 +48,7 @@ class DescribeImageRequest:
 
 class BaseLLM(abc.ABC):
     EMBEDDING_DIMENSIONS = {}
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE]  # 기본값: 이미지만 지원
 
     def __init__(
         self,

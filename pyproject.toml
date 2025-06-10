@@ -42,12 +42,14 @@ Issues = "https://github.com/pyhub-team/pyhub-llm/issues"
 openai = ["openai>=1.84.0"]
 anthropic = ["anthropic>=0.52.0"]
 google = ["google-genai>=1.19.0"]
-ollama = ["ollama>=0.5.0"]
+ollama = ["ollama>=0.5.0", "PyMuPDF"]
+pdf = ["PyMuPDF>=1.23.0"]
 all = [
     "pyhub-llm[openai]",
     "pyhub-llm[anthropic]",
     "pyhub-llm[google]",
     "pyhub-llm[ollama]",
+    "pyhub-llm[pdf]",
 ]
 dev = [
     "pytest>=7.0.0",

@@ -51,30 +51,91 @@ class OpenAIMixin:
             system_message = {"role": "system", "content": system_prompt}
             message_history.insert(0, system_message)
 
-        image_blocks: list[dict] = []
+        content_blocks: list[dict] = []
 
         if use_files:
-            # https://platform.openai.com/docs/guides/images?api-mode=chat
-            #  - up to 20MB per image
-            #  - low resolution : 512px x 512px
-            #  - high resolution : 768px (short side) x 2000px (long side)
-            image_urls = encode_files(
-                human_message.files,
-                allowed_types=IOType.IMAGE,
-                convert_mode="base64",
-            )
+            # Separate PDF files and image files for different handling
+            pdf_files = []
+            image_files = []
 
-            if image_urls:
-                for image_url in image_urls:
-                    image_blocks.append(
-                        {
-                            "type": "image_url",
-                            "image_url": {
-                                "url": image_url,
-                                # "detail": "auto",  # low, high, auto (default)
-                            },
-                        }
-                    )
+            if human_message.files:
+                for file in human_message.files:
+                    import mimetypes
+                    from pathlib import Path
+
+                    # Determine file type
+                    if isinstance(file, str):
+                        file_path = Path(file)
+                        mime_type, _ = mimetypes.guess_type(str(file_path))
+                    else:
+                        mime_type, _ = mimetypes.guess_type(getattr(file, "name", ""))
+
+                    if mime_type == "application/pdf":
+                        pdf_files.append(file)
+                    elif mime_type and mime_type.startswith("image/"):
+                        image_files.append(file)
+                    else:
+                        # Default to image handling for unknown types
+                        image_files.append(file)
+
+            # Handle PDF files using base64 encoding (OpenAI's new base64 PDF support)
+            if pdf_files:
+                for pdf_file in pdf_files:
+                    try:
+                        import base64
+                        from pathlib import Path
+
+                        # Read and encode PDF file
+                        if isinstance(pdf_file, str):
+                            file_path = Path(pdf_file)
+                            filename = file_path.name
+                            with open(pdf_file, "rb") as f:
+                                file_content = f.read()
+                        else:
+                            # Reset file pointer if it's a file object
+                            if hasattr(pdf_file, "seek"):
+                                pdf_file.seek(0)
+                            file_content = pdf_file.read()
+                            filename = getattr(pdf_file, "name", "document.pdf")
+                            # Extract just the filename if it's a full path
+                            if hasattr(filename, "split"):
+                                filename = filename.split("/")[-1].split("\\")[-1]
+
+                        # Base64 encode the PDF content with proper data URL format
+                        base64_content = base64.b64encode(file_content).decode("utf-8")
+                        data_url = f"data:application/pdf;base64,{base64_content}"
+
+                        # Add file reference to content using OpenAI's base64 PDF format
+                        content_blocks.append({"type": "file", "file": {"filename": filename, "file_data": data_url}})
+
+                    except Exception as e:
+                        logger.error(f"Failed to encode PDF file: {e}")
+                        # Fallback: try to process as image (conversion will happen in encode_files)
+                        image_files.append(pdf_file)
+
+            # Handle image files using existing logic
+            if image_files:
+                # https://platform.openai.com/docs/guides/images?api-mode=chat
+                #  - up to 20MB per image
+                #  - low resolution : 512px x 512px
+                #  - high resolution : 768px (short side) x 2000px (long side)
+                image_urls = encode_files(
+                    image_files,
+                    allowed_types=[IOType.IMAGE],  # Only images for this path
+                    convert_mode="base64",
+                )
+
+                if image_urls:
+                    for image_url in image_urls:
+                        content_blocks.append(
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": image_url,
+                                    # "detail": "auto",  # low, high, auto (default)
+                                },
+                            }
+                        )
         else:
             if human_message.files:
                 logger.warning("IOs are ignored because use_files flag is set to False.")
@@ -83,7 +144,7 @@ class OpenAIMixin:
             {
                 "role": human_message.role,
                 "content": [
-                    *image_blocks,
+                    *content_blocks,
                     {"type": "text", "text": human_message.content},
                 ],
             }
@@ -815,6 +876,7 @@ class OpenAIMixin:
 
 
 class OpenAILLM(OpenAIMixin, BaseLLM):
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE, IOType.PDF]  # OpenAI는 PDF 직접 지원
     EMBEDDING_DIMENSIONS = {
         "text-embedding-ada-002": 1536,
         "text-embedding-3-small": 1536,

@@ -22,6 +22,8 @@ logger = logging.getLogger(__name__)
 
 
 class AnthropicLLM(BaseLLM):
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE, IOType.PDF]  # Anthropic도 PDF 직접 지원 (베타)
+
     def __init__(
         self,
         model: AnthropicChatModelType = "claude-3-5-haiku-latest",
@@ -101,9 +103,10 @@ class AnthropicLLM(BaseLLM):
                 system_prompt += choices_instruction
 
         # https://docs.anthropic.com/en/docs/build-with-claude/vision
+        # https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
         image_urls = encode_files(
             human_message.files,
-            allowed_types=IOType.IMAGE,
+            allowed_types=self.SUPPORTED_FILE_TYPES,
             convert_mode="base64",
         )
 

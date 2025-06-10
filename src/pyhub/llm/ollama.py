@@ -28,6 +28,8 @@ class OllamaLLM(BaseLLM):
     Ollama API를 사용하여 LLM 기능을 제공하는 클래스입니다.
     """
 
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE]  # Ollama는 기본적으로 이미지만 지원
+
     EMBEDDING_DIMENSIONS = {
         "nomic-embed-text": 768,
         "avr/sfr-embedding-mistral": 4096,
@@ -141,10 +143,12 @@ class OllamaLLM(BaseLLM):
             message_history.insert(0, system_message)
 
         # https://github.com/ollama/ollama/blob/main/docs/api.md#generate-a-completion
+        # Ollama는 PDF를 직접 지원하지 않으므로 이미지로 변환
         image_urls = encode_files(
             human_message.files,
-            allowed_types=IOType.IMAGE,
+            allowed_types=[IOType.IMAGE, IOType.PDF],  # PDF도 받지만 이미지로 변환됨
             convert_mode="base64",
+            pdf_to_image_for_unsupported=True,  # PDF를 이미지로 변환
         )
 
         if image_urls:

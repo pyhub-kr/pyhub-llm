@@ -129,10 +129,30 @@ print(reply.text)  # "김철수라고 하셨습니다"
 llm.clear()
 ```
 
-### 3. 이미지 처리
+### 3. 파일 처리 (이미지 및 PDF)
 
 ```python
-# 단일 이미지 설명
+# 이미지 파일 처리
+reply = llm.ask(
+    "이 이미지를 설명해주세요",
+    files=["photo.jpg"]
+)
+
+# PDF 파일 처리 (Provider별 지원 현황)
+# - OpenAI, Anthropic, Google: PDF 직접 지원
+# - Ollama: PDF를 이미지로 자동 변환하여 처리
+reply = llm.ask(
+    "이 PDF 문서를 요약해주세요",
+    files=["document.pdf"]
+)
+
+# 여러 파일 동시 처리
+reply = llm.ask(
+    "이 파일들의 내용을 비교해주세요",
+    files=["doc1.pdf", "image1.jpg", "doc2.pdf"]
+)
+
+# 단일 이미지 설명 (편의 메서드)
 reply = llm.describe_image("photo.jpg")
 print(reply.text)
 
@@ -152,6 +172,17 @@ responses = llm.describe_images([
 # 이미지에서 텍스트 추출
 text = llm.extract_text_from_image("document.jpg")
 ```
+
+#### Provider별 파일 지원 현황
+
+| Provider | 이미지 | PDF | 비고 |
+|----------|--------|-----|------|
+| OpenAI | ✅ | ✅ | PDF 직접 지원 |
+| Anthropic | ✅ | ✅ | PDF 베타 지원 |
+| Google Gemini | ✅ | ✅ | PDF 네이티브 지원 |
+| Ollama | ✅ | ⚠️ | PDF→이미지 자동 변환 |
+
+> **참고**: Ollama에서 PDF 파일 사용 시 자동으로 이미지로 변환되며, 경고 로그가 출력됩니다.
 
 ### 4. 선택지 제한
 

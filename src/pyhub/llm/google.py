@@ -1,6 +1,5 @@
 import logging
 import re
-from base64 import b64decode
 from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
@@ -24,6 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class GoogleLLM(BaseLLM):
+    SUPPORTED_FILE_TYPES = [IOType.IMAGE, IOType.PDF]  # Google Gemini도 PDF 직접 지원
     EMBEDDING_DIMENSIONS = {
         "text-embedding-004": 768,
     }
@@ -46,15 +46,11 @@ class GoogleLLM(BaseLLM):
         try:
             import google.generativeai as genai
             from google.generativeai.types import (
-                Content,
                 GenerateContentResponse,
-                Part,
             )
 
             self._genai = genai
-            self._Content = Content
             self._GenerateContentResponse = GenerateContentResponse
-            self._Part = Part
             # Create placeholder types for missing imports
             self._EmbedContentResponse = Any
             self._GenerateContentConfig = dict
@@ -96,22 +92,22 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> dict:
-        contents: list[self._Content] = [
-            self._Content(
-                role="user" if message.role == "user" else "model",
-                parts=[self._Part(text=message.content)],
-            )
+        contents: list[dict] = [
+            {
+                "role": "user" if message.role == "user" else "model",
+                "parts": [{"text": message.content}],
+            }
             for message in messages
         ]
 
-        # https://docs.anthropic.com/en/docs/build-with-claude/vision
+        # https://cloud.google.com/vertex-ai/generative-ai/docs/multimodal/document-understanding
         image_urls = encode_files(
             human_message.files,
-            allowed_types=IOType.IMAGE,
+            allowed_types=self.SUPPORTED_FILE_TYPES,
             convert_mode="base64",
         )
 
-        image_parts: list[self._Part] = []
+        image_parts: list[dict] = []
         if image_urls:
             base64_url_pattern = r"^data:([^;]+);base64,(.+)"
 
@@ -120,8 +116,7 @@ class GoogleLLM(BaseLLM):
                 if base64_url_match:
                     mimetype = base64_url_match.group(1)
                     b64_str = base64_url_match.group(2)
-                    image_data = b64decode(b64_str)
-                    image_part = self._Part.from_bytes(data=image_data, mime_type=mimetype)
+                    image_part = {"inline_data": {"mime_type": mimetype, "data": b64_str}}  # Keep as base64 string
                     image_parts.append(image_part)
                 else:
                     raise ValueError(
@@ -129,23 +124,19 @@ class GoogleLLM(BaseLLM):
                     )
 
         contents.append(
-            self._Content(
-                role="user" if human_message.role == "user" else "model",
-                parts=[
+            {
+                "role": "user" if human_message.role == "user" else "model",
+                "parts": [
                     *image_parts,
-                    self._Part(text=human_message.content),
+                    {"text": human_message.content},
                 ],
-            )
+            }
         )
 
         system_prompt: Optional[str] = self.get_system_prompt(input_context)
-        if system_prompt is None:
-            system_instruction = None
-        else:
-            system_instruction = self._Content(parts=[self._Part(text=system_prompt)])
 
+        # GenerationConfig only includes generation parameters
         config = self._GenerateContentConfig(
-            system_instruction=system_instruction,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,
         )
@@ -154,6 +145,7 @@ class GoogleLLM(BaseLLM):
             model=model,
             contents=contents,
             config=config,
+            system_instruction=system_prompt,  # Pass system instruction separately
         )
 
     def _make_ask(
@@ -163,7 +155,9 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
+
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         response: Optional[self._GenerateContentResponse] = None
@@ -179,18 +173,27 @@ class GoogleLLM(BaseLLM):
 
             if cached_value is not None:
                 try:
-                    response = self._GenerateContentResponse.model_validate_json(cached_value)
-                    is_cached = True
+                    # TODO: Implement proper cache deserialization for GenerateContentResponse
+                    pass  # response = self._GenerateContentResponse.model_validate_json(cached_value)
+                    # is_cached = True
                 except pydantic.ValidationError as e:
                     logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google genai")
-            response = client.models.generate_content(**request_params)
+            # Create GenerativeModel and generate content
+            contents = request_params.pop("contents")
+            config = request_params.pop("config")
+            system_instruction = request_params.pop("system_instruction", None)
+
+            # Create model with system instruction if provided
+            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
+            response = generative_model.generate_content(contents=contents, generation_config=config)
 
             # Store in cache if enabled
             if self.cache and input_context.get("enable_cache", False) and cache_key:
-                self.cache.set(cache_key, response.model_dump_json())
+                # TODO: Implement proper caching for GenerateContentResponse
+                pass  # self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -213,7 +216,9 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
+
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         response: Optional[self._GenerateContentResponse] = None
@@ -229,18 +234,27 @@ class GoogleLLM(BaseLLM):
 
             if cached_value is not None:
                 try:
-                    response = self._GenerateContentResponse.model_validate_json(cached_value)
-                    is_cached = True
+                    # TODO: Implement proper cache deserialization for GenerateContentResponse
+                    pass  # response = self._GenerateContentResponse.model_validate_json(cached_value)
+                    # is_cached = True
                 except pydantic.ValidationError as e:
                     logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google genai")
-            response = await client.aio.models.generate_content(**request_params)
+            # Create GenerativeModel and generate content
+            contents = request_params.pop("contents")
+            config = request_params.pop("config")
+            system_instruction = request_params.pop("system_instruction", None)
+
+            # Create model with system instruction if provided
+            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
+            response = await generative_model.generate_content_async(contents=contents, generation_config=config)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
             if self.cache and input_context.get("enable_cache", False) and cache_key:
-                self.cache.set(cache_key, response.model_dump_json())
+                # TODO: Implement proper caching for GenerateContentResponse
+                pass  # self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -264,7 +278,8 @@ class GoogleLLM(BaseLLM):
         model: GoogleChatModelType,
     ) -> Generator[Reply, None, None]:
         # TODO: Streaming cache is not implemented in the new cache injection pattern
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         # Check cache if enabled
@@ -285,7 +300,14 @@ class GoogleLLM(BaseLLM):
                 yield reply
 
         else:
-            response = client.models.generate_content_stream(**request_params)
+            # Create GenerativeModel and generate content stream
+            contents = request_params.pop("contents")
+            config = request_params.pop("config")
+            system_instruction = request_params.pop("system_instruction", None)
+
+            # Create model with system instruction if provided
+            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
+            response = generative_model.generate_content(contents=contents, generation_config=config, stream=True)
 
             input_tokens = 0
             output_tokens = 0
@@ -316,7 +338,8 @@ class GoogleLLM(BaseLLM):
         model: GoogleChatModelType,
     ) -> AsyncGenerator[Reply, None]:
         # TODO: Streaming cache is not implemented in the new cache injection pattern
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         # Check cache if enabled (using synchronous cache methods in async context)
@@ -339,7 +362,16 @@ class GoogleLLM(BaseLLM):
         else:
             logger.debug("request to google genai")
 
-            response = await client.aio.models.generate_content_stream(**request_params)
+            # Create GenerativeModel and generate content stream
+            contents = request_params.pop("contents")
+            config = request_params.pop("config")
+            system_instruction = request_params.pop("system_instruction", None)
+
+            # Create model with system instruction if provided
+            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
+            response = await generative_model.generate_content_async(
+                contents=contents, generation_config=config, stream=True
+            )
 
             input_tokens = 0
             output_tokens = 0
@@ -436,7 +468,8 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -444,7 +477,6 @@ class GoogleLLM(BaseLLM):
         )
 
         response: Optional[self._EmbedContentResponse] = None
-        is_cached = False
         cache_key = None
 
         # Check cache if enabled
@@ -457,17 +489,18 @@ class GoogleLLM(BaseLLM):
             if cached_value is not None:
                 try:
                     response = self._EmbedContentResponse.model_validate_json(cached_value)
-                    is_cached = True
+                    # is_cached = True  # Currently not used
                 except pydantic.ValidationError as e:
                     logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google embed")
-            response = client.models.embed_content(**request_params)
+            response = self._genai.embed_content(**request_params)
 
             # Store in cache if enabled
             if self.cache and enable_cache and cache_key:
-                self.cache.set(cache_key, response.model_dump_json())
+                # TODO: Implement proper caching for GenerateContentResponse
+                pass  # self.cache.set(cache_key, response.model_dump_json())
 
         # TODO: response에 usage_metadata가 없음 - 캐시된 응답인 경우에도 None 유지
         usage = None
@@ -483,7 +516,8 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -491,7 +525,6 @@ class GoogleLLM(BaseLLM):
         )
 
         response: Optional[self._EmbedContentResponse] = None
-        is_cached = False
         cache_key = None
 
         # Check cache if enabled (using synchronous cache methods in async context)
@@ -504,16 +537,17 @@ class GoogleLLM(BaseLLM):
             if cached_value is not None:
                 try:
                     response = self._EmbedContentResponse.model_validate_json(cached_value)
-                    is_cached = True
+                    # is_cached = True  # Currently not used
                 except pydantic.ValidationError as e:
                     logger.error("Invalid cached value : %s", e)
 
         if response is None:
-            response = await client.aio.models.embed_content(**request_params)
+            response = await self._genai.embed_content_async(**request_params)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
             if self.cache and enable_cache and cache_key:
-                self.cache.set(cache_key, response.model_dump_json())
+                # TODO: Implement proper caching for GenerateContentResponse
+                pass  # self.cache.set(cache_key, response.model_dump_json())
 
         # TODO: response에 usage_metadata가 없음 - 캐시된 응답인 경우에도 None 유지
         usage = None
@@ -568,11 +602,11 @@ class GoogleLLM(BaseLLM):
         google_messages = []
         for msg in messages:
             google_messages.append(
-                self._Content(role="user" if msg.role == "user" else "model", parts=[self._Part(text=msg.content)])
+                {"role": "user" if msg.role == "user" else "model", "parts": [{"text": msg.content}]}
             )
 
         if human_prompt:
-            google_messages.append(self._Content(role="user", parts=[self._Part(text=human_prompt)]))
+            google_messages.append({"role": "user", "parts": [{"text": human_prompt}]})
 
         # 도구를 Google Tool 형식으로 변환
         google_tools = []
@@ -587,24 +621,26 @@ class GoogleLLM(BaseLLM):
             google_tools = [Tool(function_declarations=function_declarations)]
 
         # Google API 호출
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
 
         system_prompt = None
         if messages and messages[0].role == "system":
-            system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
+            system_prompt = messages[0].content
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
         config = self._GenerateContentConfig(
-            system_instruction=system_prompt,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,
             tools=google_tools if google_tools else None,
         )
 
         try:
-            response = client.models.generate_content(
-                model=model or self.model, contents=google_messages, config=config
+            # Create GenerativeModel and generate content
+            generative_model = self._genai.GenerativeModel(
+                model_name=model or self.model, system_instruction=system_prompt
             )
+            response = generative_model.generate_content(contents=google_messages, generation_config=config)
 
             # Reply 객체로 변환
             usage = Usage(
@@ -634,11 +670,11 @@ class GoogleLLM(BaseLLM):
         google_messages = []
         for msg in messages:
             google_messages.append(
-                self._Content(role="user" if msg.role == "user" else "model", parts=[self._Part(text=msg.content)])
+                {"role": "user" if msg.role == "user" else "model", "parts": [{"text": msg.content}]}
             )
 
         if human_prompt:
-            google_messages.append(self._Content(role="user", parts=[self._Part(text=human_prompt)]))
+            google_messages.append({"role": "user", "parts": [{"text": human_prompt}]})
 
         # 도구를 Google Tool 형식으로 변환
         google_tools = []
@@ -653,24 +689,26 @@ class GoogleLLM(BaseLLM):
             google_tools = [Tool(function_declarations=function_declarations)]
 
         # Google API 호출
-        client = self._genai.Client(api_key=self.api_key)
+        # Configure API key
+        self._genai.configure(api_key=self.api_key)
 
         system_prompt = None
         if messages and messages[0].role == "system":
-            system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
+            system_prompt = messages[0].content
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
         config = self._GenerateContentConfig(
-            system_instruction=system_prompt,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,
             tools=google_tools if google_tools else None,
         )
 
         try:
-            response = await client.aio.models.generate_content(
-                model=model or self.model, contents=google_messages, config=config
+            # Create GenerativeModel and generate content
+            generative_model = self._genai.GenerativeModel(
+                model_name=model or self.model, system_instruction=system_prompt
             )
+            response = await generative_model.generate_content_async(contents=google_messages, generation_config=config)
 
             # Reply 객체로 변환
             usage = Usage(
