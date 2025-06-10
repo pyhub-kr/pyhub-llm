@@ -28,9 +28,9 @@ class TestProviderDetection:
         with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock()
             mock_openai_class.return_value = mock_instance
-            
+
             llm = LLM.create("gpt-4o")
-            
+
             mock_openai_class.assert_called_once_with(model="gpt-4o")
             assert llm == mock_instance
 

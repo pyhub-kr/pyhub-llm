@@ -6,14 +6,7 @@ from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 
 import pydantic
 
-from pyhub.llm.utils.templates import Template
 from pyhub.llm.base import BaseLLM
-from pyhub.llm.cache.utils import (
-    cache_make_key_and_get,
-    cache_make_key_and_get_async,
-    cache_set,
-    cache_set_async,
-)
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
@@ -25,6 +18,7 @@ from pyhub.llm.types import (
     Usage,
 )
 from pyhub.llm.utils.files import IOType, encode_files
+from pyhub.llm.utils.templates import Template
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +40,7 @@ class GoogleLLM(BaseLLM):
         initial_messages: Optional[list[Message]] = None,
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
+        **kwargs,
     ):
         # Lazy import google-genai
         try:
@@ -55,7 +50,7 @@ class GoogleLLM(BaseLLM):
                 GenerateContentResponse,
                 Part,
             )
-            
+
             self._genai = genai
             self._Content = Content
             self._GenerateContentResponse = GenerateContentResponse
@@ -64,11 +59,8 @@ class GoogleLLM(BaseLLM):
             self._EmbedContentResponse = Any
             self._GenerateContentConfig = dict
         except ImportError:
-            raise ImportError(
-                "google-genai package not installed. "
-                "Install with: pip install pyhub-llm[google]"
-            )
-        
+            raise ImportError("google-genai package not installed. " "Install with: pip install pyhub-llm[google]")
+
         super().__init__(
             model=model,
             embedding_model=embedding_model,
@@ -80,6 +72,7 @@ class GoogleLLM(BaseLLM):
             initial_messages=initial_messages,
             api_key=api_key or llm_settings.google_api_key,
             tools=tools,
+            **kwargs,
         )
 
     def check(self) -> list[dict]:
@@ -128,7 +121,7 @@ class GoogleLLM(BaseLLM):
                     mimetype = base64_url_match.group(1)
                     b64_str = base64_url_match.group(2)
                     image_data = b64decode(b64_str)
-                    image_part = Part.from_bytes(data=image_data, mime_type=mimetype)
+                    image_part = self._Part.from_bytes(data=image_data, mime_type=mimetype)
                     image_parts.append(image_part)
                 else:
                     raise ValueError(
@@ -151,7 +144,7 @@ class GoogleLLM(BaseLLM):
         else:
             system_instruction = self._Content(parts=[self._Part(text=system_prompt)])
 
-        config = GenerateContentConfig(
+        config = self._GenerateContentConfig(
             system_instruction=system_instruction,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,
@@ -173,27 +166,31 @@ class GoogleLLM(BaseLLM):
         client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "google",
-            request_params,
-            cache_alias="google",
-            enable_cache=input_context.get("enable_cache", False),
-        )
-
         response: Optional[self._GenerateContentResponse] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = self._GenerateContentResponse.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._GenerateContentResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google genai")
             response = client.models.generate_content(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response.model_dump_json(), cache_alias="google", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -219,27 +216,31 @@ class GoogleLLM(BaseLLM):
         client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "google",
-            request_params,
-            cache_alias="google",
-            enable_cache=input_context.get("enable_cache", False),
-        )
-
         response: Optional[self._GenerateContentResponse] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = self._GenerateContentResponse.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled (using synchronous cache methods in async context)
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._GenerateContentResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google genai")
             response = await client.aio.models.generate_content(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias="google", enable_cache=True)
+
+            # Store in cache if enabled (using synchronous cache methods in async context)
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -262,15 +263,18 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Generator[Reply, None, None]:
+        # TODO: Streaming cache is not implemented in the new cache injection pattern
         client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "google",
-            dict(stream=True, **request_params),
-            cache_alias="google",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Check cache if enabled
+        cache_key = None
+        cached_value = None
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", stream=True, **request_params)
+            cached_value = self.cache.get(cache_key)
 
         if cached_value is not None:
             reply_list = cast(list[Reply], cached_value)
@@ -300,8 +304,9 @@ class GoogleLLM(BaseLLM):
                 reply_list.append(reply)
                 yield reply
 
-            if cache_key is not None:
-                cache_set(cache_key, reply_list, cache_alias="google", enable_cache=True)
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, reply_list)
 
     async def _make_ask_stream_async(
         self,
@@ -310,15 +315,18 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> AsyncGenerator[Reply, None]:
+        # TODO: Streaming cache is not implemented in the new cache injection pattern
         client = self._genai.Client(api_key=self.api_key)
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "google",
-            dict(stream=True, **request_params),
-            cache_alias="google",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Check cache if enabled (using synchronous cache methods in async context)
+        cache_key = None
+        cached_value = None
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", stream=True, **request_params)
+            cached_value = self.cache.get(cache_key)
 
         if cached_value is not None:
             reply_list = cast(list[Reply], cached_value)
@@ -350,8 +358,9 @@ class GoogleLLM(BaseLLM):
                 reply_list.append(reply)
                 yield reply
 
-            if cache_key is not None:
-                await cache_set_async(cache_key, reply_list, cache_alias="google", enable_cache=True)
+            # Store in cache if enabled (using synchronous cache methods in async context)
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, reply_list)
 
     def ask(
         self,
@@ -434,27 +443,31 @@ class GoogleLLM(BaseLLM):
             # config=EmbedContentConfig(output_dimensionality=10),
         )
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "google",
-            request_params,
-            cache_alias="google",
-            enable_cache=enable_cache,
-        )
-
-        response: Optional[EmbedContentResponse] = None
+        response: Optional[self._EmbedContentResponse] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = EmbedContentResponse.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and enable_cache:
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._EmbedContentResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to google embed")
             response = client.models.embed_content(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response.model_dump_json(), cache_alias="google", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         # TODO: response에 usage_metadata가 없음 - 캐시된 응답인 경우에도 None 유지
         usage = None
@@ -477,26 +490,30 @@ class GoogleLLM(BaseLLM):
             # config=EmbedContentConfig(output_dimensionality=10),
         )
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "google",
-            request_params,
-            cache_alias="google",
-            enable_cache=enable_cache,
-        )
-
-        response: Optional[EmbedContentResponse] = None
+        response: Optional[self._EmbedContentResponse] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = EmbedContentResponse.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled (using synchronous cache methods in async context)
+        if self.cache and enable_cache:
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("google", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._EmbedContentResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             response = await client.aio.models.embed_content(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias="google", enable_cache=True)
+
+            # Store in cache if enabled (using synchronous cache methods in async context)
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         # TODO: response에 usage_metadata가 없음 - 캐시된 응답인 경우에도 None 유지
         usage = None
@@ -545,10 +562,7 @@ class GoogleLLM(BaseLLM):
         try:
             from google.genai.types import FunctionDeclaration, Tool
         except ImportError:
-            raise ImportError(
-                "google-genai package not installed. "
-                "Install with: pip install pyhub-llm[google]"
-            )
+            raise ImportError("google-genai package not installed. " "Install with: pip install pyhub-llm[google]")
 
         # 메시지 준비
         google_messages = []
@@ -580,7 +594,7 @@ class GoogleLLM(BaseLLM):
             system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
-        config = GenerateContentConfig(
+        config = self._GenerateContentConfig(
             system_instruction=system_prompt,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,
@@ -614,10 +628,7 @@ class GoogleLLM(BaseLLM):
         try:
             from google.genai.types import FunctionDeclaration, Tool
         except ImportError:
-            raise ImportError(
-                "google-genai package not installed. "
-                "Install with: pip install pyhub-llm[google]"
-            )
+            raise ImportError("google-genai package not installed. " "Install with: pip install pyhub-llm[google]")
 
         # 메시지 준비
         google_messages = []
@@ -649,7 +660,7 @@ class GoogleLLM(BaseLLM):
             system_prompt = self._Content(parts=[self._Part(text=messages[0].content)])
             google_messages = google_messages[1:]  # 시스템 메시지 제거
 
-        config = GenerateContentConfig(
+        config = self._GenerateContentConfig(
             system_instruction=system_prompt,
             max_output_tokens=self.max_tokens,
             temperature=self.temperature,

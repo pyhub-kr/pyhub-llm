@@ -2,7 +2,6 @@
 
 from unittest.mock import Mock, patch
 
-
 from pyhub.llm import LLM
 from pyhub.llm.openai import OpenAILLM
 from pyhub.llm.types import Reply

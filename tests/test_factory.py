@@ -78,10 +78,18 @@ class TestLLMFactory:
 
     def test_create_with_cache(self, memory_cache):
         """Test LLM creation with cache."""
-        # Test without mock to see actual behavior
-        # Current implementation doesn't support cache parameter
-        with pytest.raises(TypeError, match="unexpected keyword argument 'cache'"):
-            LLM.create("gpt-4o", cache=memory_cache)
+        # Test that cache parameter is properly passed through
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
+            mock_instance = Mock(spec=BaseLLM)
+            mock_openai_class.return_value = mock_instance
+
+            result = LLM.create("gpt-4o", cache=memory_cache)
+
+            # Check that cache was passed to the constructor
+            mock_openai_class.assert_called_once()
+            args, kwargs = mock_openai_class.call_args
+            assert "cache" in kwargs
+            assert kwargs["cache"] == memory_cache
 
     def test_create_with_custom_parameters(self):
         """Test LLM creation with custom parameters."""

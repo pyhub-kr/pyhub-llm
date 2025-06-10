@@ -1,17 +1,11 @@
 import logging
 import re
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
+from typing import IO, Any, AsyncGenerator, Generator, Optional, Union
 
 import pydantic
 
 from pyhub.llm.base import BaseLLM
-from pyhub.llm.cache.utils import (
-    cache_make_key_and_get,
-    cache_make_key_and_get_async,
-    cache_set,
-    cache_set_async,
-)
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     AnthropicChatModelType,
@@ -39,6 +33,7 @@ class AnthropicLLM(BaseLLM):
         initial_messages: Optional[list[Message]] = None,
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
+        **kwargs,
     ):
         # Lazy import anthropic
         try:
@@ -47,18 +42,15 @@ class AnthropicLLM(BaseLLM):
             from anthropic import NOT_GIVEN as ANTHROPIC_NOT_GIVEN
             from anthropic import Anthropic as SyncAnthropic
             from anthropic import AsyncAnthropic
-            
+
             self._anthropic = anthropic
             self._anthropic_types = anthropic.types
             self._ANTHROPIC_NOT_GIVEN = ANTHROPIC_NOT_GIVEN
             self._SyncAnthropic = SyncAnthropic
             self._AsyncAnthropic = AsyncAnthropic
         except ImportError:
-            raise ImportError(
-                "anthropic package not installed. "
-                "Install with: pip install pyhub-llm[anthropic]"
-            )
-        
+            raise ImportError("anthropic package not installed. " "Install with: pip install pyhub-llm[anthropic]")
+
         super().__init__(
             model=model,
             temperature=temperature,
@@ -69,6 +61,7 @@ class AnthropicLLM(BaseLLM):
             initial_messages=initial_messages,
             api_key=api_key or llm_settings.anthropic_api_key,
             tools=tools,
+            **kwargs,
         )
 
     def check(self) -> list[dict]:
@@ -182,27 +175,31 @@ class AnthropicLLM(BaseLLM):
                 input_context=input_context, human_message=human_message, messages=messages, model=model
             )
 
-            cache_key, cached_value = cache_make_key_and_get(
-                "anthropic",
-                request_params,
-                cache_alias="anthropic",
-                enable_cache=input_context.get("enable_cache", False),
-            )
-
             response: Optional[self._anthropic_types.Message] = None
             is_cached = False
-            if cached_value is not None:
-                try:
-                    response = self._anthropic_types.Message.model_validate_json(cached_value)
-                    is_cached = True
-                except pydantic.ValidationError as e:
-                    logger.error("cached_value is valid : %s", e)
+            cache_key = None
+
+            # Check cache if enabled
+            if self.cache and input_context.get("enable_cache", False):
+                from pyhub.llm.cache.utils import generate_cache_key
+
+                cache_key = generate_cache_key("anthropic", **request_params)
+                cached_value = self.cache.get(cache_key)
+
+                if cached_value is not None:
+                    try:
+                        response = self._anthropic_types.Message.model_validate_json(cached_value)
+                        is_cached = True
+                    except pydantic.ValidationError as e:
+                        logger.error("cached_value is valid : %s", e)
 
             if response is None:
                 logger.debug("request to anthropic")
                 response = sync_client.messages.create(**request_params)
-                if cache_key is not None:
-                    cache_set(cache_key, response.model_dump_json(), cache_alias="anthropic", enable_cache=True)
+
+                # Store in cache if enabled
+                if self.cache and input_context.get("enable_cache", False) and cache_key:
+                    self.cache.set(cache_key, response.model_dump_json())
 
             assert response is not None
 
@@ -230,27 +227,31 @@ class AnthropicLLM(BaseLLM):
             input_context=input_context, human_message=human_message, messages=messages, model=model
         )
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "anthropic",
-            request_params,
-            cache_alias="anthropic",
-            enable_cache=input_context.get("enable_cache", False),
-        )
-
         response: Optional[self._anthropic_types.Message] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = anthropic.types.Message.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("cached_value is valid : %s", e)
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("anthropic", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._anthropic_types.Message.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("cached_value is valid : %s", e)
 
         if response is None:
             logger.debug("request to anthropic")
             response = await async_client.messages.create(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response.model_dump_json(), cache_alias="anthropic", enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -277,56 +278,47 @@ class AnthropicLLM(BaseLLM):
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "anthropic",
-            request_params,
-            cache_alias="anthropic",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Streaming responses are not cached for now
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
-        if cached_value is not None:
-            reply_list = cast(list[Reply], cached_value)
-            for reply in reply_list:
-                reply.usage = None  # cache 된 응답이기에 usage 내역 제거
+        logger.debug("request to anthropic")
+
+        response = sync_client.messages.create(**request_params)
+
+        input_tokens = 0
+        output_tokens = 0
+
+        reply_list: list[Reply] = []
+        for chunk in response:
+            if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
+                reply = Reply(text=chunk.delta.text)
+                reply_list.append(reply)
                 yield reply
-        else:
-            logger.debug("request to anthropic")
-
-            response = sync_client.messages.create(**request_params)
-
-            input_tokens = 0
-            output_tokens = 0
-
-            reply_list: list[Reply] = []
-            for chunk in response:
+            elif hasattr(chunk, "type") and chunk.type == "content_block_delta":
                 if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
                     reply = Reply(text=chunk.delta.text)
                     reply_list.append(reply)
                     yield reply
-                elif hasattr(chunk, "type") and chunk.type == "content_block_delta":
-                    if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
-                        reply = Reply(text=chunk.delta.text)
-                        reply_list.append(reply)
-                        yield reply
-                    elif hasattr(chunk, "content_block") and hasattr(chunk.content_block, "text"):
-                        reply = Reply(text=chunk.content_block.text)
-                        reply_list.append(reply)
-                        yield reply
+                elif hasattr(chunk, "content_block") and hasattr(chunk.content_block, "text"):
+                    reply = Reply(text=chunk.content_block.text)
+                    reply_list.append(reply)
+                    yield reply
 
-                if hasattr(chunk, "message") and hasattr(chunk.message, "usage"):
-                    input_tokens += getattr(chunk.message.usage, "input_tokens", None) or 0
-                    output_tokens += getattr(chunk.message.usage, "output_tokens", None) or 0
+            if hasattr(chunk, "message") and hasattr(chunk.message, "usage"):
+                input_tokens += getattr(chunk.message.usage, "input_tokens", None) or 0
+                output_tokens += getattr(chunk.message.usage, "output_tokens", None) or 0
 
-                if hasattr(chunk, "usage") and chunk.usage:
-                    input_tokens += getattr(chunk.usage, "input_tokens", None) or 0
-                    output_tokens += getattr(chunk.usage, "output_tokens", None) or 0
+            if hasattr(chunk, "usage") and chunk.usage:
+                input_tokens += getattr(chunk.usage, "input_tokens", None) or 0
+                output_tokens += getattr(chunk.usage, "output_tokens", None) or 0
 
-            reply = Reply(text="", usage=Usage(input_tokens, output_tokens))
-            reply_list.append(reply)
-            yield reply
+        reply = Reply(text="", usage=Usage(input_tokens, output_tokens))
+        reply_list.append(reply)
+        yield reply
 
-            if cache_key is not None:
-                cache_set(cache_key, reply_list, cache_alias="anthropic", enable_cache=True)
+        # Streaming cache not implemented yet
 
     async def _make_ask_stream_async(
         self,
@@ -342,55 +334,46 @@ class AnthropicLLM(BaseLLM):
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "anthropic",
-            request_params,
-            cache_alias="anthropic",
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Streaming responses are not cached for now
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
-        if cached_value is not None:
-            reply_list = cast(list[Reply], cached_value)
-            for reply in reply_list:
-                reply.usage = None  # cache 된 응답이기에 usage 내역 제거
+        logger.debug("request to anthropic")
+        response = await async_client.messages.create(**request_params)
+
+        input_tokens = 0
+        output_tokens = 0
+
+        reply_list: list[Reply] = []
+        async for chunk in response:
+            if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
+                reply = Reply(text=chunk.delta.text)
+                reply_list.append(reply)
                 yield reply
-        else:
-            logger.debug("request to anthropic")
-            response = await async_client.messages.create(**request_params)
-
-            input_tokens = 0
-            output_tokens = 0
-
-            reply_list: list[Reply] = []
-            async for chunk in response:
+            elif hasattr(chunk, "type") and chunk.type == "content_block_delta":
                 if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
                     reply = Reply(text=chunk.delta.text)
                     reply_list.append(reply)
                     yield reply
-                elif hasattr(chunk, "type") and chunk.type == "content_block_delta":
-                    if hasattr(chunk, "delta") and hasattr(chunk.delta, "text"):
-                        reply = Reply(text=chunk.delta.text)
-                        reply_list.append(reply)
-                        yield reply
-                    elif hasattr(chunk, "content_block") and hasattr(chunk.content_block, "text"):
-                        reply = Reply(text=chunk.content_block.text)
-                        reply_list.append(reply)
-                        yield reply
+                elif hasattr(chunk, "content_block") and hasattr(chunk.content_block, "text"):
+                    reply = Reply(text=chunk.content_block.text)
+                    reply_list.append(reply)
+                    yield reply
 
-                if hasattr(chunk, "message") and hasattr(chunk.message, "usage"):
-                    input_tokens += getattr(chunk.message.usage, "input_tokens", None) or 0
-                    output_tokens += getattr(chunk.message.usage, "output_tokens", None) or 0
+            if hasattr(chunk, "message") and hasattr(chunk.message, "usage"):
+                input_tokens += getattr(chunk.message.usage, "input_tokens", None) or 0
+                output_tokens += getattr(chunk.message.usage, "output_tokens", None) or 0
 
-                if hasattr(chunk, "usage") and chunk.usage:
-                    input_tokens += getattr(chunk.usage, "input_tokens", None) or 0
-                    output_tokens += getattr(chunk.usage, "output_tokens", None) or 0
+            if hasattr(chunk, "usage") and chunk.usage:
+                input_tokens += getattr(chunk.usage, "input_tokens", None) or 0
+                output_tokens += getattr(chunk.usage, "output_tokens", None) or 0
 
-            reply = Reply(text="", usage=Usage(input_tokens, output_tokens))
-            reply_list.append(reply)
-            yield reply
+        reply = Reply(text="", usage=Usage(input_tokens, output_tokens))
+        reply_list.append(reply)
+        yield reply
 
-            if cache_key is not None:
-                await cache_set_async(cache_key, reply_list, cache_alias="anthropic", enable_cache=True)
+        # Streaming cache not implemented yet
 
     def ask(
         self,

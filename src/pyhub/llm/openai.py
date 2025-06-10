@@ -5,12 +5,6 @@ from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
 import pydantic
 
 from pyhub.llm.base import BaseLLM
-from pyhub.llm.cache.utils import (
-    cache_make_key_and_get,
-    cache_make_key_and_get_async,
-    cache_set,
-    cache_set_async,
-)
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
@@ -144,27 +138,31 @@ class OpenAIMixin:
             model=model,
         )
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=input_context.get("enable_cache", False),
-        )
-
         response: Optional[self._ChatCompletion] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = self._ChatCompletion.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("openai", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._ChatCompletion.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to openai")
             response: self._ChatCompletion = sync_client.chat.completions.create(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response.model_dump_json(), cache_alias=self.cache_alias, enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -192,29 +190,31 @@ class OpenAIMixin:
             model=model,
         )
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=input_context.get("enable_cache", False),
-        )
-
         response: Optional[self._ChatCompletion] = None
         is_cached = False
-        if cached_value is not None:
-            try:
-                response = self._ChatCompletion.model_validate_json(cached_value)
-                is_cached = True
-            except pydantic.ValidationError as e:
-                logger.error("Invalid cached value : %s", e)
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and input_context.get("enable_cache", False):
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("openai", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._ChatCompletion.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to openai")
             response = await async_client.chat.completions.create(**request_params)
-            if cache_key is not None:
-                await cache_set_async(
-                    cache_key, response.model_dump_json(), cache_alias=self.cache_alias, enable_cache=True
-                )
+
+            # Store in cache if enabled
+            if self.cache and input_context.get("enable_cache", False) and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
@@ -243,74 +243,62 @@ class OpenAIMixin:
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Streaming responses are not cached for now
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
         # Add stream_options after cache key generation (if supported)
         if self.supports_stream_options:
             request_params["stream_options"] = {"include_usage": True}
 
-        if cached_value is not None:
-            logger.debug("Using cached response - usage info will not be available")
-            reply_list = cast(list[Reply], cached_value)
-            for reply in reply_list:
-                reply.usage = None  # cache 된 응답이기에 usage 내역 제거
-                yield reply
-        else:
-            logger.debug(
-                "Request to %s (supports_stream_options=%s, stream_options=%s)",
-                self.__class__.__name__,
-                self.supports_stream_options,
-                request_params.get("stream_options"),
-            )
+        logger.debug(
+            "Request to %s (supports_stream_options=%s, stream_options=%s)",
+            self.__class__.__name__,
+            self.supports_stream_options,
+            request_params.get("stream_options"),
+        )
 
-            response_stream = sync_client.chat.completions.create(**request_params)
-            usage = None
+        response_stream = sync_client.chat.completions.create(**request_params)
+        usage = None
 
-            reply_list: list[Reply] = []
-            chunk_count = 0
-            for chunk in response_stream:
-                chunk_count += 1
-                if chunk.choices and chunk.choices[0].delta.content:  # noqa
-                    reply = Reply(text=chunk.choices[0].delta.content)
-                    reply_list.append(reply)
-                    yield reply
-                if chunk.usage:
-                    logger.debug(
-                        "Found usage in sync stream: input=%s, output=%s",
-                        chunk.usage.prompt_tokens,
-                        chunk.usage.completion_tokens,
-                    )
-                    usage = Usage(
-                        input=chunk.usage.prompt_tokens or 0,
-                        output=chunk.usage.completion_tokens or 0,
-                    )
-
-            logger.debug("Processed %d chunks from OpenAI stream", chunk_count)
-            if usage:
-                logger.debug(
-                    "Yielding final usage chunk with usage info: input=%d, output=%d", usage.input, usage.output
-                )
-                reply = Reply(text="", usage=usage)
+        reply_list: list[Reply] = []
+        chunk_count = 0
+        for chunk in response_stream:
+            chunk_count += 1
+            if chunk.choices and chunk.choices[0].delta.content:  # noqa
+                reply = Reply(text=chunk.choices[0].delta.content)
                 reply_list.append(reply)
                 yield reply
-            else:
-                if self.supports_stream_options:
-                    logger.warning(
-                        "No usage information received from %s stream despite stream_options", self.__class__.__name__
-                    )
-                else:
-                    logger.debug(
-                        "No usage information received from %s stream (stream_options not supported)",
-                        self.__class__.__name__,
-                    )
+            if chunk.usage:
+                logger.debug(
+                    "Found usage in sync stream: input=%s, output=%s",
+                    chunk.usage.prompt_tokens,
+                    chunk.usage.completion_tokens,
+                )
+                usage = Usage(
+                    input=chunk.usage.prompt_tokens or 0,
+                    output=chunk.usage.completion_tokens or 0,
+                )
 
-            if cache_key is not None:
-                cache_set(cache_key, reply_list, cache_alias=self.cache_alias, enable_cache=True)
+        logger.debug("Processed %d chunks from OpenAI stream", chunk_count)
+        if usage:
+            logger.debug("Yielding final usage chunk with usage info: input=%d, output=%d", usage.input, usage.output)
+            reply = Reply(text="", usage=usage)
+            reply_list.append(reply)
+            yield reply
+        else:
+            if self.supports_stream_options:
+                logger.warning(
+                    "No usage information received from %s stream despite stream_options", self.__class__.__name__
+                )
+            else:
+                logger.debug(
+                    "No usage information received from %s stream (stream_options not supported)",
+                    self.__class__.__name__,
+                )
+
+        # Streaming cache not implemented yet
 
     async def _make_ask_stream_async(
         self,
@@ -328,60 +316,49 @@ class OpenAIMixin:
         )
         request_params["stream"] = True
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=input_context.get("enable_cache", False),
-        )
+        # Streaming responses are not cached for now
+        if self.cache and input_context.get("enable_cache", False):
+            # TODO: Implement streaming cache support
+            pass
 
         # Add stream_options after cache key generation (if supported)
         if self.supports_stream_options:
             request_params["stream_options"] = {"include_usage": True}
 
-        if cached_value is not None:
-            reply_list = cast(list[Reply], cached_value)
-            for reply in reply_list:
-                reply.usage = None  # cache 된 응답이기에 usage 내역 제거
-                yield reply
-        else:
-            logger.debug("request to openai")
+        logger.debug("request to openai")
 
-            response_stream = await async_client.chat.completions.create(**request_params)
-            usage = None
+        response_stream = await async_client.chat.completions.create(**request_params)
+        usage = None
 
-            reply_list: list[Reply] = []
-            async for chunk in response_stream:
-                if chunk.choices and chunk.choices[0].delta.content:  # noqa
-                    reply = Reply(text=chunk.choices[0].delta.content)
-                    reply_list.append(reply)
-                    yield reply
-                if chunk.usage:
-                    usage = Usage(
-                        input=chunk.usage.prompt_tokens or 0,
-                        output=chunk.usage.completion_tokens or 0,
-                    )
-
-            if usage:
-                logger.debug(
-                    "Yielding final usage chunk with usage info: input=%d, output=%d", usage.input, usage.output
-                )
-                reply = Reply(text="", usage=usage)
+        reply_list: list[Reply] = []
+        async for chunk in response_stream:
+            if chunk.choices and chunk.choices[0].delta.content:  # noqa
+                reply = Reply(text=chunk.choices[0].delta.content)
                 reply_list.append(reply)
                 yield reply
-            else:
-                if self.supports_stream_options:
-                    logger.warning(
-                        "No usage information received from %s stream despite stream_options", self.__class__.__name__
-                    )
-                else:
-                    logger.debug(
-                        "No usage information received from %s stream (stream_options not supported)",
-                        self.__class__.__name__,
-                    )
+            if chunk.usage:
+                usage = Usage(
+                    input=chunk.usage.prompt_tokens or 0,
+                    output=chunk.usage.completion_tokens or 0,
+                )
 
-            if cache_key is not None:
-                await cache_set_async(cache_key, reply_list, cache_alias=self.cache_alias, enable_cache=True)
+        if usage:
+            logger.debug("Yielding final usage chunk with usage info: input=%d, output=%d", usage.input, usage.output)
+            reply = Reply(text="", usage=usage)
+            reply_list.append(reply)
+            yield reply
+        else:
+            if self.supports_stream_options:
+                logger.warning(
+                    "No usage information received from %s stream despite stream_options", self.__class__.__name__
+                )
+            else:
+                logger.debug(
+                    "No usage information received from %s stream (stream_options not supported)",
+                    self.__class__.__name__,
+                )
+
+        # Streaming cache not implemented yet
 
     def _convert_tools_for_provider(self, tools):
         """OpenAI Function Calling 형식으로 도구 변환"""
@@ -756,28 +733,38 @@ class OpenAIMixin:
         sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = dict(input=input, model=str(embedding_model))
 
-        cache_key, cached_value = cache_make_key_and_get(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=enable_cache,
-        )
-
         response: Optional[self._CreateEmbeddingResponse] = None
-        if cached_value is not None:
-            response = cast(self._CreateEmbeddingResponse, cached_value)
-            response.usage.prompt_tokens = 0  # 캐싱된 응답이기에 clear usage
-            response.usage.completion_tokens = 0
+        is_cached = False
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and enable_cache:
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("openai", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._CreateEmbeddingResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to openai")
             response = sync_client.embeddings.create(**request_params)
-            if cache_key is not None:
-                cache_set(cache_key, response, cache_alias=self.cache_alias, enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
-        usage = Usage(input=response.usage.prompt_tokens or 0, output=0)
+        # 캐시된 응답인 경우 usage를 0으로 설정
+        usage_input = 0 if is_cached else (response.usage.prompt_tokens or 0)
+        usage = Usage(input=usage_input, output=0)
+
         if isinstance(input, str):
             return Embed(response.data[0].embedding, usage=usage)
         return EmbedList([Embed(v.embedding) for v in response.data], usage=usage)
@@ -790,28 +777,38 @@ class OpenAIMixin:
         async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
         request_params = dict(input=input, model=str(embedding_model))
 
-        cache_key, cached_value = await cache_make_key_and_get_async(
-            "openai",
-            request_params,
-            cache_alias=self.cache_alias,
-            enable_cache=enable_cache,
-        )
-
         response: Optional[self._CreateEmbeddingResponse] = None
-        if cached_value is not None:
-            response = cast(self._CreateEmbeddingResponse, cached_value)
-            response.usage.prompt_tokens = 0  # 캐싱된 응답이기에 clear usage
-            response.usage.completion_tokens = 0
+        is_cached = False
+        cache_key = None
+
+        # Check cache if enabled
+        if self.cache and enable_cache:
+            from pyhub.llm.cache.utils import generate_cache_key
+
+            cache_key = generate_cache_key("openai", **request_params)
+            cached_value = self.cache.get(cache_key)
+
+            if cached_value is not None:
+                try:
+                    response = self._CreateEmbeddingResponse.model_validate_json(cached_value)
+                    is_cached = True
+                except pydantic.ValidationError as e:
+                    logger.error("Invalid cached value : %s", e)
 
         if response is None:
             logger.debug("request to openai")
             response = await async_client.embeddings.create(**request_params)
-            if cache_key is not None:
-                await cache_set_async(cache_key, response, cache_alias=self.cache_alias, enable_cache=True)
+
+            # Store in cache if enabled
+            if self.cache and enable_cache and cache_key:
+                self.cache.set(cache_key, response.model_dump_json())
 
         assert response is not None
 
-        usage = Usage(input=response.usage.prompt_tokens or 0, output=0)
+        # 캐시된 응답인 경우 usage를 0으로 설정
+        usage_input = 0 if is_cached else (response.usage.prompt_tokens or 0)
+        usage = Usage(input=usage_input, output=0)
+
         if isinstance(input, str):
             return Embed(response.data[0].embedding, usage=usage)
         return EmbedList([Embed(v.embedding) for v in response.data], usage=usage)
@@ -839,6 +836,7 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         tools: Optional[list] = None,
+        **kwargs,
     ):
         # Lazy import openai
         try:
@@ -847,18 +845,15 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
             from openai import OpenAI as SyncOpenAI
             from openai.types import CreateEmbeddingResponse
             from openai.types.chat import ChatCompletion
-            
+
             self._openai = openai
             self._AsyncOpenAI = AsyncOpenAI
             self._SyncOpenAI = SyncOpenAI
             self._CreateEmbeddingResponse = CreateEmbeddingResponse
             self._ChatCompletion = ChatCompletion
         except ImportError:
-            raise ImportError(
-                "openai package not installed. "
-                "Install with: pip install pyhub-llm[openai]"
-            )
-        
+            raise ImportError("openai package not installed. " "Install with: pip install pyhub-llm[openai]")
+
         super().__init__(
             model=model,
             embedding_model=embedding_model,
@@ -870,6 +865,7 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
             initial_messages=initial_messages,
             api_key=api_key or llm_settings.openai_api_key,
             tools=tools,
+            **kwargs,
         )
         self.base_url = base_url or llm_settings.openai_base_url
 
