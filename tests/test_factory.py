@@ -66,8 +66,8 @@ class TestLLMFactory:
 
     def test_create_openai_model(self):
         """Test creating OpenAI model."""
-        # LLM.create imports OpenAILLM from the __init__ module where it's exposed
-        with patch("pyhub.llm.OpenAILLM") as mock_openai_class:
+        # LLM.create imports OpenAILLM from the openai module via lazy loading
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock(spec=BaseLLM)
             mock_openai_class.return_value = mock_instance
 
@@ -85,7 +85,7 @@ class TestLLMFactory:
 
     def test_create_with_custom_parameters(self):
         """Test LLM creation with custom parameters."""
-        with patch("pyhub.llm.OpenAILLM") as mock_openai_class:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock(spec=BaseLLM)
             mock_openai_class.return_value = mock_instance
 
@@ -124,7 +124,7 @@ class TestLLMFactory:
 
     def test_create_embedding_model(self):
         """Test creating embedding models."""
-        with patch("pyhub.llm.OpenAILLM") as mock_openai_class:
+        with patch("pyhub.llm.openai.OpenAILLM") as mock_openai_class:
             mock_instance = Mock(spec=BaseLLM)
             mock_openai_class.return_value = mock_instance
 
