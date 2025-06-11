@@ -9,9 +9,22 @@ from pyhub.llm.cache.base import BaseCache
 class MemoryCache(BaseCache):
     """Simple in-memory cache with TTL support"""
 
-    def __init__(self):
+    def __init__(self, ttl: Optional[int] = None):
+        """
+        Initialize MemoryCache.
+
+        Args:
+            ttl: Default TTL in seconds. None means no expiry by default.
+
+        Raises:
+            ValueError: If TTL is negative.
+        """
+        if ttl is not None and ttl < 0:
+            raise ValueError("TTL must be non-negative")
+
         self._cache = {}
         self._expiry = {}
+        self._default_ttl = ttl
 
     def get(self, key: str, default: Any = None) -> Any:
         """Get value from cache"""
@@ -27,10 +40,26 @@ class MemoryCache(BaseCache):
         return default
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        """Set value in cache with optional TTL in seconds"""
+        """Set value in cache with optional TTL in seconds.
+
+        Args:
+            key: Cache key
+            value: Value to cache
+            ttl: TTL in seconds. If None, uses default TTL. If 0, no expiry.
+
+        Raises:
+            ValueError: If TTL is negative.
+        """
+        if ttl is not None and ttl < 0:
+            raise ValueError("TTL must be non-negative")
+
         self._cache[key] = value
-        if ttl:
-            self._expiry[key] = time.time() + ttl
+
+        # Determine effective TTL
+        effective_ttl = ttl if ttl is not None else self._default_ttl
+
+        if effective_ttl:
+            self._expiry[key] = time.time() + effective_ttl
         elif key in self._expiry:
             del self._expiry[key]
 
