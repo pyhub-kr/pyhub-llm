@@ -5,6 +5,7 @@ import logging
 from typing import Any, Dict, List
 
 from pyhub.llm.agents.base import Tool
+
 from .client import MCPClient
 from .loader import load_mcp_tools
 from .transports import create_transport
@@ -45,35 +46,30 @@ class MultiServerMCPClient:
         self._clients: Dict[str, MCPClient] = {}
         self._active_connections: Dict[str, Any] = {}
         self._connection_errors: Dict[str, str] = {}
+        self._connection_tasks: Dict[str, asyncio.Task] = {}
 
     async def __aenter__(self):
         """비동기 컨텍스트 매니저 진입"""
-        # 모든 서버에 동시 연결
-        tasks = []
+        # 태스크를 사용하지 않고 직접 연결 - 컨텍스트 문제 해결
         for server_name, config in self.servers.items():
-            task = asyncio.create_task(self._connect_server(server_name, config))
-            tasks.append(task)
-
-        # 모든 연결 대기
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-
-        # 연결 실패 로그
-        for server_name, result in zip(self.servers.keys(), results):
-            if isinstance(result, Exception):
-                logger.error(f"Failed to connect to '{server_name}': {result}")
+            await self._connect_server(server_name, config)
 
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """비동기 컨텍스트 매니저 종료"""
-        # 모든 연결 종료
-        for server_name in list(self._active_connections.keys()):
+        # 각 연결을 순차적으로 종료 - 동일한 태스크에서 실행
+        for server_name, connection_context in list(self._active_connections.items()):
             try:
-                await self._active_connections[server_name].__aexit__(None, None, None)
-                del self._active_connections[server_name]
+                await connection_context.__aexit__(None, None, None)
                 logger.info(f"Disconnected from '{server_name}'")
             except Exception as e:
                 logger.error(f"Error disconnecting from '{server_name}': {e}")
+
+        # 정리
+        self._clients.clear()
+        self._active_connections.clear()
+        self._connection_tasks.clear()
 
     async def _connect_server(self, server_name: str, config: Dict[str, Any]):
         """개별 서버에 연결 (모든 Transport 지원)"""
@@ -92,7 +88,7 @@ class MultiServerMCPClient:
             logger.debug(f"Connecting to '{server_name}' using {transport_type} transport")
 
             # Transport 생성 및 검증
-            transport = create_transport(config)
+            transport = create_transport(config)  # noqa
 
             # 클라이언트 생성 (새로운 설정 기반 방식)
             client = MCPClient(config)
@@ -104,6 +100,9 @@ class MultiServerMCPClient:
 
             self._clients[server_name] = client
             self._active_connections[server_name] = connection_context
+
+            # 현재 태스크 저장 - 이제 필요없음
+            # self._connection_tasks[server_name] = asyncio.current_task()
 
             # 연결 성공 로그 (transport 정보 포함)
             description = config.get("description", "")
