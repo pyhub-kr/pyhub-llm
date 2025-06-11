@@ -1048,22 +1048,22 @@ pyhub-llm mcp-server run greeting --port 8888
 ```python
 import asyncio
 from pyhub.llm import LLM
-from pyhub.llm.mcp import MultiServerMCPClient
+from pyhub.llm.mcp import MultiServerMCPClient, McpStdioConfig, McpStreamableHttpConfig
 
 async def use_multiple_mcp_servers():
-    # 여러 MCP 서버 설정
-    servers = {
-        "calculator": {
-            "transport": "stdio",
-            "command": "pyhub-llm",
-            "args": ["mcp-server", "run", "calculator"],
-        },
-        "greeting": {
-            "transport": "streamable_http",
-            # 앞선 greeting 서버의 포트 번호와 일치시킵니다.
-            "url": "http://localhost:8888/mcp"
-        }
-    }
+    # 새로운 dataclass 방식 (권장)
+    servers = [
+        McpStdioConfig(
+            name="calculator",
+            cmd="pyhub-llm mcp-server run calculator",
+            description="기본 계산 기능 제공"
+        ),
+        McpStreamableHttpConfig(
+            name="greeting",
+            url="http://localhost:8888/mcp",
+            description="다국어 인사말 생성"
+        )
+    ]
     
     # MultiServerMCPClient로 여러 서버 연결
     multi_client = MultiServerMCPClient(servers)
@@ -1088,6 +1088,25 @@ async def use_multiple_mcp_servers():
 
 # 실행
 asyncio.run(use_multiple_mcp_servers())
+```
+
+기존 dict 방식도 계속 지원합니다:
+
+```python
+# 기존 dict 방식 (하위 호환성)
+servers = {
+    "calculator": {
+        "transport": "stdio",
+        "command": "pyhub-llm",
+        "args": ["mcp-server", "run", "calculator"],
+    },
+    "greeting": {
+        "transport": "streamable_http",
+        "url": "http://localhost:8888/mcp"
+    }
+}
+
+multi_client = MultiServerMCPClient(servers)
 ```
 
 #### 고급 사용법: 다양한 전송 방식
