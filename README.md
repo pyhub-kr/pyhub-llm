@@ -15,10 +15,10 @@
 
 ## 설치
 
-### 기본 설치
+### 전체 설치
 
 ```bash
-pip install pyhub-llm
+pip install 'pyhub-llm[all]'
 ```
 
 ### 특정 제공업체만 설치
@@ -831,6 +831,7 @@ Final Answer: 2024년 한국의 GDP는 약 2조 1천억 달러이며, 이를 원
 더 복잡한 도구가 필요한 경우 Tool 클래스를 사용하거나, 기존 도구 클래스와 함수를 혼합해서 사용할 수 있습니다:
 
 ```python
+from pyhub.llm import LLM
 from pyhub.llm.agents import ReactAgent
 from pyhub.llm.agents.tools import Calculator  # 내장 계산기 도구
 from pyhub.llm.tools import Tool
@@ -841,15 +842,18 @@ def get_current_time() -> str:
     """현재 시간을 반환합니다."""
     return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-# Tool 클래스로 복잡한 도구 정의
-weather_tool = Tool(
-    name="weather",
-    description="도시의 날씨 정보를 가져옵니다",
-    func=lambda city, unit="celsius": {
+def get_weather(city: str, unit:str = "celsius") -> str:
+    return str({
         "city": city,
         "temperature": "20°C" if unit == "celsius" else "68°F",
         "condition": "맑음"
-    }
+    })
+
+# Tool 클래스로 복잡한 도구 정의
+weather_tool = Tool(
+    name="get_weather",
+    description="도시의 날씨 정보를 가져옵니다",
+    func=get_weather,
 )
 
 # 다양한 도구 형태를 혼합 사용
@@ -871,32 +875,40 @@ MCP는 다양한 도구와 서비스를 LLM과 통합하기 위한 표준 프로
 
 > **참고**: MCP 기능을 사용하려면 `mcp` 패키지가 필요합니다:
 > ```bash
-> pip install mcp  # 기본 설치
-> pip install 'mcp[websocket]'  # WebSocket 지원 포함
-> pip install 'mcp[sse]'  # SSE 지원 포함
+> pip install 'pyhub-llm[mcp]'
 > ```
 
-#### 1. MCP 서버 실행하기
+#### 1. 테스트용 MCP 서버 실행하기
 
-pyhub-llm은 테스트와 학습을 위한 내장 MCP 서버를 제공합니다:
+MCP 연동 테스트를 위한 내장 MCP 서버를 제공합니다:
 
 ```bash
-# 계산기 MCP 서버 실행
+# 계산기 MCP 서버 실행 (stdio 방식)
 pyhub-llm mcp-server run calculator
+
+# 인사말 MCP 서버 실행 (streaming-http 방식)
+#  - 디폴트 8000 포트로 구동되며, --port 인자로 포트를 지정하실 수 있습니다.
+pyhub-llm mcp-server run greeting --port=8888
 
 # 또는 Python 모듈로 실행
 python -m pyhub.llm.mcp.servers calculator
+python -m pyhub.llm.mcp.servers greeting --port=8888
 
 # 사용 가능한 서버 목록 확인
 pyhub-llm mcp-server list
 ```
 
 계산기 서버는 다음 기능을 제공합니다:
+
 - `add(a, b)`: 두 숫자를 더합니다
 - `subtract(a, b)`: 두 숫자를 뺍니다
 - `multiply(a, b)`: 두 숫자를 곱합니다
 - `divide(a, b)`: 두 숫자를 나눕니다
 - `power(base, exponent)`: 거듭제곱을 계산합니다
+
+인사말 서버는 다음 기능을 제공합니다:
+
+- `greeting(name, lang="en")`: 다국어 인사말을 생성합니다 (영어, 한국어, 스페인어, 프랑스어, 일본어 지원)
 
 #### 2. MCP 도구 확인하기
 
@@ -951,6 +963,22 @@ asyncio.run(list_mcp_tools())
 도구 이름: power
 설명: 거듭제곱을 계산합니다
 파라미터: {'type': 'object', 'properties': {'base': {'type': 'number', 'description': '밑'}, 'exponent': {'type': 'number', 'description': '지수'}}, 'required': ['base', 'exponent']}
+```
+
+인사말 서버의 경우:
+
+```python
+# 인사말 서버 연결
+client = MCPClient({
+    "transport": "stdio",
+    "command": "pyhub-llm",
+    "args": ["mcp-server", "run", "greeting", "--port", "8888"],
+})
+
+# 출력 예시:
+# 도구 이름: greeting
+# 설명: Generate a greeting message in the specified language
+# 파라미터: {'type': 'object', 'properties': {'name': {'type': 'string', 'description': 'Name of the person to greet'}, 'lang': {'type': 'string', 'description': 'Language code (en, ko, es, fr, ja)', 'default': 'en'}}, 'required': ['name']}
 ```
 
 #### 3. llm.ask에서 MCP 도구 사용하기
@@ -1008,11 +1036,17 @@ asyncio.run(use_mcp_with_llm())
 
 #### 4. 여러 MCP 서버 통합하기
 
+먼저 greeting 서버를 8888 포트로 실행합니다:
+
+```bash
+# greeting 서버를 8888 포트로 실행
+pyhub-llm mcp-server run greeting --port 8888
+```
+
 여러 MCP 서버의 도구를 함께 사용하는 예시:
 
 ```python
 import asyncio
-import sys
 from pyhub.llm import LLM
 from pyhub.llm.mcp import MultiServerMCPClient
 
@@ -1020,17 +1054,14 @@ async def use_multiple_mcp_servers():
     # 여러 MCP 서버 설정
     servers = {
         "calculator": {
-            "transport": {
-                "type": "stdio",
-                "command": "pyhub-llm",
-                "args": ["mcp-server", "run", "calculator"],
-            }
+            "transport": "stdio",
+            "command": "pyhub-llm",
+            "args": ["mcp-server", "run", "calculator"],
         },
-        "filesystem": {
-            "transport": {
-                "type": "http",
-                "url": "http://localhost:8080/mcp"
-            }
+        "greeting": {
+            "transport": "streamable_http",
+            # 앞선 greeting 서버의 포트 번호와 일치시킵니다.
+            "url": "http://localhost:8888/mcp"
         }
     }
     
@@ -1039,7 +1070,7 @@ async def use_multiple_mcp_servers():
     
     async with multi_client:
         # 모든 서버의 도구 가져오기
-        all_tools = await multi_client.get_all_tools()
+        all_tools = await multi_client.get_tools()
         
         print(f"총 {len(all_tools)}개의 도구를 로드했습니다:")
         for tool in all_tools:
@@ -1050,7 +1081,7 @@ async def use_multiple_mcp_servers():
         
         # 여러 서버의 도구를 함께 사용
         response = await llm.ask_async(
-            "현재 디렉토리의 파일 개수를 세고, 그 수에 10을 곱해주세요."
+            "John에게 한국어로 인사하고, 20과 15를 더해주세요."
         )
         
         print(f"\n답변: {response}")
