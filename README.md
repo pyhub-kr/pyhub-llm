@@ -680,10 +680,7 @@ pyhub-llm describe *.jpg --output descriptions.json
 ### 임베딩 생성
 ```bash
 # 텍스트 임베딩
-pyhub-llm embed "임베딩할 텍스트"
-
-# 파일 내용 임베딩
-pyhub-llm embed --file document.txt
+pyhub-llm embed text "임베딩할 텍스트"
 ```
 
 ## 고급 기능
@@ -737,20 +734,32 @@ if response.has_structured_data:
     print(f"특징: {', '.join(product.features)}")
 ```
 
-구조화된 출력은 모든 프로바이더(OpenAI, Anthropic, Google, Ollama)에서 지원됩니다:
-- OpenAI: 네이티브 Structured Output 사용
+구조화된 출력은 모든 프로바이더(OpenAI, Upstage, Anthropic, Google, Ollama)에서 지원됩니다:
+- OpenAI, Upstage: 네이티브 Structured Output 사용
 - Anthropic, Google, Ollama: 프롬프트 기반 JSON 생성
 
 ### 에이전트 프레임워크
 
+ReactAgent는 도구를 사용하여 복잡한 작업을 수행할 수 있습니다. 함수를 직접 전달하면 자동으로 Tool 객체로 변환됩니다:
+
 ```python
 from pyhub.llm.agents import ReactAgent
-from pyhub.llm.tools import WebSearchTool, CalculatorTool
+from pyhub.llm.tools import Tool
 
-# 도구를 가진 에이전트 생성
+# 간단한 도구 함수들 정의
+def web_search(query: str) -> str:
+    """웹에서 정보를 검색합니다."""
+    # 실제 구현 또는 모의 결과
+    return f"2024년 한국 GDP는 약 2.05조 달러입니다."
+
+def calculator(expression: str) -> float:
+    """수학 표현식을 계산합니다."""
+    return eval(expression)  # 실제로는 안전한 파서 사용 권장
+
+# 함수를 직접 전달 - 자동으로 Tool로 변환됨
 agent = ReactAgent(
     llm=LLM.create("gpt-4o"),
-    tools=[WebSearchTool(), CalculatorTool()],
+    tools=[web_search, calculator],
     max_iterations=5
 )
 
@@ -759,6 +768,45 @@ result = agent.run(
     "2024년 한국의 GDP는 얼마이고, "
     "이를 원화로 환산하면 얼마인가요?"
 )
+```
+
+#### 고급 도구 사용법
+
+더 복잡한 도구가 필요한 경우 Tool 클래스를 사용하거나, 기존 도구 클래스와 함수를 혼합해서 사용할 수 있습니다:
+
+```python
+from pyhub.llm.agents import ReactAgent
+from pyhub.llm.agents.tools import Calculator  # 내장 계산기 도구
+from pyhub.llm.tools import Tool
+import datetime
+
+# 다양한 형태의 도구들
+def get_current_time() -> str:
+    """현재 시간을 반환합니다."""
+    return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+# Tool 클래스로 복잡한 도구 정의
+weather_tool = Tool(
+    name="weather",
+    description="도시의 날씨 정보를 가져옵니다",
+    func=lambda city, unit="celsius": {
+        "city": city,
+        "temperature": "20°C" if unit == "celsius" else "68°F",
+        "condition": "맑음"
+    }
+)
+
+# 다양한 도구 형태를 혼합 사용
+agent = ReactAgent(
+    llm=LLM.create("gpt-4o"),
+    tools=[
+        Calculator(),         # 기존 도구 클래스
+        get_current_time,    # 간단한 함수
+        weather_tool         # Tool 인스턴스
+    ]
+)
+
+result = agent.run("현재 시간과 서울 날씨를 알려주고, 20 + 15를 계산해줘")
 ```
 
 ### MCP (Model Context Protocol) 통합
