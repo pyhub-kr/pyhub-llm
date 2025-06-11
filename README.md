@@ -471,7 +471,10 @@ print(result.values["text"])  # 번역 후 요약된 결과
 #### 캐시 인젝션 패턴
 
 ```python
+from pyhub.llm import LLM
 from pyhub.llm.cache import MemoryCache, FileCache
+from pyhub.llm.cache.base import BaseCache
+from typing import Any, Optional
 
 # 메모리 캐시 사용
 memory_cache = MemoryCache(ttl=3600)  # 1시간 TTL
@@ -493,10 +496,98 @@ class CustomCache(BaseCache):
     def set(self, key: str, value: Any, ttl: Optional[int] = None):
         # 커스텀 저장 로직
         pass
+    
+    def delete(self, key: str) -> bool:
+        # 삭제 로직
+        pass
+    
+    def clear(self):
+        # 전체 캐시 삭제 로직
+        pass
 
 custom_cache = CustomCache()
 llm = LLM.create("gpt-4o-mini", cache=custom_cache)
 ```
+
+#### 캐시 사용 시 주의사항
+
+**대화 히스토리와 캐시**
+
+기본적으로 `ask()` 메서드는 `use_history=True`로 대화 히스토리를 유지합니다. 이로 인해 동일한 질문도 대화 컨텍스트가 달라지면 다른 캐시 키가 생성되어 캐시 미스가 발생합니다:
+
+```python
+# 대화 히스토리로 인한 캐시 미스 예시
+llm = LLM.create("gpt-4o-mini", cache=memory_cache)
+
+# 첫 번째 질문 - API 호출됨
+reply1 = llm.ask("안녕하세요")  # 캐시 키: messages=[{"role": "user", "content": "안녕하세요"}]
+
+# 두 번째 동일한 질문 - 하지만 히스토리가 있어 다른 캐시 키 생성됨
+reply2 = llm.ask("안녕하세요")  # 캐시 키: messages=[...이전 대화..., {"role": "user", "content": "안녕하세요"}]
+# 결과: 캐시 미스, API 재호출
+```
+
+**효과적인 캐시 사용 방법**
+
+```python
+# 방법 1: use_history=False로 독립적인 질문
+reply1 = llm.ask("Python이란?", use_history=False)  # API 호출
+reply2 = llm.ask("Python이란?", use_history=False)  # 캐시에서 가져옴
+
+# 방법 2: 새로운 LLM 인스턴스로 깨끗한 상태 유지
+llm_new = LLM.create("gpt-4o-mini", cache=memory_cache)
+reply3 = llm_new.ask("Python이란?")  # 캐시에서 가져옴 (동일한 캐시 공유)
+
+# 방법 3: 히스토리 초기화
+llm.clear()  # 대화 히스토리 초기화
+reply4 = llm.ask("Python이란?")  # 캐시에서 가져옴
+```
+
+**캐시가 효과적인 사용 사례**
+
+- 반복적인 번역 작업
+- 정적인 데이터 조회 (예: 용어 설명, 정의)
+- 템플릿 기반 텍스트 생성
+- 독립적인 단일 질문들
+
+#### 캐시 디버깅 및 통계
+
+캐시가 실제로 작동하는지 확인하기 위해 디버깅 기능을 사용할 수 있습니다:
+
+```python
+import logging
+
+# 로깅 설정 (디버깅 메시지 확인)
+logging.basicConfig(level=logging.DEBUG)
+
+# 디버그 모드로 캐시 생성
+cache = MemoryCache(ttl=3600, debug=True)
+llm = LLM.create("gpt-4o-mini", cache=cache)
+
+# 캐시 작동 확인
+llm.ask("안녕하세요", use_history=False)  # DEBUG: Cache MISS: openai:...
+llm.ask("안녕하세요", use_history=False)  # DEBUG: Cache HIT: openai:...
+
+# 캐시 통계 확인
+print(cache.stats)
+# {
+#   'hits': 1,
+#   'misses': 1,
+#   'sets': 1,
+#   'hit_rate': 0.5,
+#   'total_requests': 2,
+#   'size': 1
+# }
+```
+
+**캐시 통계 항목**
+
+- `hits`: 캐시 히트 횟수
+- `misses`: 캐시 미스 횟수
+- `sets`: 캐시 저장 횟수
+- `hit_rate`: 캐시 히트율 (hits / (hits + misses))
+- `total_requests`: 총 요청 수
+- `size`: 현재 캐시에 저장된 항목 수
 
 ### 8. 템플릿 사용
 
