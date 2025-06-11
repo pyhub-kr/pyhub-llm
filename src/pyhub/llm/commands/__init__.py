@@ -7,6 +7,7 @@ from pyhub.llm.commands.chat import chat
 from pyhub.llm.commands.compare import compare
 from pyhub.llm.commands.describe import describe
 from pyhub.llm.commands.embed import app as embed_app
+from pyhub.llm.commands.mcp_server import app as mcp_server_app
 
 # from pyhub import print_for_main
 
@@ -16,6 +17,7 @@ console = Console()
 
 app.add_typer(embed_app, name="embed")
 app.add_typer(agent_app, name="agent")
+app.add_typer(mcp_server_app, name="mcp-server")
 
 app.command()(ask)
 app.command()(describe)

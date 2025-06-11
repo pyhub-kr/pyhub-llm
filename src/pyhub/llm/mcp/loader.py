@@ -4,8 +4,8 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 
 from pyhub.llm.agents.base import Tool
-from pyhub.llm.agents.mcp.client import MCPClient
-from pyhub.llm.agents.mcp.wrapper import MCPTool
+from .client import MCPClient
+from .wrapper import MCPTool
 
 logger = logging.getLogger(__name__)
 

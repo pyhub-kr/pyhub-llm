@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Union
 
-from pyhub.llm.agents.mcp.transports import create_transport
+from .transports import create_transport
 
 logger = logging.getLogger(__name__)
 

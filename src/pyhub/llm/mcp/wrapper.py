@@ -6,7 +6,7 @@ from typing import Any, Dict, Type
 from pydantic import BaseModel, Field, create_model
 
 from pyhub.llm.agents.base import AsyncBaseTool, ValidationLevel
-from pyhub.llm.agents.mcp.client import MCPClient
+from .client import MCPClient
 
 logger = logging.getLogger(__name__)
 

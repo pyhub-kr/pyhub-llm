@@ -13,7 +13,7 @@ from typing import Any, Callable, Dict, List, Optional, Type, get_type_hints
 from pydantic import BaseModel, Field, create_model
 
 from pyhub.llm.agents.base import AsyncBaseTool, BaseTool, Tool, ValidationLevel
-from pyhub.llm.agents.mcp.wrapper import MCPTool
+from pyhub.llm.mcp.wrapper import MCPTool
 
 logger = logging.getLogger(__name__)
 
