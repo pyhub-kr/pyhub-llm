@@ -5,7 +5,7 @@ import json
 import logging
 import re
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional, Union
 
 from pyhub.llm.agents.base import AsyncBaseAgent, BaseAgent, Tool, ToolExecutor
 from pyhub.llm.agents.simple_template import SimpleTemplate
@@ -97,7 +97,7 @@ def parse_react_output(output: str) -> ReactStep:
 class ReactAgent(BaseAgent):
     """동기 React Agent"""
 
-    def __init__(self, llm: BaseLLM, tools: List[Tool], **kwargs):
+    def __init__(self, llm: BaseLLM, tools: List[Union[Tool, Callable, Any]], **kwargs):
         super().__init__(llm, tools, **kwargs)
 
         # 템플릿이 제공되지 않으면 기본 템플릿 사용
@@ -265,7 +265,7 @@ Important guidelines:
 class AsyncReactAgent(AsyncBaseAgent):
     """비동기 React Agent"""
 
-    def __init__(self, llm: BaseLLM, tools: List[Tool], **kwargs):
+    def __init__(self, llm: BaseLLM, tools: List[Union[Tool, Callable, Any]], **kwargs):
         super().__init__(llm, tools, **kwargs)
 
         # 템플릿이 제공되지 않으면 기본 템플릿 사용
@@ -436,7 +436,7 @@ Important guidelines:
             self.llm.system_prompt = original_system_prompt
 
 
-def create_react_agent(llm: BaseLLM, tools: List[Tool], **kwargs) -> Union[ReactAgent, AsyncReactAgent]:
+def create_react_agent(llm: BaseLLM, tools: List[Union[Tool, Callable, Any]], **kwargs) -> Union[ReactAgent, AsyncReactAgent]:
     """
     React Agent를 생성하는 팩토리 함수
 
