@@ -742,15 +742,34 @@ if response.has_structured_data:
 
 ReactAgent는 도구를 사용하여 복잡한 작업을 수행할 수 있습니다. 함수를 직접 전달하면 자동으로 Tool 객체로 변환됩니다:
 
+> **참고**: 아래 예시에서 웹 검색 기능을 사용하려면 `pip install duckduckgo-search`를 먼저 설치해야 합니다.
+
 ```python
+from pyhub.llm import LLM
 from pyhub.llm.agents import ReactAgent
 from pyhub.llm.tools import Tool
 
 # 간단한 도구 함수들 정의
 def web_search(query: str) -> str:
     """웹에서 정보를 검색합니다."""
-    # 실제 구현 또는 모의 결과
-    return f"2024년 한국 GDP는 약 2.05조 달러입니다."
+    try:
+        from duckduckgo_search import DDGS
+        
+        with DDGS() as ddgs:
+            results = list(ddgs.text(query, region='kr-kr', max_results=3))
+            if results:
+                # 검색 결과를 요약해서 반환
+                summaries = []
+                for r in results:
+                    title = r.get('title', '')
+                    body = r.get('body', '')
+                    summaries.append(f"{title}: {body}")
+                return "\n".join(summaries)
+            return "검색 결과가 없습니다."
+    except ImportError:
+        return "웹 검색을 사용하려면 'pip install duckduckgo-search'를 실행하세요."
+    except Exception as e:
+        return f"검색 중 오류 발생: {str(e)}"
 
 def calculator(expression: str) -> float:
     """수학 표현식을 계산합니다."""
@@ -758,9 +777,10 @@ def calculator(expression: str) -> float:
 
 # 함수를 직접 전달 - 자동으로 Tool로 변환됨
 agent = ReactAgent(
-    llm=LLM.create("gpt-4o"),
+    llm=LLM.create("gpt-4o-mini"),
     tools=[web_search, calculator],
-    max_iterations=5
+    max_iterations=10,
+    verbose=True,
 )
 
 # 복잡한 작업 수행
@@ -768,6 +788,21 @@ result = agent.run(
     "2024년 한국의 GDP는 얼마이고, "
     "이를 원화로 환산하면 얼마인가요?"
 )
+
+# verbose=True 일 때 출력 예시:
+# Iteration 1:
+# Thought: 한국의 2024년 GDP를 찾아야 합니다.
+# Action: web_search
+# Action Input: {"query": "2024년 한국 GDP"}
+# Observation: 2024년 한국 GDP는 약 2.05조 달러입니다.
+#
+# Iteration 2:
+# Thought: 이제 2.05조 달러를 원화로 환산해야 합니다. 현재 환율을 적용하여 계산하겠습니다.
+# Action: calculator
+# Action Input: {"expression": "2.05 * 1000000000000 * 1300"}
+# Observation: 2665000000000000
+#
+# Final Answer: 2024년 한국의 GDP는 약 2.05조 달러이며, 이를 원화로 환산하면 약 2,665조 원입니다.
 ```
 
 #### 고급 도구 사용법
@@ -798,7 +833,7 @@ weather_tool = Tool(
 
 # 다양한 도구 형태를 혼합 사용
 agent = ReactAgent(
-    llm=LLM.create("gpt-4o"),
+    llm=LLM.create("gpt-4o-mini"),
     tools=[
         Calculator(),         # 기존 도구 클래스
         get_current_time,    # 간단한 함수
@@ -807,6 +842,28 @@ agent = ReactAgent(
 )
 
 result = agent.run("현재 시간과 서울 날씨를 알려주고, 20 + 15를 계산해줘")
+```
+
+#### 에이전트 디버깅
+
+ReactAgent의 실행 과정을 디버깅하려면 `verbose=True` 옵션을 사용합니다:
+
+```python
+import logging
+
+# 로깅 설정
+logging.basicConfig(level=logging.INFO)
+
+# verbose 모드로 에이전트 생성
+agent = ReactAgent(
+    llm=LLM.create("gpt-4o-mini"),
+    tools=[get_weather, calculator],
+    max_iterations=5,
+    verbose=True  # 실행 과정 출력
+)
+
+# 에이전트 실행 시 각 단계의 thought, action, observation이 출력됨
+result = agent.run("복잡한 작업...")
 ```
 
 ### MCP (Model Context Protocol) 통합
@@ -818,7 +875,7 @@ from pyhub.llm.agents.mcp import MCPClient
 mcp_client = MCPClient("localhost:8080")
 
 # MCP 도구를 LLM과 함께 사용
-llm = LLM.create("gpt-4o", tools=mcp_client.get_tools())
+llm = LLM.create("gpt-4o-mini", tools=mcp_client.get_tools())
 reply = llm.ask("현재 시스템 상태를 확인해주세요")
 ```
 
