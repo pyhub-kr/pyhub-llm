@@ -393,6 +393,7 @@ class AnthropicLLM(BaseLLM):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        schema: Optional[type[pydantic.BaseModel]] = None,
     ) -> Union[Reply, Generator[Reply, None, None]]:
         return super().ask(
             input=input,
@@ -407,6 +408,7 @@ class AnthropicLLM(BaseLLM):
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            schema=schema,
         )
 
     async def ask_async(
@@ -424,6 +426,7 @@ class AnthropicLLM(BaseLLM):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        schema: Optional[type[pydantic.BaseModel]] = None,
     ) -> Union[Reply, AsyncGenerator[Reply, None]]:
         return await super().ask_async(
             input=input,
@@ -438,6 +441,7 @@ class AnthropicLLM(BaseLLM):
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            schema=schema,
         )
 
     def embed(

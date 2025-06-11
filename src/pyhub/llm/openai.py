@@ -1,6 +1,6 @@
 import logging
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
+from typing import IO, Any, AsyncGenerator, Generator, Optional, Type, Union, cast
 
 import pydantic
 
@@ -177,6 +177,23 @@ class OpenAIMixin:
                         "required": ["choice"],
                         "additionalProperties": False,
                     },
+                },
+            }
+            # structured output을 위해 낮은 temperature 사용
+            request_params["temperature"] = 0.1
+        
+        # schema가 있으면 response_format 추가 (OpenAI Structured Output 사용)
+        elif "schema" in input_context:
+            schema = input_context["schema"]
+            # schema에 시스템 프롬프트 추가
+            if system_prompt:
+                system_prompt += f"\n\nYou must return a JSON response that conforms to this schema: {input_context['schema_json']}"
+            
+            request_params["response_format"] = {
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema.__name__,
+                    "schema": input_context["schema_json"],
                 },
             }
             # structured output을 위해 낮은 temperature 사용
@@ -729,6 +746,7 @@ class OpenAIMixin:
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type["BaseModel"]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
@@ -743,6 +761,7 @@ class OpenAIMixin:
             context=context,
             choices=choices,
             choices_optional=choices_optional,
+            schema=schema,
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
@@ -760,6 +779,7 @@ class OpenAIMixin:
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type["BaseModel"]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
@@ -774,6 +794,7 @@ class OpenAIMixin:
             context=context,
             choices=choices,
             choices_optional=choices_optional,
+            schema=schema,
             stream=stream,
             use_history=use_history,
             raise_errors=raise_errors,
