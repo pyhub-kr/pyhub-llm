@@ -346,33 +346,103 @@ print(reply.confidence)  # 0.95
 
 ### 5. 도구/함수 호출
 
+LLM이 외부 도구나 함수를 호출할 수 있는 Function Calling을 지원합니다. 간단한 함수부터 복잡한 도구까지 다양하게 사용할 수 있습니다.
+
+#### 간단한 함수 직접 사용
+
+가장 쉬운 방법은 타입 힌트가 있는 함수를 직접 전달하는 것입니다:
+
+```python
+# 타입 힌트와 docstring이 있는 함수 정의
+def get_weather(city: str) -> str:
+    """도시의 날씨 정보를 가져옵니다."""
+    return f"{city}의 날씨는 맑음입니다."
+
+def calculate(x: int, y: int, operation: str = "add") -> int:
+    """두 숫자를 계산합니다."""
+    if operation == "add":
+        return x + y
+    elif operation == "multiply":
+        return x * y
+    elif operation == "subtract":
+        return x - y
+    return 0
+
+# 함수를 tools 리스트에 직접 전달
+reply = llm.ask(
+    "서울의 날씨는 어때?",
+    tools=[get_weather]  # 함수를 그대로 전달
+)
+print(reply.text)  # "서울의 날씨는 맑음입니다."
+
+# 여러 함수를 함께 사용
+reply = llm.ask(
+    "서울 날씨를 확인하고 13과 27을 더해줘",
+    tools=[get_weather, calculate]
+)
+```
+
+#### Tool 클래스로 고급 기능 사용
+
+더 복잡한 파라미터나 상세한 설명이 필요한 경우 Tool 클래스를 사용합니다:
+
 ```python
 from pyhub.llm.tools import Tool
 
-# 도구 정의
-def get_weather(city: str) -> str:
-    return f"{city}의 날씨는 맑음입니다."
-
+# 복잡한 파라미터 구조를 가진 도구
 weather_tool = Tool(
-    name="get_weather",
-    description="도시의 날씨 정보를 가져옵니다",
-    func=get_weather,
+    name="get_detailed_weather",
+    description="도시의 상세한 날씨 정보를 가져옵니다. 온도, 습도, 풍속 등을 포함합니다.",
+    func=lambda city, unit="celsius", include_forecast=False: {
+        "city": city,
+        "temperature": "25°C" if unit == "celsius" else "77°F",
+        "humidity": "60%",
+        "wind_speed": "5 m/s",
+        "forecast": ["맑음", "구름 조금"] if include_forecast else None
+    },
     parameters={
         "type": "object",
         "properties": {
-            "city": {"type": "string", "description": "도시 이름"}
+            "city": {
+                "type": "string",
+                "description": "날씨를 조회할 도시 이름"
+            },
+            "unit": {
+                "type": "string",
+                "enum": ["celsius", "fahrenheit"],
+                "default": "celsius",
+                "description": "온도 단위"
+            },
+            "include_forecast": {
+                "type": "boolean",
+                "default": False,
+                "description": "3일 예보 포함 여부"
+            }
         },
         "required": ["city"]
     }
 )
 
-# 도구와 함께 LLM 사용
+# Tool 객체 사용
 reply = llm.ask(
-    "서울의 날씨는 어때?",
+    "서울의 날씨를 화씨로 알려주고 3일 예보도 포함해줘",
     tools=[weather_tool]
 )
-print(reply.text)  # "서울의 날씨는 맑음입니다."
 ```
+
+#### Tool 사용의 특징과 장점
+
+**Tool 클래스의 장점:**
+- **상세한 파라미터 정의**: enum, default, 복잡한 타입 등을 명시적으로 정의
+- **커스텀 이름과 설명**: 함수명과 다른 이름을 사용하거나 상세한 설명 추가
+- **파라미터별 설명**: 각 파라미터에 대한 구체적인 설명 제공
+- **복잡한 검증**: JSON Schema를 통한 고급 검증 규칙 설정
+
+**언제 어떤 방법을 사용할까?**
+- **함수 직접 전달**: 프로토타이핑, 간단한 파라미터, 타입 힌트로 충분한 경우
+- **Tool 클래스**: 프로덕션 환경, 복잡한 API, 상세한 문서화가 필요한 경우
+
+> **참고**: 함수를 직접 전달해도 내부적으로는 자동으로 Tool 객체로 변환됩니다. 타입 힌트와 docstring에서 필요한 정보를 추출합니다.
 
 ### 6. LLM 체이닝
 
