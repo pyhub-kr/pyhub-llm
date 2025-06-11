@@ -30,6 +30,12 @@ pip install "pyhub-llm[openai]"
 # Anthropic만
 pip install "pyhub-llm[anthropic]"
 
+# Google만
+pip install "pyhub-llm[google]"
+
+# Ollama만
+pip install "pyhub-llm[ollama]"
+
 # 모든 제공업체
 pip install "pyhub-llm[all]"
 ```
@@ -513,6 +519,59 @@ pyhub-llm embed --file document.txt
 ```
 
 ## 고급 기능
+
+### 구조화된 출력 (Structured Output)
+
+Pydantic BaseModel을 사용하여 LLM 응답을 구조화된 형식으로 받을 수 있습니다:
+
+```python
+from pydantic import BaseModel, Field
+from typing import Optional, List
+from pyhub.llm import LLM
+
+# 응답 스키마 정의
+class User(BaseModel):
+    name: str = Field(description="사용자 이름")
+    age: int = Field(description="사용자 나이")
+    email: str = Field(description="이메일 주소")
+    
+class Product(BaseModel):
+    name: str
+    price: float
+    features: List[str]
+    in_stock: bool
+
+# 구조화된 응답 요청
+llm = LLM.create("gpt-4o-mini")
+
+# 단순한 예시
+response = llm.ask(
+    "John Doe, 30살, john@example.com 정보로 사용자를 만들어주세요",
+    schema=User
+)
+
+if response.has_structured_data:
+    user = response.structured_data
+    print(f"이름: {user.name}")
+    print(f"나이: {user.age}")
+    print(f"이메일: {user.email}")
+
+# 복잡한 예시
+response = llm.ask(
+    "MacBook Pro 16인치에 대한 제품 정보를 생성해주세요",
+    schema=Product
+)
+
+if response.has_structured_data:
+    product = response.structured_data
+    print(f"제품명: {product.name}")
+    print(f"가격: ${product.price}")
+    print(f"특징: {', '.join(product.features)}")
+```
+
+구조화된 출력은 모든 프로바이더(OpenAI, Anthropic, Google, Ollama)에서 지원됩니다:
+- OpenAI: 네이티브 Structured Output 사용
+- Anthropic, Google, Ollama: 프롬프트 기반 JSON 생성
 
 ### 에이전트 프레임워크
 
