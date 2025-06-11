@@ -995,11 +995,21 @@ from pyhub.llm.mcp import MCPClient, load_mcp_tools
 logging.basicConfig(level=logging.DEBUG)
 
 async def use_mcp_with_llm():
-    # 내장 계산기 서버 연결
-    client = MCPClient({
-        "command": "pyhub-llm",
-        "args": ["mcp-server", "run", "calculator"],
-    })
+    # 새로운 dataclass 방식 (권장)
+    from pyhub.llm.mcp import McpStdioConfig
+    
+    config = McpStdioConfig(
+        name="calculator",
+        cmd="pyhub-llm mcp-server run calculator"
+    )
+    client = MCPClient(config)
+    
+    # 또는 기존 dict 방식
+    # client = MCPClient({
+    #     "transport": "stdio",
+    #     "command": "pyhub-llm",
+    #     "args": ["mcp-server", "run", "calculator"],
+    # })
     
     async with client.connect():
         # MCP 도구를 Tool 객체로 로드
