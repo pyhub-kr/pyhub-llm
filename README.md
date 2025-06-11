@@ -626,15 +626,7 @@ export ANTHROPIC_API_KEY="your-anthropic-key"
 export GOOGLE_API_KEY="your-google-key"
 ```
 
-#### 2. .env 파일 사용
-```bash
-# .env 파일 생성
-OPENAI_API_KEY=your-openai-key
-ANTHROPIC_API_KEY=your-anthropic-key
-GOOGLE_API_KEY=your-google-key
-```
-
-#### 3. 코드에서 직접 전달
+#### 2. 코드에서 직접 전달
 ```python
 from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
 
@@ -642,25 +634,6 @@ from pyhub.llm import OpenAILLM, AnthropicLLM, GoogleLLM
 llm = OpenAILLM(api_key="your-api-key")
 llm = AnthropicLLM(api_key="your-api-key")
 llm = GoogleLLM(api_key="your-api-key")
-```
-
-## 환경 설정
-
-### pyproject.toml 설정
-
-```toml
-[tool.pyhub.llm]
-# 기본 모델 설정
-default_model = "gpt-4o-mini"
-default_embedding_model = "text-embedding-3-small"
-
-# 기본 파라미터
-temperature = 0.7
-max_tokens = 1000
-
-# 캐시 설정
-cache_ttl = 3600
-cache_dir = ".cache/llm"
 ```
 
 ## CLI 사용법
