@@ -147,7 +147,7 @@ class ToolExecutor:
 class BaseAgent(ABC):
     """동기 Agent 기본 클래스"""
 
-    def __init__(self, llm: Any, tools: List[Any], **kwargs):
+    def __init__(self, llm: Any, tools: List[Union[Tool, Callable, Any]], **kwargs):
         self.llm = llm
         
         # 도구들을 Tool 객체로 자동 변환
@@ -171,7 +171,7 @@ class BaseAgent(ABC):
 class AsyncBaseAgent(ABC):
     """비동기 Agent 기본 클래스"""
 
-    def __init__(self, llm: Any, tools: List[Any], **kwargs):
+    def __init__(self, llm: Any, tools: List[Union[Tool, Callable, Any]], **kwargs):
         self.llm = llm
         
         # 도구들을 Tool 객체로 자동 변환
