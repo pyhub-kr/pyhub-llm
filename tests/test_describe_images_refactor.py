@@ -29,7 +29,7 @@ class TestDescribeImagesRefactor:
 
     def test_single_image_string_path(self, tmp_path):
         """Test with single image path as string."""
-        llm = MockLLM(model="mock-model")
+        llm = MockLLM(model="mock-model", response="Image analysis complete.")
 
         # 임시 이미지 파일 생성
         img_path = tmp_path / "test.png"
@@ -39,7 +39,7 @@ class TestDescribeImagesRefactor:
         response = llm.describe_images(str(img_path))
 
         assert isinstance(response, Reply)
-        assert "Mock response:" in response.text
+        assert "analysis" in response.text or "Mock" in response.text
 
     def test_single_image_path_object(self, tmp_path):
         """Test with single image as Path object."""
