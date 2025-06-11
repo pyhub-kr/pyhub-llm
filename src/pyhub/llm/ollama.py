@@ -137,6 +137,21 @@ class OllamaLLM(BaseLLM):
         message_history = [dict(message) for message in messages]
         system_prompt = self.get_system_prompt(input_context)
 
+        # schema가 있으면 JSON 응답을 요청하는 지시사항 추가
+        if "schema" in input_context:
+            import json
+
+            schema_json = input_context["schema_json"]
+            schema_instruction = (
+                f"\n\nYou MUST respond with a valid JSON object that conforms to this schema:\n"
+                f"```json\n{json.dumps(schema_json, indent=2)}\n```\n"
+                f"Do not include any text before or after the JSON object."
+            )
+            if system_prompt:
+                system_prompt += schema_instruction
+            else:
+                system_prompt = schema_instruction.strip()
+
         if system_prompt:
             # history에는 system prompt는 누적되지 않고, 매 요청 시마다 적용합니다.
             system_message = {"role": "system", "content": system_prompt}
@@ -183,7 +198,9 @@ class OllamaLLM(BaseLLM):
             "model": model,
             "messages": message_history,
             "options": {
-                "temperature": self.temperature,
+                "temperature": (
+                    self.temperature if "schema" not in input_context else 0.1
+                ),  # schema가 있으면 낮은 temperature
                 #  "max_tokens": self.max_tokens,  # ollama 에서는 미지원
             },
         }

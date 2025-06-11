@@ -102,6 +102,21 @@ class AnthropicLLM(BaseLLM):
             else:
                 system_prompt += choices_instruction
 
+        # schema가 있으면 JSON 응답을 요청하는 지시사항 추가
+        elif "schema" in input_context:
+            import json
+
+            schema_json = input_context["schema_json"]
+            schema_instruction = (
+                f"\n\nYou MUST respond with a valid JSON object that conforms to this schema:\n"
+                f"```json\n{json.dumps(schema_json, indent=2)}\n```\n"
+                f"Do not include any text before or after the JSON object."
+            )
+            if system_prompt == self._ANTHROPIC_NOT_GIVEN:
+                system_prompt = schema_instruction.strip()
+            else:
+                system_prompt += schema_instruction
+
         # https://docs.anthropic.com/en/docs/build-with-claude/vision
         # https://docs.anthropic.com/en/docs/build-with-claude/pdf-support
         image_urls = encode_files(
@@ -154,8 +169,8 @@ class AnthropicLLM(BaseLLM):
             model=model,
             messages=message_history,
             temperature=(
-                self.temperature if "choices" not in input_context else 0.1
-            ),  # choices가 있으면 낮은 temperature
+                self.temperature if "choices" not in input_context and "schema" not in input_context else 0.1
+            ),  # choices나 schema가 있으면 낮은 temperature
             max_tokens=self.max_tokens,
         )
 

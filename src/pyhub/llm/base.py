@@ -256,10 +256,20 @@ class BaseLLM(abc.ABC):
             (parsed_model, validation_errors) 튜플
         """
         import json
+        import re
+        
+        # 마크다운 코드 블록 제거
+        text = text.strip()
+        
+        # ```json ... ``` 패턴 매칭
+        json_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        match = re.search(json_block_pattern, text, re.DOTALL)
+        if match:
+            text = match.group(1).strip()
         
         try:
             # JSON 파싱 시도
-            data = json.loads(text.strip())
+            data = json.loads(text)
             
             # Pydantic 모델로 검증
             model_instance = schema(**data)
