@@ -116,8 +116,8 @@ class TestLLMStreaming:
         result = llm.ask("Test", stream=True)
         chunks = list(result)
         assert len(chunks) > 0
-        # Check that chunks are strings
-        assert all(isinstance(chunk, str) for chunk in chunks)
+        # Check that chunks are Reply objects
+        assert all(isinstance(chunk, Reply) for chunk in chunks)
 
     @pytest.mark.asyncio
     async def test_stream_async_method(self):
@@ -130,8 +130,8 @@ class TestLLMStreaming:
         async for chunk in result:
             chunks.append(chunk)
         assert len(chunks) > 0
-        # Check that chunks are strings
-        assert all(isinstance(chunk, str) for chunk in chunks)
+        # Check that chunks are Reply objects
+        assert all(isinstance(chunk, Reply) for chunk in chunks)
 
 
 class TestLLMChaining:
@@ -150,12 +150,12 @@ class TestLLMChaining:
         response = chain.ask({"input": "Initial question"})
         # Check that we have a ChainReply with results from both LLMs
         assert len(response.reply_list) == 2
-        # MockLLM receives the dict as string since it doesn't process prompts
-        assert "Mock response: {'input': 'Initial question'}" == response.values["step1"]
+        # MockLLM now processes dict inputs correctly
+        assert "Mock response: Initial question" == response.values["step1"]
         # Second LLM receives the accumulated context (input + step1)
         assert (
             response.values["step2"]
-            == "Mock response: {'input': 'Initial question', 'step1': \"Mock response: {'input': 'Initial question'}\"}"
+            == "Mock response: Mock response: Initial question"
         )
 
     def test_pipe_operator(self):
@@ -229,5 +229,5 @@ class TestLLMErrorHandling:
         response = llm.ask("Choose one", choices=["Option A", "Option B", "Option C"])
         assert response.choice == "Option A"
         assert response.choice_index == 0
-        assert response.confidence == 0.95
+        assert response.confidence == 1.0  # Exact match returns 1.0 confidence
         assert response.is_choice_response

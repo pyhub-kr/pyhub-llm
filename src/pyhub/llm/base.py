@@ -3,7 +3,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, Optional, Union, cast
+from typing import IO, Any, AsyncGenerator, Generator, Optional, Type, Union, cast
 
 from pyhub.llm.cache.base import BaseCache
 from pyhub.llm.settings import llm_settings
@@ -245,6 +245,37 @@ class BaseLLM(abc.ABC):
         # 매칭 실패
         logger.warning("No valid choice found in response: %s", text_clean)
         return None, None, 0.0
+    
+    def _process_schema_response(
+        self, text: str, schema: Type["BaseModel"]
+    ) -> tuple[Optional["BaseModel"], Optional[list[str]]]:
+        """
+        응답 텍스트를 스키마에 맞게 파싱하고 검증
+
+        Returns:
+            (parsed_model, validation_errors) 튜플
+        """
+        import json
+        
+        try:
+            # JSON 파싱 시도
+            data = json.loads(text.strip())
+            
+            # Pydantic 모델로 검증
+            model_instance = schema(**data)
+            return model_instance, None
+            
+        except json.JSONDecodeError as e:
+            # JSON 파싱 실패
+            error_msg = f"JSON parsing failed: {str(e)}"
+            logger.warning(error_msg)
+            return None, [error_msg]
+            
+        except Exception as e:
+            # Pydantic 검증 실패
+            error_msg = f"Schema validation failed: {str(e)}"
+            logger.warning(error_msg)
+            return None, [error_msg]
 
     @abc.abstractmethod
     def _make_request_params(
@@ -309,6 +340,7 @@ class BaseLLM(abc.ABC):
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type["BaseModel"]] = None,
         is_async: bool = False,
         stream: bool = False,
         use_history: bool = True,
@@ -344,7 +376,12 @@ class BaseLLM(abc.ABC):
             input_context["choices_formatted"] = "\n".join([f"{i+1}. {c}" for i, c in enumerate(internal_choices)])
             input_context["choices_optional"] = choices_optional
             input_context["original_choices"] = choices
-
+            
+        # schema 처리
+        if schema:
+            input_context["schema"] = schema
+            input_context["schema_json"] = schema.model_json_schema()
+            
         human_prompt = self.get_human_prompt(input, input_context)
         human_message = Message(role="user", content=human_prompt, files=files)
 
@@ -371,6 +408,15 @@ class BaseLLM(abc.ABC):
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
+                        
+                    # 스트리밍 완료 후 schema 처리
+                    if schema and text_list:
+                        full_text = "".join(text_list)
+                        structured_data, validation_errors = self._process_schema_response(
+                            full_text, schema
+                        )
+                        # 마지막에 structured_data 정보를 포함한 Reply 전송
+                        yield Reply(text="", structured_data=structured_data, validation_errors=validation_errors)
 
                     if use_history:
                         ai_text = "".join(text_list)
@@ -400,6 +446,15 @@ class BaseLLM(abc.ABC):
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
+                        
+                    # 스트리밍 완료 후 schema 처리
+                    if schema and text_list:
+                        full_text = "".join(text_list)
+                        structured_data, validation_errors = self._process_schema_response(
+                            full_text, schema
+                        )
+                        # 마지막에 structured_data 정보를 포함한 Reply 전송
+                        yield Reply(text="", structured_data=structured_data, validation_errors=validation_errors)
 
                     if use_history:
                         ai_text = "".join(text_list)
@@ -435,6 +490,14 @@ class BaseLLM(abc.ABC):
                         ask.choice = choice
                         ask.choice_index = index
                         ask.confidence = confidence
+                        
+                    # schema가 있으면 처리
+                    if schema:
+                        structured_data, validation_errors = self._process_schema_response(
+                            ask.text, schema
+                        )
+                        ask.structured_data = structured_data
+                        ask.validation_errors = validation_errors
 
                     if use_history:
                         self._update_history(human_message=human_message, ai_message=ask.text)
@@ -461,6 +524,14 @@ class BaseLLM(abc.ABC):
                         ask.choice = choice
                         ask.choice_index = index
                         ask.confidence = confidence
+                        
+                    # schema가 있으면 처리
+                    if schema:
+                        structured_data, validation_errors = self._process_schema_response(
+                            ask.text, schema
+                        )
+                        ask.structured_data = structured_data
+                        ask.validation_errors = validation_errors
 
                     if use_history:
                         self._update_history(human_message=human_message, ai_message=ask.text)
@@ -496,6 +567,7 @@ class BaseLLM(abc.ABC):
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type["BaseModel"]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
@@ -503,6 +575,10 @@ class BaseLLM(abc.ABC):
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
     ) -> Union[Reply, Generator[Reply, None, None]]:
+        # schema와 choices는 동시에 사용할 수 없음
+        if schema and choices:
+            raise ValueError("Cannot use both 'schema' and 'choices' parameters at the same time")
+            
         # 기본 도구와 ask 도구를 합침
         merged_tools = self._merge_tools(tools)
 
@@ -531,6 +607,7 @@ class BaseLLM(abc.ABC):
                 context=context,
                 choices=choices,
                 choices_optional=choices_optional,
+                schema=schema,
                 is_async=False,
                 stream=stream,
                 use_history=use_history,
@@ -546,6 +623,7 @@ class BaseLLM(abc.ABC):
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type["BaseModel"]] = None,
         stream: bool = False,
         raise_errors: bool = False,
         use_history: bool = True,
@@ -553,6 +631,10 @@ class BaseLLM(abc.ABC):
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
     ) -> Union[Reply, AsyncGenerator[Reply, None]]:
+        # schema와 choices는 동시에 사용할 수 없음
+        if schema and choices:
+            raise ValueError("Cannot use both 'schema' and 'choices' parameters at the same time")
+            
         # 기본 도구와 ask 도구를 합침
         merged_tools = self._merge_tools(tools)
 
@@ -581,6 +663,7 @@ class BaseLLM(abc.ABC):
                 context=context,
                 choices=choices,
                 choices_optional=choices_optional,
+                schema=schema,
                 is_async=True,
                 stream=stream,
                 use_history=use_history,
