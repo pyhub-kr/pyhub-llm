@@ -1,16 +1,23 @@
 """MCP (Model Context Protocol) integration for pyhub agents."""
 
 from .client import MCPClient
+from .configs import (
+    McpServerConfig,
+    McpSseConfig,
+    McpStdioConfig,
+    McpStreamableHttpConfig,
+    McpWebSocketConfig,
+)
 from .loader import load_mcp_tools
 from .multi_client import (
     MultiServerMCPClient,
     create_multi_server_client_from_config,
 )
 from .transports import (
+    SSETransport,
     StdioTransport,
     StreamableHTTPTransport,
     WebSocketTransport,
-    SSETransport,
 )
 from .wrapper import MCPTool
 
@@ -24,4 +31,10 @@ __all__ = [
     "StreamableHTTPTransport",
     "WebSocketTransport",
     "SSETransport",
+    # Config classes
+    "McpServerConfig",
+    "McpStdioConfig",
+    "McpStreamableHttpConfig",
+    "McpWebSocketConfig",
+    "McpSseConfig",
 ]
