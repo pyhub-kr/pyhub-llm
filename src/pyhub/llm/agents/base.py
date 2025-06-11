@@ -147,12 +147,16 @@ class ToolExecutor:
 class BaseAgent(ABC):
     """동기 Agent 기본 클래스"""
 
-    def __init__(self, llm: Any, tools: List[Tool], **kwargs):
+    def __init__(self, llm: Any, tools: List[Any], **kwargs):
         self.llm = llm
-        self.tools = tools
+        
+        # 도구들을 Tool 객체로 자동 변환
+        from pyhub.llm.tools import ToolAdapter
+        self.tools = ToolAdapter.adapt_tools(tools)
+        
         self.max_iterations = kwargs.get("max_iterations", 10)
         self.timeout = kwargs.get("timeout", None)
-        self._tool_map = {tool.name: tool for tool in tools}
+        self._tool_map = {tool.name: tool for tool in self.tools}
 
     def get_tool(self, tool_name: str) -> Optional[Tool]:
         """도구 이름으로 도구 가져오기"""
@@ -167,12 +171,16 @@ class BaseAgent(ABC):
 class AsyncBaseAgent(ABC):
     """비동기 Agent 기본 클래스"""
 
-    def __init__(self, llm: Any, tools: List[Tool], **kwargs):
+    def __init__(self, llm: Any, tools: List[Any], **kwargs):
         self.llm = llm
-        self.tools = tools
+        
+        # 도구들을 Tool 객체로 자동 변환
+        from pyhub.llm.tools import ToolAdapter
+        self.tools = ToolAdapter.adapt_tools(tools)
+        
         self.max_iterations = kwargs.get("max_iterations", 10)
         self.timeout = kwargs.get("timeout", None)
-        self._tool_map = {tool.name: tool for tool in tools}
+        self._tool_map = {tool.name: tool for tool in self.tools}
 
     def get_tool(self, tool_name: str) -> Optional[Tool]:
         """도구 이름으로 도구 가져오기"""
