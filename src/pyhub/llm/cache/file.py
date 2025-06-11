@@ -12,17 +12,25 @@ from pyhub.llm.cache.base import BaseCache
 class FileCache(BaseCache):
     """File-based cache implementation with TTL support"""
 
-    def __init__(self, cache_dir: Optional[str] = None):
+    def __init__(self, cache_dir: Optional[str] = None, ttl: Optional[int] = None):
         """Initialize file cache
 
         Args:
             cache_dir: Directory to store cache files. Defaults to .cache/pyhub-llm
+            ttl: Default TTL in seconds. None means no expiry by default.
+
+        Raises:
+            ValueError: If TTL is negative.
         """
+        if ttl is not None and ttl < 0:
+            raise ValueError("TTL must be non-negative")
+
         if cache_dir is None:
             cache_dir = os.path.join(os.getcwd(), ".cache", "pyhub-llm")
 
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self._default_ttl = ttl
 
     def _get_cache_file(self, key: str) -> Path:
         """Get the cache file path for a key"""
@@ -55,10 +63,25 @@ class FileCache(BaseCache):
             return default
 
     def set(self, key: str, value: Any, ttl: Optional[int] = None) -> None:
-        """Set value in cache with optional TTL in seconds"""
+        """Set value in cache with optional TTL in seconds.
+
+        Args:
+            key: Cache key
+            value: Value to cache
+            ttl: TTL in seconds. If None, uses default TTL. If 0, no expiry.
+
+        Raises:
+            ValueError: If TTL is negative.
+        """
+        if ttl is not None and ttl < 0:
+            raise ValueError("TTL must be non-negative")
+
         cache_file = self._get_cache_file(key)
 
-        data = {"value": value, "expiry": time.time() + ttl if ttl else None}
+        # Determine effective TTL
+        effective_ttl = ttl if ttl is not None else self._default_ttl
+
+        data = {"value": value, "expiry": time.time() + effective_ttl if effective_ttl else None}
 
         try:
             from pyhub.llm.json import JSONEncoder
