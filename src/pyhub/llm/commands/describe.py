@@ -7,7 +7,7 @@ from PIL import Image as PILImage
 from rich.console import Console
 from rich.table import Table
 
-from pyhub import init
+# from pyhub import init  # Not needed
 from pyhub.llm import LLM
 from pyhub.llm.types import LLMChatModelEnum
 
