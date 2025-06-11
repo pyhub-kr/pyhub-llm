@@ -4,6 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Union
 
+from .configs import McpServerConfig
 from .transports import create_transport
 
 logger = logging.getLogger(__name__)
@@ -12,21 +13,27 @@ logger = logging.getLogger(__name__)
 class MCPClient:
     """MCP 서버와 통신하는 클라이언트 래퍼"""
 
-    def __init__(self, server_params_or_config: Union[Any, Dict[str, Any]]):
+    def __init__(self, server_params_or_config: Union[Any, Dict[str, Any], McpServerConfig]):
         """
         Args:
-            server_params_or_config: MCP 서버 연결 파라미터 또는 설정 딕셔너리
-                - StdioServerParameters 인스턴스 (레거시 지원)
-                - Dict with transport configuration
+            server_params_or_config: MCP 서버 연결 설정
+                - McpServerConfig: 새로운 dataclass 방식 (권장)
+                - Dict[str, Any]: 기존 dict 방식
+                - StdioServerParameters: 레거시 방식
         """
-        # 레거시 지원: StdioServerParameters 직접 전달
-        if not isinstance(server_params_or_config, dict):
-            self.server_params = server_params_or_config
-            self.transport = None
-        else:
-            # 새로운 방식: 설정 딕셔너리
+        # McpServerConfig 처리
+        if isinstance(server_params_or_config, McpServerConfig):
+            config_dict = server_params_or_config.to_dict()
+            self.server_params = None
+            self.transport = create_transport(config_dict)
+        # 기존 dict 방식
+        elif isinstance(server_params_or_config, dict):
             self.server_params = None
             self.transport = create_transport(server_params_or_config)
+        # 레거시 StdioServerParameters
+        else:
+            self.server_params = server_params_or_config
+            self.transport = None
 
         self._session = None
         self._read = None
