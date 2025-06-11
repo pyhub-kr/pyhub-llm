@@ -26,6 +26,12 @@ def ask(
         help="LLM Chat 모델. LLM 벤더에 맞게 지정해주세요.",
     ),
     context: str = typer.Option(None, help="LLM에 제공할 컨텍스트"),
+    file: Optional[List[Path]] = typer.Option(
+        None,
+        "--file",
+        "-f",
+        help="컨텍스트로 제공할 파일 경로 (여러 파일 지정 가능)",
+    ),
     system_prompt: str = typer.Option(None, help="LLM에 사용할 시스템 프롬프트"),
     system_prompt_path: str = typer.Option(
         "system_prompt.txt",
@@ -136,6 +142,28 @@ def ask(
     # Use stdin as context if available and no context argument was provided
     if context is None and not sys.stdin.isatty():
         context = sys.stdin.read().strip()
+
+    # Handle file options
+    if file:
+        file_contexts = []
+        for file_path in file:
+            if not file_path.exists():
+                console.print(f"[red]오류: 파일을 찾을 수 없습니다: {file_path}[/red]")
+                raise typer.Exit(1)
+            try:
+                with file_path.open("r", encoding="utf-8") as f:
+                    content = f.read()
+                    file_contexts.append(f"# {file_path.name}\n\n{content}")
+            except Exception as e:
+                console.print(f"[red]오류: 파일 읽기 실패 {file_path}: {e}[/red]")
+                raise typer.Exit(1)
+        
+        # Combine file contents with existing context
+        file_context = "\n\n---\n\n".join(file_contexts)
+        if context:
+            context = f"{context}\n\n---\n\n{file_context}"
+        else:
+            context = file_context
 
     # Handle system prompt options
     if system_prompt_path:

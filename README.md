@@ -108,7 +108,7 @@ reply = openai_llm.ask("안녕하세요!")
 openai_llm = OpenAILLM(model="gpt-4o-mini", api_key="your-api-key")
 
 # Anthropic (ANTHROPIC_API_KEY 환경변수 필요)
-claude_llm = AnthropicLLM(model="claude-3-haiku-20240307")
+claude_llm = AnthropicLLM(model="claude-3-5-haiku-latest")
 reply = claude_llm.ask("안녕하세요!")
 
 # Google (GOOGLE_API_KEY 환경변수 필요)
@@ -644,10 +644,10 @@ llm = GoogleLLM(api_key="your-api-key")
 pyhub-llm chat
 
 # 특정 모델로 채팅
-pyhub-llm chat --model claude-3-haiku-20240307
+pyhub-llm chat --model claude-3-5-haiku-latest
 
 # 시스템 프롬프트 설정
-pyhub-llm chat --system "당신은 파이썬 전문가입니다"
+pyhub-llm chat --system-prompt "당신은 파이썬 전문가입니다"
 ```
 
 ### 단일 질문
@@ -655,8 +655,17 @@ pyhub-llm chat --system "당신은 파이썬 전문가입니다"
 # 질문하고 응답 받기
 pyhub-llm ask "Python과 Go의 차이점은?"
 
-# 파일 내용과 함께 질문
+# 파일 내용과 함께 질문 (--file 옵션)
 pyhub-llm ask "이 코드를 리뷰해주세요" --file main.py
+
+# 여러 파일과 함께 질문
+pyhub-llm ask "이 파일들의 관계를 설명해주세요" --file main.py --file utils.py
+
+# stdin으로 파일 내용 전달
+cat main.py | pyhub-llm ask "이 코드를 리뷰해주세요"
+
+# --context 옵션으로 파일 내용 전달
+pyhub-llm ask "이 코드를 리뷰해주세요" --context "$(cat main.py)"
 ```
 
 ### 이미지 설명
@@ -879,4 +888,3 @@ if len(llm) > 10:
 - [PyPI](https://pypi.org/project/pyhub-llm)
 - [GitHub](https://github.com/pyhub-kr/pyhub-llm)
 - [이슈 트래커](https://github.com/pyhub-kr/pyhub-llm/issues)
-
