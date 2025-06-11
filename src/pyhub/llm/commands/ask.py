@@ -228,7 +228,7 @@ def ask(
     mcp_configs = []
 
     # 환경변수에서 기본 설정 비활성화 확인
-    from pyhub.llm.agents.mcp.config_loader import MCPConfigLoader
+    from pyhub.llm.mcp.config_loader import MCPConfigLoader
 
     env_disable_default = MCPConfigLoader.is_default_config_disabled()
 
@@ -266,7 +266,7 @@ def ask(
     # 3. 지정된 설정 파일
     if mcp_config:
         try:
-            from pyhub.llm.agents.mcp.config_loader import MCPConfigLoader
+            from pyhub.llm.mcp.config_loader import MCPConfigLoader
 
             file_config = MCPConfigLoader.load_from_file(mcp_config)
             mcp_configs.append(file_config)
@@ -279,7 +279,7 @@ def ask(
     # 4. 인라인 JSON 설정
     if mcp_inline_config:
         try:
-            from pyhub.llm.agents.mcp.config_loader import MCPConfigLoader
+            from pyhub.llm.mcp.config_loader import MCPConfigLoader
 
             inline_config = MCPConfigLoader.load_from_json(mcp_inline_config)
             mcp_configs.append(inline_config)
@@ -290,7 +290,7 @@ def ask(
     # 5. CLI 개별 옵션들
     if mcp_stdio or mcp_sse or mcp_http:
         try:
-            from pyhub.llm.agents.mcp.config_loader import MCPConfigLoader
+            from pyhub.llm.mcp.config_loader import MCPConfigLoader
 
             cli_config = MCPConfigLoader.load_from_cli_args(mcp_stdio=mcp_stdio, mcp_sse=mcp_sse, mcp_http=mcp_http)
             if cli_config:
@@ -303,7 +303,7 @@ def ask(
     merged_mcp_config = {}
     if mcp_configs:
         try:
-            from pyhub.llm.agents.mcp.config_loader import MCPConfigLoader
+            from pyhub.llm.mcp.config_loader import MCPConfigLoader
 
             merged_mcp_config = MCPConfigLoader.merge_configs(*mcp_configs)
         except Exception as e:
@@ -351,7 +351,7 @@ def ask(
         try:
 
             async def load_mcp_tools():
-                from pyhub.llm.agents.mcp.multi_client import MultiServerMCPClient
+                from pyhub.llm.mcp.multi_client import MultiServerMCPClient
 
                 client = MultiServerMCPClient(merged_mcp_config)
                 async with client:

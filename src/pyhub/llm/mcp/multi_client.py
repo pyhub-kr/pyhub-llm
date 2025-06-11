@@ -5,9 +5,9 @@ import logging
 from typing import Any, Dict, List
 
 from pyhub.llm.agents.base import Tool
-from pyhub.llm.agents.mcp.client import MCPClient
-from pyhub.llm.agents.mcp.loader import load_mcp_tools
-from pyhub.llm.agents.mcp.transports import create_transport
+from .client import MCPClient
+from .loader import load_mcp_tools
+from .transports import create_transport
 
 logger = logging.getLogger(__name__)
 

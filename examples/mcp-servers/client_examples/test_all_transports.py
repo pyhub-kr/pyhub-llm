@@ -15,7 +15,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
 from pyhub.llm import LLM
-from pyhub.llm.agents.mcp import MCPClient, load_mcp_tools
+from pyhub.llm.mcp import MCPClient, load_mcp_tools
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

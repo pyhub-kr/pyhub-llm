@@ -867,15 +867,229 @@ result = agent.run("현재 시간과 서울 날씨를 알려주고, 20 + 15를 �
 
 ### MCP (Model Context Protocol) 통합
 
+MCP는 다양한 도구와 서비스를 LLM과 통합하기 위한 표준 프로토콜입니다.
+
+> **참고**: MCP 기능을 사용하려면 `mcp` 패키지가 필요합니다:
+> ```bash
+> pip install mcp  # 기본 설치
+> pip install 'mcp[websocket]'  # WebSocket 지원 포함
+> pip install 'mcp[sse]'  # SSE 지원 포함
+> ```
+
+#### 1. MCP 서버 실행하기
+
+pyhub-llm은 테스트와 학습을 위한 내장 MCP 서버를 제공합니다:
+
+```bash
+# 계산기 MCP 서버 실행
+pyhub-llm mcp-server run calculator
+
+# 또는 Python 모듈로 실행
+python -m pyhub.llm.mcp.servers calculator
+
+# 사용 가능한 서버 목록 확인
+pyhub-llm mcp-server list
+```
+
+계산기 서버는 다음 기능을 제공합니다:
+- `add(a, b)`: 두 숫자를 더합니다
+- `subtract(a, b)`: 두 숫자를 뺍니다
+- `multiply(a, b)`: 두 숫자를 곱합니다
+- `divide(a, b)`: 두 숫자를 나눕니다
+- `power(base, exponent)`: 거듭제곱을 계산합니다
+
+#### 2. MCP 도구 확인하기
+
+MCP 서버에서 제공하는 도구 목록을 확인합니다:
+
 ```python
-from pyhub.llm.agents.mcp import MCPClient
+import asyncio
+from pyhub.llm.mcp import MCPClient
 
-# MCP 서버 연결
-mcp_client = MCPClient("localhost:8080")
+async def list_mcp_tools():
+    # 내장 계산기 서버 연결
+    client = MCPClient({
+        "transport": "stdio",
+        "command": "pyhub-llm",
+        "args": ["mcp-server", "run", "calculator"],
+    })
+    
+    async with client.connect():
+        # 사용 가능한 도구 목록 가져오기
+        tools = await client.list_tools()
+        
+        print("사용 가능한 MCP 도구:")
+        for tool in tools:
+            print(f"\n도구 이름: {tool['name']}")
+            print(f"설명: {tool['description']}")
+            print(f"파라미터: {tool['parameters']}")
 
-# MCP 도구를 LLM과 함께 사용
-llm = LLM.create("gpt-4o-mini", tools=mcp_client.get_tools())
-reply = llm.ask("현재 시스템 상태를 확인해주세요")
+# 실행
+asyncio.run(list_mcp_tools())
+```
+
+출력 예시:
+```
+사용 가능한 MCP 도구:
+
+도구 이름: add
+설명: 두 숫자를 더합니다
+파라미터: {'type': 'object', 'properties': {'a': {'type': 'number', 'description': '첫 번째 숫자'}, 'b': {'type': 'number', 'description': '두 번째 숫자'}}, 'required': ['a', 'b']}
+
+도구 이름: subtract
+설명: 두 숫자를 뺍니다
+파라미터: {'type': 'object', 'properties': {'a': {'type': 'number', 'description': '첫 번째 숫자'}, 'b': {'type': 'number', 'description': '두 번째 숫자'}}, 'required': ['a', 'b']}
+
+도구 이름: multiply
+설명: 두 숫자를 곱합니다
+파라미터: {'type': 'object', 'properties': {'a': {'type': 'number', 'description': '첫 번째 숫자'}, 'b': {'type': 'number', 'description': '두 번째 숫자'}}, 'required': ['a', 'b']}
+
+도구 이름: divide
+설명: 두 숫자를 나눕니다
+파라미터: {'type': 'object', 'properties': {'a': {'type': 'number', 'description': '나누어지는 수'}, 'b': {'type': 'number', 'description': '나누는 수'}}, 'required': ['a', 'b']}
+
+도구 이름: power
+설명: 거듭제곱을 계산합니다
+파라미터: {'type': 'object', 'properties': {'base': {'type': 'number', 'description': '밑'}, 'exponent': {'type': 'number', 'description': '지수'}}, 'required': ['base', 'exponent']}
+```
+
+#### 3. llm.ask에서 MCP 도구 사용하기
+
+MCP 도구를 LLM과 함께 사용하는 방법:
+
+```python
+import asyncio
+import logging
+from pyhub.llm import LLM
+from pyhub.llm.mcp import MCPClient, load_mcp_tools
+
+# 로깅 설정 (디버깅 메시지 확인)
+logging.basicConfig(level=logging.DEBUG)
+
+async def use_mcp_with_llm():
+    # 내장 계산기 서버 연결
+    client = MCPClient({
+        "command": "pyhub-llm",
+        "args": ["mcp-server", "run", "calculator"],
+    })
+    
+    async with client.connect():
+        # MCP 도구를 Tool 객체로 로드
+        tools = await load_mcp_tools(client)
+
+        # LLM 생성 (MCP 도구 포함)
+        llm = LLM.create("gpt-4o-mini", tools=tools)
+        
+        # MCP 도구를 활용한 질문
+        response = await llm.ask_async(
+            "25와 17을 더한 다음, 그 결과에 3을 곱해주세요."
+        )
+        
+        print(f"답변: {response}")
+        
+        # 도구 호출 내역 확인
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            print("\n도구 호출 내역:")
+            for call in response.tool_calls:
+                print(f"- {call.name}({call.args})")
+
+# 실행
+asyncio.run(use_mcp_with_llm())
+```
+
+출력 예시:
+```
+답변: 25와 17을 더하면 42이고, 여기에 3을 곱하면 126입니다.
+
+도구 호출 내역:
+- add({'a': 25, 'b': 17})
+- multiply({'a': 42, 'b': 3})
+```
+
+#### 4. 여러 MCP 서버 통합하기
+
+여러 MCP 서버의 도구를 함께 사용하는 예시:
+
+```python
+import asyncio
+import sys
+from pyhub.llm import LLM
+from pyhub.llm.mcp import MultiServerMCPClient
+
+async def use_multiple_mcp_servers():
+    # 여러 MCP 서버 설정
+    servers = {
+        "calculator": {
+            "transport": {
+                "type": "stdio",
+                "command": "pyhub-llm",
+                "args": ["mcp-server", "run", "calculator"],
+            }
+        },
+        "filesystem": {
+            "transport": {
+                "type": "http",
+                "url": "http://localhost:8080/mcp"
+            }
+        }
+    }
+    
+    # MultiServerMCPClient로 여러 서버 연결
+    multi_client = MultiServerMCPClient(servers)
+    
+    async with multi_client:
+        # 모든 서버의 도구 가져오기
+        all_tools = await multi_client.get_all_tools()
+        
+        print(f"총 {len(all_tools)}개의 도구를 로드했습니다:")
+        for tool in all_tools:
+            print(f"- {tool.name}: {tool.description}")
+        
+        # LLM 생성 (모든 도구 포함)
+        llm = LLM.create("gpt-4o-mini", tools=all_tools)
+        
+        # 여러 서버의 도구를 함께 사용
+        response = await llm.ask_async(
+            "현재 디렉토리의 파일 개수를 세고, 그 수에 10을 곱해주세요."
+        )
+        
+        print(f"\n답변: {response}")
+
+# 실행
+asyncio.run(use_multiple_mcp_servers())
+```
+
+#### 고급 사용법: 다양한 전송 방식
+
+MCP는 다양한 전송 방식을 지원합니다:
+
+```python
+from pyhub.llm.mcp import MCPClient
+
+# STDIO (로컬 프로세스)
+stdio_client = MCPClient({
+    "transport": "stdio",
+    "command": "python3",
+    "args": ["my_server.py"]
+})
+
+# HTTP
+http_client = MCPClient({
+    "transport": "streamable_http",
+    "url": "http://localhost:8080/mcp"
+})
+
+# WebSocket
+ws_client = MCPClient({
+    "transport": "websocket",
+    "url": "ws://localhost:8080/mcp/ws"
+})
+
+# Server-Sent Events (SSE)
+sse_client = MCPClient({
+    "transport": "sse",
+    "url": "http://localhost:8080/mcp/sse"
+})
 ```
 
 ## 개발
