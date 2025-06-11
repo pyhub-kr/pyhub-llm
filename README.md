@@ -54,18 +54,30 @@ pip install -e ".[dev,all]"
 
 ## 빠른 시작
 
-### 기본 사용법
+### 환경변수 설정
 
-```python
-from pyhub.llm import LLM
+각 프로바이더를 사용하려면 해당 API 키를 환경변수로 설정해야 합니다:
 
-# LLM 인스턴스 생성
-llm = LLM.create("gpt-4o-mini")
-
-# 질문하기
-reply = llm.ask("Python의 장점은 무엇인가요?")
-print(reply.text)
+#### Linux/macOS (Bash)
+```bash
+export OPENAI_API_KEY="your-openai-api-key"
+export ANTHROPIC_API_KEY="your-anthropic-api-key"
+export GOOGLE_API_KEY="your-google-api-key"
+export UPSTAGE_API_KEY="your-upstage-api-key"
 ```
+
+#### Windows (PowerShell)
+```powershell
+$env:OPENAI_API_KEY="your-openai-api-key"
+$env:ANTHROPIC_API_KEY="your-anthropic-api-key"
+$env:GOOGLE_API_KEY="your-google-api-key"
+$env:UPSTAGE_API_KEY="your-upstage-api-key"
+```
+
+> **참고**: 
+> + API 키는 각 프로바이더의 웹사이트에서 발급받을 수 있습니다 (API 키 설정 섹션 참조)
+> + Ollama는 로컬에서 실행되므로 API 키가 필요 없습니다
+> + Ollama는 디폴트로 `http://localhost:11434` 주소를 사용합니다. `UPSTAGE_BASE_URL` 환경변수나 `OllamaLLM(base_url="...")` 인자를 통해 변경하실 수 있습니다.
 
 ### 모델별 직접 사용
 
@@ -103,9 +115,22 @@ reply = claude_llm.ask("안녕하세요!")
 gemini_llm = GoogleLLM(model="gemini-1.5-flash")
 reply = gemini_llm.ask("안녕하세요!")
 
-# Ollama (로컬 실행, API 키 불필요)
+# Ollama (로컬 실행, API 키 불필요, 기본 URL: http://localhost:11434)
 ollama_llm = OllamaLLM(model="mistral")
 reply = ollama_llm.ask("안녕하세요!")
+```
+
+### 기본 사용법
+
+```python
+from pyhub.llm import LLM
+
+# LLM 인스턴스 생성
+llm = LLM.create("gpt-4o-mini")
+
+# 질문하기
+reply = llm.ask("Python의 장점은 무엇인가요?")
+print(reply.text)
 ```
 
 ## Ollama 로컬 모델 사용
