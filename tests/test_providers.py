@@ -61,7 +61,9 @@ class TestMockProvider:
 
         chunks = list(llm.ask("Stream test", stream=True))
         assert len(chunks) > 0
-        assert "".join(chunks).strip() == "Mock response: Stream test"
+        # Collect text from Reply objects
+        full_text = "".join(chunk.text for chunk in chunks).strip()
+        assert full_text == "Mock response: Stream test"
 
     def test_mock_provider_messages(self):
         """Test mock provider messages method."""
@@ -115,7 +117,7 @@ class TestMockProvider:
 
         assert response.choice == "Yes"
         assert response.choice_index == 0
-        assert response.confidence == 0.95
+        assert response.confidence == 1.0  # Exact match returns 1.0 confidence
         assert response.is_choice_response
 
 

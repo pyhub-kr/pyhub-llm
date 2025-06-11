@@ -81,7 +81,9 @@ class TestMockLLMIntegration:
 
         # Should have multiple chunks
         assert len(chunks) > 1
-        assert "".join(chunks).strip() == "Mock response: Tell me a story"
+        # Collect text from Reply objects
+        full_text = "".join(chunk.text for chunk in chunks).strip()
+        assert full_text == "Mock response: Tell me a story"
 
     @pytest.mark.asyncio
     async def test_async_conversation_flow(self):
@@ -98,7 +100,9 @@ class TestMockLLMIntegration:
             chunks.append(chunk)
 
         assert len(chunks) > 0
-        assert "".join(chunks).strip() == "Mock response: Stream async"
+        # Collect text from Reply objects
+        full_text = "".join(chunk.text for chunk in chunks).strip()
+        assert full_text == "Mock response: Stream async"
 
 
 class TestCacheIntegration:

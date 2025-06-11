@@ -1,3 +1,4 @@
+import json
 import logging
 import re
 from pathlib import Path
@@ -135,10 +136,25 @@ class GoogleLLM(BaseLLM):
 
         system_prompt: Optional[str] = self.get_system_prompt(input_context)
 
+        # schema가 있으면 JSON 응답을 요청하는 지시사항 추가
+        if "schema" in input_context:
+            schema_json = input_context["schema_json"]
+            schema_instruction = (
+                f"\n\nYou MUST respond with a valid JSON object that conforms to this schema:\n"
+                f"```json\n{json.dumps(schema_json, indent=2)}\n```\n"
+                f"Do not include any text before or after the JSON object."
+            )
+            if system_prompt:
+                system_prompt += schema_instruction
+            else:
+                system_prompt = schema_instruction.strip()
+
         # GenerationConfig only includes generation parameters
         config = self._GenerateContentConfig(
             max_output_tokens=self.max_tokens,
-            temperature=self.temperature,
+            temperature=(
+                self.temperature if "schema" not in input_context else 0.1
+            ),  # Lower temperature for structured output
         )
 
         return dict(
@@ -409,6 +425,7 @@ class GoogleLLM(BaseLLM):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        schema: Optional[type[pydantic.BaseModel]] = None,
     ) -> Union[Reply, Generator[Reply, None, None]]:
         return super().ask(
             input=input,
@@ -423,6 +440,7 @@ class GoogleLLM(BaseLLM):
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            schema=schema,
         )
 
     async def ask_async(
@@ -440,6 +458,7 @@ class GoogleLLM(BaseLLM):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        schema: Optional[type[pydantic.BaseModel]] = None,
     ) -> Union[Reply, AsyncGenerator[Reply, None]]:
         return await super().ask_async(
             input=input,
@@ -454,6 +473,7 @@ class GoogleLLM(BaseLLM):
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            schema=schema,
         )
 
     def embed(

@@ -2,7 +2,9 @@
 
 import asyncio
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Union
+from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Union
+
+from pydantic import BaseModel
 
 from .base import BaseLLM
 from .types import Embed, EmbedList, LLMChatModelType, Message, Reply, Usage
@@ -11,12 +13,20 @@ from .types import Embed, EmbedList, LLMChatModelType, Message, Reply, Usage
 class MockLLM(BaseLLM):
     """Mock LLM implementation for testing."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, response: Optional[str] = None, streaming_response: bool = False, **kwargs):
+        # Extract mock-specific parameters before passing to parent
+        self._custom_response = response
+        self._streaming_response = streaming_response
+        
+        # Set default model if not provided
+        if 'model' not in kwargs:
+            kwargs['model'] = 'mock-model'
+            
         super().__init__(**kwargs)
         self.call_count = 0
         self.last_question = None
         self.last_messages = None
-        self.mock_response = "Mock response"
+        self.mock_response = response or "Mock response"
         self.mock_usage = Usage(input=10, output=20)
         self.mock_embedding = [0.1, 0.2, 0.3, 0.4]
 
@@ -29,53 +39,31 @@ class MockLLM(BaseLLM):
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type[BaseModel]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
         **kwargs,
     ) -> Union[Reply, Generator[Reply, None, None]]:
-        """Ask a question to the mock LLM."""
-        self.call_count += 1
-
-        # Convert input to string if it's a dict
-        if isinstance(input, dict):
-            question = str(input)
-        else:
-            question = input
-
-        self.last_question = question
-
-        # Add to history if requested
-        if use_history:
-            self.history.append(Message(role="user", content=question))
-
-        # Handle choices
-        if choices:
-            # Return first choice
-            response_text = choices[0]
-            reply = Reply(text=response_text, usage=self.mock_usage, choice=choices[0], choice_index=0, confidence=0.95)
-        else:
-            response_text = f"{self.mock_response}: {question}"
-            reply = Reply(text=response_text, usage=self.mock_usage)
-
-        # Add assistant response to history if requested
-        if use_history:
-            self.history.append(Message(role="assistant", content=response_text))
-
-        # Handle streaming
-        if stream:
-
-            def _stream():
-                for word in response_text.split():
-                    yield word + " "
-
-            return _stream()
-
-        return reply
+        # Call parent to handle validation
+        return super().ask(
+            input=input,
+            files=files,
+            model=model,
+            context=context,
+            choices=choices,
+            choices_optional=choices_optional,
+            schema=schema,
+            stream=stream,
+            use_history=use_history,
+            raise_errors=raise_errors,
+            tools=tools,
+            tool_choice=tool_choice,
+            max_tool_calls=max_tool_calls,
+        )
 
     async def ask_async(
         self,
@@ -86,10 +74,10 @@ class MockLLM(BaseLLM):
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
+        schema: Optional[Type[BaseModel]] = None,
         stream: bool = False,
         raise_errors: bool = False,
         use_history: bool = True,
-        enable_cache: bool = False,
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
@@ -112,9 +100,9 @@ class MockLLM(BaseLLM):
             context=context,
             choices=choices,
             choices_optional=choices_optional,
+            schema=schema,
             stream=stream,
             use_history=use_history,
-            enable_cache=enable_cache,
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
@@ -285,7 +273,22 @@ class MockLLM(BaseLLM):
         model: LLMChatModelType,
     ) -> Reply:
         """Generate a response using the mock LLM."""
-        response_text = f"{self.mock_response}: {human_message.content}"
+        self.call_count += 1
+        self.last_question = human_message.content
+        
+        # Handle choices - for MockLLM, we simulate returning just the first choice
+        # BaseLLM._ask_impl will handle the _process_choice_response logic
+        if "choices" in input_context and input_context["choices"]:
+            # Return just the first choice (not the full list)
+            # This simulates the LLM picking the first option
+            response_text = input_context["original_choices"][0]
+        elif self._custom_response:
+            # Use custom response if provided
+            response_text = self._custom_response
+        else:
+            # Default behavior - include the question in response
+            response_text = f"{self.mock_response}: {human_message.content}"
+        
         return Reply(text=response_text, usage=self.mock_usage)
 
     async def _make_ask_async(
@@ -307,7 +310,15 @@ class MockLLM(BaseLLM):
         model: LLMChatModelType,
     ) -> Generator[Reply, None, None]:
         """Generate a streaming response using the mock LLM."""
-        response_text = f"{self.mock_response}: {human_message.content}"
+        self.call_count += 1
+        self.last_question = human_message.content
+        
+        # Handle different response patterns
+        if self._custom_response:
+            response_text = self._custom_response
+        else:
+            response_text = f"{self.mock_response}: {human_message.content}"
+            
         for word in response_text.split():
             yield Reply(text=word + " ", usage=Usage(input=0, output=0))
 
@@ -319,7 +330,15 @@ class MockLLM(BaseLLM):
         model: LLMChatModelType,
     ) -> AsyncGenerator[Reply, None]:
         """Generate a streaming response asynchronously using the mock LLM."""
-        response_text = f"{self.mock_response}: {human_message.content}"
+        self.call_count += 1
+        self.last_question = human_message.content
+        
+        # Handle different response patterns
+        if self._custom_response:
+            response_text = self._custom_response
+        else:
+            response_text = f"{self.mock_response}: {human_message.content}"
+            
         for word in response_text.split():
             yield Reply(text=word + " ", usage=Usage(input=0, output=0))
             await asyncio.sleep(0.001)

@@ -6,6 +6,7 @@ from typing import IO, Any, Literal, TypeAlias, Union
 from anthropic.types import ModelParam as AnthropicChatModelType
 from openai.types import ChatModel as _OpenAIChatModel
 from typing_extensions import Optional
+from pydantic import BaseModel
 
 from pyhub.llm.exceptions import ValidationError
 from pyhub.llm.utils.enums import TextChoices
@@ -236,6 +237,9 @@ class Reply:
     choice: Optional[str] = None  # 선택된 값 (choices 중 하나 또는 None)
     choice_index: Optional[int] = None  # 선택된 인덱스
     confidence: Optional[float] = None  # 선택 신뢰도 (0.0 ~ 1.0)
+    # 구조화된 출력 관련
+    structured_data: Optional[BaseModel] = None  # 파싱된 Pydantic 모델 인스턴스
+    validation_errors: Optional[list[str]] = None  # 스키마 검증 실패 시 에러 메시지
 
     def __str__(self) -> str:
         # choice가 있으면 choice를 반환, 없으면 text 반환
@@ -248,6 +252,11 @@ class Reply:
     def is_choice_response(self) -> bool:
         """choices 제약이 적용된 응답인지 확인"""
         return self.choice is not None or self.choice_index is not None
+    
+    @property
+    def has_structured_data(self) -> bool:
+        """구조화된 데이터가 있는지 확인"""
+        return self.structured_data is not None
 
 
 @dataclass
