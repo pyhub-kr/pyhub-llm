@@ -102,27 +102,32 @@ def describe(
         log_level = logging.DEBUG
     else:
         log_level = logging.INFO
-    init(debug=True, log_level=log_level)
+    # init(debug=True, log_level=log_level)  # Not needed
 
-    # LLM 명령 시에 PyPDF2 라이브러리 의존성이 걸리지 않도록 임포트 위치 조정
-    from pyhub.parser.upstage.parser import ImageDescriptor
-
+    # Set up prompts based on prompt_type
     if prompt_type is None:
-        prompt_templates = ImageDescriptor.get_prompts("describe_image")
+        # Default prompts for image description
+        system_prompt = "You are an AI assistant specialized in analyzing and describing images in detail."
+        query = "Please describe this image in detail, including objects, people, colors, composition, and any text visible in the image."
     else:
+        # Load custom prompts from toml file
         toml_path = Path.home() / ".pyhub.toml"
         if not toml_path.exists():
-            raise typer.BadParameter(f"{toml_path} 파일을 먼저 생성해주세요. (명령 예: pyhub toml --create)")
+            raise typer.BadParameter(f"{toml_path} 파일을 먼저 생성해주세요.")
 
         try:
-            prompt_templates = ImageDescriptor.get_prompts(prompt_type, use_default_prompts=False)
+            import toml
+            with open(toml_path, "r", encoding="utf-8") as f:
+                config = toml.load(f)
+                templates = config.get("prompt_templates", {}).get(prompt_type, {})
+                if not templates:
+                    raise KeyError(f"Template '{prompt_type}' not found")
+                system_prompt = templates.get("system", "")
+                query = templates.get("user", "")
         except KeyError as e:
             raise typer.BadParameter(
                 f"{toml_path}에서 {prompt_type} 프롬프트 타입의 프롬프트를 찾을 수 없습니다."
             ) from e
-
-    system_prompt = prompt_templates["system"]
-    query = prompt_templates["user"]
 
     # 배치 출력 디렉토리 생성
     if batch_output_dir and len(valid_image_paths) > 1:
@@ -159,29 +164,14 @@ def describe(
         start_time = time.time()
 
         try:
-            # with image_path.open("rb") as image_file:
-            #     files = [File(file=image_file)]
-            files = []  # Temporary fix - need to handle File import
+            # Use the LLM's built-in describe_image method
+            response = llm.describe_image(image_path, prompt=query)
+            response_text = response.text
+            usage = response.usage
 
-            # 응답 받기
-            response_text = ""
-            usage = None
-
-            # for chunk in llm.ask(query, files=files, stream=True):
-            # Temporary fix - just create dummy response
-            class DummyChunk:
-                def __init__(self):
-                    self.text = "[Image description unavailable due to missing imports]"
-                    self.usage = None
-
-            for chunk in [DummyChunk()]:
-                response_text += chunk.text
-                if hasattr(chunk, "usage") and chunk.usage:
-                    usage = chunk.usage
-
-                # 단일 파일 처리 시에만 실시간 출력
-                if len(valid_image_paths) == 1:
-                    console.print(chunk.text, end="")
+            # 단일 파일 처리 시에만 실시간 출력
+            if len(valid_image_paths) == 1:
+                console.print(response_text)
 
             elapsed_time = time.time() - start_time
 
