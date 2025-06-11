@@ -479,6 +479,80 @@ class TestBaseCache:
         assert result == "generated"
 
 
+class TestCacheDebugging:
+    """Test cache debugging and statistics features."""
+    
+    def test_memory_cache_debug_mode(self):
+        """Test MemoryCache debug mode logging."""
+        from pyhub.llm.cache import MemoryCache
+        
+        # Create cache with debug enabled
+        cache = MemoryCache(debug=True)
+        
+        # Test cache miss logging
+        result = cache.get("nonexistent")
+        assert result is None
+        
+        # Test cache set
+        cache.set("key1", "value1")
+        
+        # Test cache hit logging
+        result = cache.get("key1")
+        assert result == "value1"
+    
+    def test_cache_statistics(self):
+        """Test cache statistics tracking."""
+        from pyhub.llm.cache import MemoryCache
+        
+        cache = MemoryCache(debug=True)
+        
+        # Initial stats should be zero
+        assert cache.stats["hits"] == 0
+        assert cache.stats["misses"] == 0
+        assert cache.stats["sets"] == 0
+        assert cache.stats["hit_rate"] == 0.0
+        
+        # Cache miss
+        cache.get("key1")
+        assert cache.stats["misses"] == 1
+        assert cache.stats["hits"] == 0
+        
+        # Cache set
+        cache.set("key1", "value1")
+        assert cache.stats["sets"] == 1
+        
+        # Cache hit
+        cache.get("key1")
+        assert cache.stats["hits"] == 1
+        assert cache.stats["misses"] == 1
+        assert cache.stats["hit_rate"] == 0.5  # 1 hit / (1 hit + 1 miss)
+        
+        # Multiple operations
+        cache.get("key1")  # hit
+        cache.get("key2")  # miss
+        cache.set("key2", "value2")
+        cache.get("key2")  # hit
+        
+        assert cache.stats["hits"] == 3
+        assert cache.stats["misses"] == 2
+        assert cache.stats["sets"] == 2
+        assert cache.stats["hit_rate"] == 0.6  # 3 hits / (3 hits + 2 misses)
+    
+    def test_file_cache_debug_mode(self, temp_cache_dir):
+        """Test FileCache debug mode."""
+        cache = FileCache(cache_dir=str(temp_cache_dir), debug=True)
+        
+        # Test operations
+        cache.get("nonexistent")  # miss
+        cache.set("key1", "value1")
+        cache.get("key1")  # hit
+        
+        # Check stats
+        assert cache.stats["hits"] == 1
+        assert cache.stats["misses"] == 1
+        assert cache.stats["sets"] == 1
+
+
 class TestReadmeExamples:
     """Test examples from README.md to ensure they work correctly."""
     
