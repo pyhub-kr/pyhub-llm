@@ -4,6 +4,12 @@ import tempfile
 from pathlib import Path
 from typing import List, Dict, Any
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 from pyhub.llm.mcp import (
     McpServerConfig,
     McpStdioConfig,
@@ -51,6 +57,7 @@ class TestMCPConfigLoader:
         finally:
             Path(temp_path).unlink()
     
+    @pytest.mark.skipif(not HAS_YAML, reason="PyYAML not installed")
     def test_load_from_yaml_file(self):
         """YAML 파일에서 MCP 설정 로드"""
         yaml_content = """
