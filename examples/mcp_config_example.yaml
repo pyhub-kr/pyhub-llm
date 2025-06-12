@@ -1,0 +1,40 @@
+# MCP 서버 설정 예시 파일
+# 이 파일은 LLM.create() 또는 LLM.create_async()에 직접 전달할 수 있습니다
+
+# MCP 서버 목록
+mcpServers:
+  # stdio 타입: 로컬 프로세스로 실행
+  - type: stdio
+    name: calculator
+    cmd: pyhub-llm mcp-server run calculator
+    description: 기본 수학 계산 도구 (더하기, 빼기, 곱하기, 나누기)
+    timeout: 30  # 초 단위
+    env:  # 환경 변수 (선택사항)
+      PYTHONPATH: /usr/local/lib
+    cwd: null  # 작업 디렉토리 (선택사항)
+    filter_tools: null  # 특정 도구만 사용하려면 리스트로 지정
+  
+  # HTTP 스트리밍 타입
+  - type: streamable_http
+    name: greeting
+    url: http://localhost:8888/mcp
+    description: 다국어 인사말 생성 도구
+    timeout: 60
+    filter_tools: greet,hello  # 쉼표로 구분된 문자열도 가능
+  
+  # WebSocket 타입 (예시)
+  # - type: websocket
+  #   name: realtime_data
+  #   url: ws://localhost:8080/mcp/ws
+  #   description: 실시간 데이터 처리
+  
+  # Server-Sent Events (SSE) 타입 (예시)
+  # - type: sse
+  #   name: event_stream
+  #   url: http://localhost:8080/mcp/sse
+  #   description: 이벤트 스트림 처리
+
+# 다른 LLM 설정과 함께 사용 가능
+# model: gpt-4o-mini
+# temperature: 0.7
+# max_tokens: 1000
