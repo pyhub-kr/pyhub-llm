@@ -1,6 +1,6 @@
 [project]
 name = "pyhub-llm"
-version = "0.5.1"
+version = "0.5.2"
 description = "Standalone LLM library with support for multiple providers"
 authors = [{name = "PyHub Team", email = "me@pyhub.kr"}]
 readme = "README.md"
