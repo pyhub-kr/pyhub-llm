@@ -63,7 +63,7 @@ class BaseLLM(abc.ABC):
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
         cache: Optional[BaseCache] = None,
-        mcp_servers: Optional[Union["McpServerConfig", List["McpServerConfig"]]] = None,
+        mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpServerConfig"]], "McpServerConfig"]] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -76,8 +76,8 @@ class BaseLLM(abc.ABC):
         self.api_key = api_key
         self.cache = cache
         
-        # MCP 설정
-        self.mcp_servers = mcp_servers if isinstance(mcp_servers, list) else ([mcp_servers] if mcp_servers else [])
+        # MCP 설정 처리 (파일 경로, dict, list, McpServerConfig 지원)
+        self.mcp_servers = self._process_mcp_servers(mcp_servers)
         self._mcp_client = None
         self._mcp_connected = False
         self._mcp_tools = []
@@ -89,6 +89,36 @@ class BaseLLM(abc.ABC):
             from .tools import ToolAdapter
 
             self.default_tools = ToolAdapter.adapt_tools(tools)
+
+    def _process_mcp_servers(self, mcp_servers) -> List["McpServerConfig"]:
+        """MCP 서버 설정을 처리합니다."""
+        if not mcp_servers:
+            return []
+        
+        # 문자열인 경우 파일 경로로 처리
+        if isinstance(mcp_servers, str):
+            # 동적 import (순환 import 방지)
+            from .mcp import load_mcp_config
+            return load_mcp_config(mcp_servers)
+        
+        # dict인 경우 (mcpServers 키가 있을 수 있음)
+        elif isinstance(mcp_servers, dict):
+            from .mcp import load_mcp_config
+            return load_mcp_config(mcp_servers)
+        
+        # list인 경우
+        elif isinstance(mcp_servers, list):
+            # 리스트의 각 요소가 dict인지 확인
+            if all(isinstance(item, dict) for item in mcp_servers):
+                from .mcp import load_mcp_config
+                return load_mcp_config(mcp_servers)
+            else:
+                # McpServerConfig 인스턴스 리스트인 경우 그대로 반환
+                return mcp_servers
+        
+        # 단일 McpServerConfig 인스턴스인 경우
+        else:
+            return [mcp_servers]
 
     def check(self) -> list[dict]:
         """Check configuration and return list of error dicts"""

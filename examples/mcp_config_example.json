@@ -1,0 +1,25 @@
+{
+  "mcpServers": [
+    {
+      "type": "stdio",
+      "name": "calculator",
+      "cmd": "pyhub-llm mcp-server run calculator",
+      "description": "기본 수학 계산 도구",
+      "timeout": 30,
+      "env": {
+        "PYTHONPATH": "/usr/local/lib"
+      }
+    },
+    {
+      "type": "streamable_http",
+      "name": "greeting",
+      "url": "http://localhost:8888/mcp",
+      "description": "다국어 인사말 생성",
+      "timeout": "60",
+      "filter_tools": "greet,hello"
+    }
+  ],
+  "model": "gpt-4o-mini",
+  "temperature": 0.7,
+  "max_tokens": 1000
+}

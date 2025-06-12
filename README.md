@@ -1101,6 +1101,40 @@ response = await llm.ask_async("...")
 await llm.close_mcp()
 ```
 
+##### 방법 4: 설정 파일 사용 (새로운 기능!)
+
+MCP 설정을 JSON 또는 YAML 파일로 관리할 수 있습니다:
+
+```yaml
+# mcp_config.yaml
+mcpServers:
+  - type: stdio
+    name: calculator
+    cmd: pyhub-llm mcp-server run calculator
+    timeout: 60
+    description: 수학 계산 도구
+  
+  - type: streamable_http
+    name: greeting
+    url: http://localhost:8888/mcp
+    filter_tools: greet,hello  # 특정 도구만 사용
+```
+
+```python
+# 파일 경로로 직접 로드
+llm = await LLM.create_async("gpt-4o-mini", mcp_servers="mcp_config.yaml")
+
+# 또는 다른 설정과 함께
+config = {
+    "model": "gpt-4o-mini",
+    "temperature": 0.7,
+    "mcpServers": [
+        {"type": "stdio", "name": "calc", "cmd": "..."}
+    ]
+}
+llm = await LLM.create_async("gpt-4o-mini", mcp_servers=config)
+```
+
 #### 5. 여러 MCP 서버 통합하기
 
 먼저 greeting 서버를 8888 포트로 실행합니다:
