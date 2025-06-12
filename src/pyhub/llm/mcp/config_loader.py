@@ -1,10 +1,15 @@
 """MCP 서버 설정 파일 로더"""
 
 import json
-import yaml
 from pathlib import Path
 from typing import List, Dict, Any, Union
 from urllib.parse import urlparse
+
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
 
 from .configs import (
     McpServerConfig,
@@ -47,12 +52,22 @@ def load_mcp_config(
         if path.suffix.lower() == '.json':
             data = json.loads(content)
         elif path.suffix.lower() in ('.yaml', '.yml'):
+            if not HAS_YAML:
+                raise ImportError(
+                    "PyYAML is required to load YAML files. "
+                    "Install it with: pip install pyhub-llm[mcp]"
+                )
             data = yaml.safe_load(content)
         else:
             # 확장자로 판단할 수 없으면 JSON 시도 후 YAML 시도
             try:
                 data = json.loads(content)
             except json.JSONDecodeError:
+                if not HAS_YAML:
+                    raise ValueError(
+                        f"Unable to parse file as JSON: {path}. "
+                        "To try YAML parsing, install PyYAML with: pip install pyhub-llm[mcp]"
+                    )
                 try:
                     data = yaml.safe_load(content)
                 except yaml.YAMLError:

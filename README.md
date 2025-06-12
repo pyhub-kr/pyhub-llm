@@ -925,7 +925,7 @@ async def list_mcp_tools():
         "command": "pyhub-llm",
         "args": ["mcp-server", "run", "calculator"],
     })
-    
+
     async with client.connect():
         # 사용 가능한 도구 목록 가져오기
         tools = await client.list_tools()
@@ -997,34 +997,34 @@ logging.basicConfig(level=logging.DEBUG)
 async def use_mcp_with_llm():
     # 새로운 dataclass 방식 (권장)
     from pyhub.llm.mcp import McpStdioConfig
-    
+
     config = McpStdioConfig(
         name="calculator",
         cmd="pyhub-llm mcp-server run calculator"
     )
     client = MCPClient(config)
-    
+
     # 또는 기존 dict 방식
     # client = MCPClient({
     #     "transport": "stdio",
     #     "command": "pyhub-llm",
     #     "args": ["mcp-server", "run", "calculator"],
     # })
-    
+
     async with client.connect():
         # MCP 도구를 Tool 객체로 로드
         tools = await load_mcp_tools(client)
 
         # LLM 생성 (MCP 도구 포함)
         llm = LLM.create("gpt-4o-mini", tools=tools)
-        
+
         # MCP 도구를 활용한 질문
         response = await llm.ask_async(
             "25와 17을 더한 다음, 그 결과에 3을 곱해주세요."
         )
-        
+
         print(f"답변: {response}")
-        
+
         # 도구 호출 내역 확인
         if hasattr(response, 'tool_calls') and response.tool_calls:
             print("\n도구 호출 내역:")

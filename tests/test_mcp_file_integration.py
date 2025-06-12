@@ -3,6 +3,12 @@ import pytest
 import tempfile
 from pathlib import Path
 
+try:
+    import yaml
+    HAS_YAML = True
+except ImportError:
+    HAS_YAML = False
+
 from pyhub.llm import LLM
 from pyhub.llm.mcp import McpStdioConfig, McpStreamableHttpConfig
 
@@ -37,6 +43,7 @@ class TestMCPFileIntegration:
         finally:
             Path(temp_path).unlink()
     
+    @pytest.mark.skipif(not HAS_YAML, reason="PyYAML not installed")
     def test_llm_create_with_yaml_file(self):
         """YAML 파일로 MCP 설정을 전달하는 경우"""
         yaml_content = """
