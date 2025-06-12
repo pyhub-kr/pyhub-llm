@@ -3,14 +3,87 @@ from decimal import Decimal
 from pathlib import Path
 from typing import IO, Any, Literal, TypeAlias, Union
 
-from anthropic.types import ModelParam as AnthropicChatModelType
-from openai.types import ChatModel as _OpenAIChatModel
-from typing_extensions import Optional
 from pydantic import BaseModel
+from typing_extensions import Optional
 
 from pyhub.llm.exceptions import ValidationError
 from pyhub.llm.utils.enums import TextChoices
 from pyhub.llm.utils.type_utils import enum_to_flatten_set, type_to_flatten_set
+
+# Optional imports
+try:
+    from anthropic.types import ModelParam as AnthropicChatModelType
+except ImportError:
+    # anthropic이 설치되지 않은 경우 Union[Literal, str] 타입으로 대체
+    # 실제 anthropic API의 ModelParam과 동일한 구조
+    AnthropicChatModelType = Union[
+        Literal[
+            "claude-3-opus-latest",
+            "claude-3-opus-20240229",
+            "claude-3-7-sonnet-latest",
+            "claude-3-7-sonnet-20250219",
+            "claude-3-5-sonnet-latest",
+            "claude-3-5-sonnet-20241022",
+            "claude-3-5-sonnet-20240620",
+            "claude-3-sonnet-20240229",
+            "claude-3-5-haiku-latest",
+            "claude-3-5-haiku-20241022",
+            "claude-3-haiku-20240307",
+            "claude-2.1",
+            "claude-2.0",
+        ],
+        str,
+    ]
+
+try:
+    from openai.types import ChatModel as _OpenAIChatModel
+except ImportError:
+    # openai가 설치되지 않은 경우 실제 ChatModel과 동일한 Literal 타입으로 대체
+    _OpenAIChatModel = Literal[
+        "o3-mini",
+        "o3-mini-2025-01-31",
+        "o1",
+        "o1-2024-12-17",
+        "o1-preview",
+        "o1-preview-2024-09-12",
+        "o1-mini",
+        "o1-mini-2024-09-12",
+        "gpt-4o",
+        "gpt-4o-2024-11-20",
+        "gpt-4o-2024-08-06",
+        "gpt-4o-2024-05-13",
+        "gpt-4o-audio-preview",
+        "gpt-4o-audio-preview-2024-10-01",
+        "gpt-4o-audio-preview-2024-12-17",
+        "gpt-4o-mini-audio-preview",
+        "gpt-4o-mini-audio-preview-2024-12-17",
+        "gpt-4o-search-preview",
+        "gpt-4o-mini-search-preview",
+        "gpt-4o-search-preview-2025-03-11",
+        "gpt-4o-mini-search-preview-2025-03-11",
+        "chatgpt-4o-latest",
+        "gpt-4o-mini",
+        "gpt-4o-mini-2024-07-18",
+        "gpt-4-turbo",
+        "gpt-4-turbo-2024-04-09",
+        "gpt-4-0125-preview",
+        "gpt-4-turbo-preview",
+        "gpt-4-1106-preview",
+        "gpt-4-vision-preview",
+        "gpt-4",
+        "gpt-4-0314",
+        "gpt-4-0613",
+        "gpt-4-32k",
+        "gpt-4-32k-0314",
+        "gpt-4-32k-0613",
+        "gpt-3.5-turbo",
+        "gpt-3.5-turbo-16k",
+        "gpt-3.5-turbo-0301",
+        "gpt-3.5-turbo-0613",
+        "gpt-3.5-turbo-1106",
+        "gpt-3.5-turbo-0125",
+        "gpt-3.5-turbo-16k-0613",
+    ]
 
 #
 # Vendor
@@ -252,7 +325,7 @@ class Reply:
     def is_choice_response(self) -> bool:
         """choices 제약이 적용된 응답인지 확인"""
         return self.choice is not None or self.choice_index is not None
-    
+
     @property
     def has_structured_data(self) -> bool:
         """구조화된 데이터가 있는지 확인"""
