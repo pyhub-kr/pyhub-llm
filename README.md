@@ -1044,7 +1044,64 @@ asyncio.run(use_mcp_with_llm())
 - multiply({'a': 42, 'b': 3})
 ```
 
-#### 4. 여러 MCP 서버 통합하기
+#### 4. LLM과 MCP 통합 사용하기 (새로운 기능!)
+
+이제 LLM 생성 시 MCP 서버를 직접 설정할 수 있어, 수동으로 연결을 관리할 필요가 없습니다:
+
+##### 방법 1: create_async로 자동 초기화
+
+```python
+from pyhub.llm import LLM
+from pyhub.llm.mcp import McpStdioConfig
+
+# MCP가 자동으로 초기화되는 LLM 생성
+llm = await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=McpStdioConfig(
+        name="calculator",
+        cmd="pyhub-llm mcp-server run calculator"
+    )
+)
+
+# MCP 도구가 자동으로 사용됨
+response = await llm.ask_async("25와 17을 더하면?")
+print(response.text)
+
+# 사용 후 MCP 연결 종료
+await llm.close_mcp()
+```
+
+##### 방법 2: 컨텍스트 매니저 사용 (권장)
+
+```python
+# 컨텍스트 매니저로 자동 연결/해제
+async with await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=[
+        McpStdioConfig(name="calc", cmd="pyhub-llm mcp-server run calculator"),
+        McpStreamableHttpConfig(name="web", url="http://localhost:8888/mcp")
+    ]
+) as llm:
+    response = await llm.ask_async("100에서 37을 빼고 2를 곱하면?")
+    print(response.text)
+# 여기서 자동으로 MCP 연결이 종료됨
+```
+
+##### 방법 3: 수동 초기화
+
+```python
+# 동기적으로 LLM 생성 후 수동 초기화
+llm = LLM.create("gpt-4o-mini", mcp_servers=mcp_config)
+await llm.initialize_mcp()  # MCP 연결 시작
+
+# 사용
+response = await llm.ask_async("...")
+
+# 종료
+await llm.close_mcp()
+```
+
+#### 5. 여러 MCP 서버 통합하기
 
 먼저 greeting 서버를 8888 포트로 실행합니다:
 
@@ -1053,7 +1110,7 @@ asyncio.run(use_mcp_with_llm())
 pyhub-llm mcp-server run greeting --port 8888
 ```
 
-여러 MCP 서버의 도구를 함께 사용하는 예시:
+기존 방식 (수동 관리):
 
 ```python
 import asyncio

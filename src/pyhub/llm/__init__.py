@@ -153,6 +153,51 @@ class LLM:
         raise ValueError(f"Invalid model name: {model}")
 
     @classmethod
+    async def create_async(
+        cls,
+        model: LLMModelType,
+        **kwargs,
+    ) -> "BaseLLM":
+        """LLM 인스턴스를 비동기적으로 생성하고 MCP 서버에 자동으로 연결합니다.
+        
+        Args:
+            model: LLM 모델 이름
+            **kwargs: LLM 생성자 인자
+                - mcp_servers: MCP 서버 설정 리스트
+                - 기타 LLM 관련 설정
+        
+        Returns:
+            MCP가 초기화된 LLM 인스턴스
+            
+        Examples:
+            # 단일 MCP 서버
+            llm = await LLM.create_async(
+                "gpt-4o-mini",
+                mcp_servers=McpStdioConfig(
+                    name="calculator",
+                    cmd="python calculator.py"
+                )
+            )
+            
+            # 여러 MCP 서버
+            llm = await LLM.create_async(
+                "gpt-4o-mini",
+                mcp_servers=[
+                    McpStdioConfig(name="calc", cmd="..."),
+                    McpStreamableHttpConfig(name="web", url="...")
+                ]
+            )
+        """
+        # 동기 create 메서드로 LLM 인스턴스 생성
+        llm = cls.create(model, **kwargs)
+        
+        # MCP 서버가 설정되어 있으면 자동으로 연결
+        if hasattr(llm, 'mcp_servers') and llm.mcp_servers:
+            await llm.initialize_mcp()
+        
+        return llm
+
+    @classmethod
     def get_price(cls, model: Union[LLMChatModelType, LLMEmbeddingModelType], usage: Usage) -> Price:
         try:
             input_per_1m, output_per_1m = cls.MODEL_PRICES[model]
