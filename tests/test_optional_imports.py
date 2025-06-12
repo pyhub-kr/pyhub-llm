@@ -7,9 +7,24 @@ import sys
 from unittest.mock import patch
 
 
-
 class TestOptionalImports:
     """Optional dependency import 테스트"""
+
+    def test_import_exceptions_without_providers(self):
+        """provider가 설치되지 않은 상황에서 exceptions import 테스트"""
+        with patch.dict(
+            sys.modules, {"anthropic": None, "openai": None, "openai.types": None, "anthropic.types": None}
+        ):
+            # exceptions 모듈 재로드
+            if "pyhub.llm.exceptions" in sys.modules:
+                del sys.modules["pyhub.llm.exceptions"]
+
+            # import가 실패하지 않아야 함
+            from pyhub.llm import exceptions
+
+            # RateLimitError가 정의되어 있어야 함
+            assert hasattr(exceptions, "RateLimitError")
+            assert issubclass(exceptions.RateLimitError, Exception)
 
     def test_import_without_anthropic(self):
         """anthropic이 설치되지 않은 상황에서 import 테스트"""
