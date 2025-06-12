@@ -30,7 +30,7 @@ pip install "pyhub-llm[openai]"
 # Anthropic만
 pip install "pyhub-llm[anthropic]"
 
-# Google만
+# Google만 (google-genai 라이브러리 사용)
 pip install "pyhub-llm[google]"
 
 # Ollama만

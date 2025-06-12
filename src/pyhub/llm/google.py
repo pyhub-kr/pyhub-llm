@@ -45,16 +45,17 @@ class GoogleLLM(BaseLLM):
     ):
         # Lazy import google-genai
         try:
-            import google.generativeai as genai
-            from google.generativeai.types import (
+            from google import genai
+            from google.genai.types import (
+                EmbedContentResponse,
+                GenerateContentConfig,
                 GenerateContentResponse,
             )
 
             self._genai = genai
             self._GenerateContentResponse = GenerateContentResponse
-            # Create placeholder types for missing imports
-            self._EmbedContentResponse = Any
-            self._GenerateContentConfig = dict
+            self._EmbedContentResponse = EmbedContentResponse
+            self._GenerateContentConfig = GenerateContentConfig
         except ImportError:
             raise ImportError("google-genai package not installed. " "Install with: pip install pyhub-llm[google]")
 
@@ -71,6 +72,12 @@ class GoogleLLM(BaseLLM):
             tools=tools,
             **kwargs,
         )
+
+        # Initialize the client with API key
+        if self.api_key:
+            self._client = self._genai.Client(api_key=self.api_key)
+        else:
+            self._client = None
 
     def check(self) -> list[dict]:
         errors = super().check()
@@ -171,8 +178,11 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
 
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
@@ -197,14 +207,22 @@ class GoogleLLM(BaseLLM):
 
         if response is None:
             logger.debug("request to google genai")
-            # Create GenerativeModel and generate content
+            # Extract parameters
             contents = request_params.pop("contents")
             config = request_params.pop("config")
             system_instruction = request_params.pop("system_instruction", None)
 
-            # Create model with system instruction if provided
-            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
-            response = generative_model.generate_content(contents=contents, generation_config=config)
+            # Prepare the request
+            request_dict = {
+                "model": model,
+                "contents": contents,
+                "config": config,
+            }
+            if system_instruction:
+                request_dict["system_instruction"] = system_instruction
+
+            # Generate content using the client
+            response = self._client.models.generate_content(**request_dict)
 
             # Store in cache if enabled
             if self.cache and cache_key:
@@ -232,8 +250,11 @@ class GoogleLLM(BaseLLM):
         messages: list[Message],
         model: GoogleChatModelType,
     ) -> Reply:
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
 
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
@@ -258,14 +279,22 @@ class GoogleLLM(BaseLLM):
 
         if response is None:
             logger.debug("request to google genai")
-            # Create GenerativeModel and generate content
+            # Extract parameters
             contents = request_params.pop("contents")
             config = request_params.pop("config")
             system_instruction = request_params.pop("system_instruction", None)
 
-            # Create model with system instruction if provided
-            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
-            response = await generative_model.generate_content_async(contents=contents, generation_config=config)
+            # Prepare the request
+            request_dict = {
+                "model": model,
+                "contents": contents,
+                "config": config,
+            }
+            if system_instruction:
+                request_dict["system_instruction"] = system_instruction
+
+            # Generate content using the client (async)
+            response = await self._client.models.generate_content_async(**request_dict)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
             if self.cache and cache_key:
@@ -294,8 +323,12 @@ class GoogleLLM(BaseLLM):
         model: GoogleChatModelType,
     ) -> Generator[Reply, None, None]:
         # TODO: Streaming cache is not implemented in the new cache injection pattern
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         # Check cache if enabled
@@ -316,14 +349,23 @@ class GoogleLLM(BaseLLM):
                 yield reply
 
         else:
-            # Create GenerativeModel and generate content stream
+            # Extract parameters
             contents = request_params.pop("contents")
             config = request_params.pop("config")
             system_instruction = request_params.pop("system_instruction", None)
 
-            # Create model with system instruction if provided
-            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
-            response = generative_model.generate_content(contents=contents, generation_config=config, stream=True)
+            # Prepare the request
+            request_dict = {
+                "model": model,
+                "contents": contents,
+                "config": config,
+                "stream": True,
+            }
+            if system_instruction:
+                request_dict["system_instruction"] = system_instruction
+
+            # Generate content stream using the client
+            response = self._client.models.generate_content(**request_dict)
 
             input_tokens = 0
             output_tokens = 0
@@ -354,8 +396,12 @@ class GoogleLLM(BaseLLM):
         model: GoogleChatModelType,
     ) -> AsyncGenerator[Reply, None]:
         # TODO: Streaming cache is not implemented in the new cache injection pattern
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         request_params = self._make_request_params(input_context, human_message, messages, model)
 
         # Check cache if enabled (using synchronous cache methods in async context)
@@ -378,16 +424,23 @@ class GoogleLLM(BaseLLM):
         else:
             logger.debug("request to google genai")
 
-            # Create GenerativeModel and generate content stream
+            # Extract parameters
             contents = request_params.pop("contents")
             config = request_params.pop("config")
             system_instruction = request_params.pop("system_instruction", None)
 
-            # Create model with system instruction if provided
-            generative_model = self._genai.GenerativeModel(model_name=model, system_instruction=system_instruction)
-            response = await generative_model.generate_content_async(
-                contents=contents, generation_config=config, stream=True
-            )
+            # Prepare the request
+            request_dict = {
+                "model": model,
+                "contents": contents,
+                "config": config,
+                "stream": True,
+            }
+            if system_instruction:
+                request_dict["system_instruction"] = system_instruction
+
+            # Generate content stream using the client (async)
+            response = await self._client.models.generate_content_async(**request_dict)
 
             input_tokens = 0
             output_tokens = 0
@@ -483,8 +536,12 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -510,7 +567,7 @@ class GoogleLLM(BaseLLM):
 
         if response is None:
             logger.debug("request to google embed")
-            response = self._genai.embed_content(**request_params)
+            response = self._client.models.embed_content(**request_params)
 
             # Store in cache if enabled
             if self.cache and cache_key:
@@ -530,8 +587,12 @@ class GoogleLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         embedding_model = cast(GoogleEmbeddingModelType, model or self.embedding_model)
 
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         request_params = dict(
             model=str(embedding_model),
             contents=input,
@@ -556,7 +617,7 @@ class GoogleLLM(BaseLLM):
                     logger.error("Invalid cached value : %s", e)
 
         if response is None:
-            response = await self._genai.embed_content_async(**request_params)
+            response = await self._client.models.embed_content_async(**request_params)
 
             # Store in cache if enabled (using synchronous cache methods in async context)
             if self.cache and cache_key:
@@ -607,6 +668,12 @@ class GoogleLLM(BaseLLM):
 
     def _make_ask_with_tools_sync(self, human_prompt, messages, tools, tool_choice, model, files):
         """Google Function Calling을 사용한 동기 호출"""
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         try:
             from google.genai.types import FunctionDeclaration, Tool
         except ImportError:
@@ -634,10 +701,7 @@ class GoogleLLM(BaseLLM):
                 )
             google_tools = [Tool(function_declarations=function_declarations)]
 
-        # Google API 호출
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
-
+        # Extract system prompt if present
         system_prompt = None
         if messages and messages[0].role == "system":
             system_prompt = messages[0].content
@@ -650,11 +714,17 @@ class GoogleLLM(BaseLLM):
         )
 
         try:
-            # Create GenerativeModel and generate content
-            generative_model = self._genai.GenerativeModel(
-                model_name=model or self.model, system_instruction=system_prompt
-            )
-            response = generative_model.generate_content(contents=google_messages, generation_config=config)
+            # Prepare the request
+            request_dict = {
+                "model": model or self.model,
+                "contents": google_messages,
+                "config": config,
+            }
+            if system_prompt:
+                request_dict["system_instruction"] = system_prompt
+
+            # Generate content using the client
+            response = self._client.models.generate_content(**request_dict)
 
             # Reply 객체로 변환
             usage = Usage(
@@ -675,6 +745,12 @@ class GoogleLLM(BaseLLM):
 
     async def _make_ask_with_tools_async(self, human_prompt, messages, tools, tool_choice, model, files):
         """Google Function Calling을 사용한 비동기 호출"""
+        # Ensure client is initialized
+        if not self._client:
+            if not self.api_key:
+                raise ValueError("Google API key is required")
+            self._client = self._genai.Client(api_key=self.api_key)
+
         try:
             from google.genai.types import FunctionDeclaration, Tool
         except ImportError:
@@ -702,10 +778,7 @@ class GoogleLLM(BaseLLM):
                 )
             google_tools = [Tool(function_declarations=function_declarations)]
 
-        # Google API 호출
-        # Configure API key
-        self._genai.configure(api_key=self.api_key)
-
+        # Extract system prompt if present
         system_prompt = None
         if messages and messages[0].role == "system":
             system_prompt = messages[0].content
@@ -718,11 +791,17 @@ class GoogleLLM(BaseLLM):
         )
 
         try:
-            # Create GenerativeModel and generate content
-            generative_model = self._genai.GenerativeModel(
-                model_name=model or self.model, system_instruction=system_prompt
-            )
-            response = await generative_model.generate_content_async(contents=google_messages, generation_config=config)
+            # Prepare the request
+            request_dict = {
+                "model": model or self.model,
+                "contents": google_messages,
+                "config": config,
+            }
+            if system_prompt:
+                request_dict["system_instruction"] = system_prompt
+
+            # Generate content using the client (async)
+            response = await self._client.models.generate_content_async(**request_dict)
 
             # Reply 객체로 변환
             usage = Usage(
