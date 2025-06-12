@@ -9,6 +9,7 @@ from .configs import (
     McpWebSocketConfig,
 )
 from .config_loader import load_mcp_config, normalize_mcp_config, validate_mcp_config
+from .config_loader_class import MCPConfigLoader
 from .loader import load_mcp_tools
 from .multi_client import (
     MultiServerMCPClient,
@@ -42,4 +43,6 @@ __all__ = [
     "load_mcp_config",
     "validate_mcp_config",
     "normalize_mcp_config",
+    # Config loader class
+    "MCPConfigLoader",
 ]

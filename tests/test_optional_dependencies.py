@@ -37,7 +37,7 @@ class TestOptionalDependencies:
 
     def test_google_import_error(self):
         """Test that GoogleLLM raises ImportError when google-genai is not installed."""
-        with patch.dict(sys.modules, {"google.generativeai": None}):
+        with patch.dict(sys.modules, {"google": None}):
             with pytest.raises(ImportError, match="google-genai package not installed"):
                 from pyhub.llm import GoogleLLM
 
@@ -77,7 +77,7 @@ class TestOptionalDependencies:
                 LLM.create("gpt-4o-mini")
 
         # Test Google
-        with patch.dict(sys.modules, {"google.generativeai": None}):
+        with patch.dict(sys.modules, {"google": None}):
             with pytest.raises(ImportError, match="google-genai package not installed"):
                 LLM.create("gemini-2.0-flash")
 
