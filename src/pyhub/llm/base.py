@@ -3,7 +3,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, Optional, Type, Union, cast
+from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
 
 from pyhub.llm.cache.base import BaseCache
 from pyhub.llm.settings import llm_settings
@@ -63,6 +63,7 @@ class BaseLLM(abc.ABC):
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
         cache: Optional[BaseCache] = None,
+        mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpServerConfig"]], "McpServerConfig"]] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -74,6 +75,12 @@ class BaseLLM(abc.ABC):
         self.history = initial_messages or []
         self.api_key = api_key
         self.cache = cache
+        
+        # MCP 설정 처리 (파일 경로, dict, list, McpServerConfig 지원)
+        self.mcp_servers = self._process_mcp_servers(mcp_servers)
+        self._mcp_client = None
+        self._mcp_connected = False
+        self._mcp_tools = []
 
         # 기본 도구 설정
         self.default_tools = []
@@ -82,6 +89,36 @@ class BaseLLM(abc.ABC):
             from .tools import ToolAdapter
 
             self.default_tools = ToolAdapter.adapt_tools(tools)
+
+    def _process_mcp_servers(self, mcp_servers) -> List["McpServerConfig"]:
+        """MCP 서버 설정을 처리합니다."""
+        if not mcp_servers:
+            return []
+        
+        # 문자열인 경우 파일 경로로 처리
+        if isinstance(mcp_servers, str):
+            # 동적 import (순환 import 방지)
+            from .mcp import load_mcp_config
+            return load_mcp_config(mcp_servers)
+        
+        # dict인 경우 (mcpServers 키가 있을 수 있음)
+        elif isinstance(mcp_servers, dict):
+            from .mcp import load_mcp_config
+            return load_mcp_config(mcp_servers)
+        
+        # list인 경우
+        elif isinstance(mcp_servers, list):
+            # 리스트의 각 요소가 dict인지 확인
+            if all(isinstance(item, dict) for item in mcp_servers):
+                from .mcp import load_mcp_config
+                return load_mcp_config(mcp_servers)
+            else:
+                # McpServerConfig 인스턴스 리스트인 경우 그대로 반환
+                return mcp_servers
+        
+        # 단일 McpServerConfig 인스턴스인 경우
+        else:
+            return [mcp_servers]
 
     def check(self) -> list[dict]:
         """Check configuration and return list of error dicts"""
@@ -1048,6 +1085,80 @@ class BaseLLM(abc.ABC):
         model: Optional[LLMEmbeddingModelType] = None,
     ) -> Union[Embed, EmbedList]:
         pass
+
+    #
+    # MCP (Model Context Protocol) integration
+    #
+    
+    async def initialize_mcp(self) -> None:
+        """MCP 서버들을 연결하고 도구를 로드합니다."""
+        if not self.mcp_servers:
+            return
+            
+        if self._mcp_connected:
+            logger.warning("MCP is already connected")
+            return
+            
+        try:
+            # MCP 모듈을 동적 import
+            from .mcp import MultiServerMCPClient, load_mcp_tools
+            from .mcp.configs import McpServerConfig
+            
+            # MultiServerMCPClient 생성
+            self._mcp_client = MultiServerMCPClient(self.mcp_servers)
+            
+            # 연결 시작
+            await self._mcp_client.__aenter__()
+            
+            # 도구 로드
+            self._mcp_tools = await self._mcp_client.get_tools()
+            
+            # 기존 도구와 병합
+            from .tools import ToolAdapter
+            if self._mcp_tools:
+                adapted_mcp_tools = ToolAdapter.adapt_tools(self._mcp_tools)
+                self.default_tools.extend(adapted_mcp_tools)
+                logger.info(f"Loaded {len(self._mcp_tools)} MCP tools from {len(self.mcp_servers)} servers")
+            
+            self._mcp_connected = True
+            
+        except Exception as e:
+            logger.error(f"Failed to initialize MCP: {e}")
+            # MCP 연결 실패는 치명적이지 않으므로 계속 진행
+            self._mcp_client = None
+            self._mcp_connected = False
+    
+    async def close_mcp(self) -> None:
+        """MCP 연결을 종료합니다."""
+        if self._mcp_client and self._mcp_connected:
+            try:
+                await self._mcp_client.__aexit__(None, None, None)
+                logger.info("MCP connections closed")
+            except Exception as e:
+                logger.error(f"Error closing MCP connections: {e}")
+            finally:
+                self._mcp_client = None
+                self._mcp_connected = False
+                
+                # MCP 도구 제거
+                if self._mcp_tools:
+                    # 기존 도구에서 MCP 도구 제거
+                    from .tools import ToolAdapter
+                    adapted_mcp_tools = ToolAdapter.adapt_tools(self._mcp_tools)
+                    for tool in adapted_mcp_tools:
+                        if tool in self.default_tools:
+                            self.default_tools.remove(tool)
+                    self._mcp_tools = []
+    
+    async def __aenter__(self):
+        """비동기 컨텍스트 매니저 진입"""
+        await self.initialize_mcp()
+        return self
+        
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """비동기 컨텍스트 매니저 종료"""
+        await self.close_mcp()
+        return False
 
     #
     # describe images / tables
