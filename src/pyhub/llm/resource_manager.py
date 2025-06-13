@@ -3,6 +3,7 @@
 import asyncio
 import atexit
 import logging
+import os
 import signal
 import sys
 import weakref
@@ -39,8 +40,9 @@ class MCPResourceRegistry:
         # atexit 핸들러 등록
         atexit.register(self._atexit_cleanup)
         
-        # 시그널 핸들러 등록
-        self._register_signal_handlers()
+        # 시그널 핸들러 등록 (테스트 환경에서는 비활성화)
+        if not os.environ.get('PYTEST_CURRENT_TEST'):
+            self._register_signal_handlers()
     
     def _register_signal_handlers(self):
         """시그널 핸들러 등록"""
@@ -53,6 +55,10 @@ class MCPResourceRegistry:
         for sig in signals:
             # 기존 핸들러 저장
             self._original_handlers[sig] = signal.signal(sig, self._signal_handler)
+    
+    def enable_signal_handlers(self):
+        """시그널 핸들러를 수동으로 활성화 (테스트용)"""
+        self._register_signal_handlers()
     
     def _signal_handler(self, signum, frame):
         """시그널 핸들러"""
@@ -158,6 +164,19 @@ class MCPResourceRegistry:
     def unregister(self, instance_id: int):
         """인스턴스 등록 해제"""
         self._instances.pop(instance_id, None)
+    
+    @classmethod
+    def reset(cls):
+        """레지스트리 리셋 (테스트용)"""
+        if cls._instance:
+            # 기존 시그널 핸들러 복원
+            for sig, handler in cls._instance._original_handlers.items():
+                if handler is not None:
+                    signal.signal(sig, handler)
+            cls._instance._original_handlers.clear()
+            cls._instance._instances.clear()
+            cls._instance._cleanup_tasks.clear()
+        cls._instance = None
 
 
 # 전역 레지스트리 인스턴스
