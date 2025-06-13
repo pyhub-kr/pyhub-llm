@@ -1,6 +1,7 @@
 import abc
 import asyncio
 import logging
+import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
@@ -89,6 +90,12 @@ class BaseLLM(abc.ABC):
             from .tools import ToolAdapter
 
             self.default_tools = ToolAdapter.adapt_tools(tools)
+        
+        # Finalizer 등록 (MCP 사용 시)
+        self._finalizer = None
+        if self.mcp_servers:
+            from .resource_manager import register_mcp_instance
+            self._finalizer = register_mcp_instance(self)
 
     def _process_mcp_servers(self, mcp_servers) -> List["McpServerConfig"]:
         """MCP 서버 설정을 처리합니다."""
@@ -1128,12 +1135,22 @@ class BaseLLM(abc.ABC):
             self._mcp_client = None
             self._mcp_connected = False
     
-    async def close_mcp(self) -> None:
-        """MCP 연결을 종료합니다."""
+    async def close_mcp(self, timeout: float = 5.0) -> None:
+        """MCP 연결을 종료합니다.
+        
+        Args:
+            timeout: 종료 대기 시간 (초)
+        """
         if self._mcp_client and self._mcp_connected:
             try:
-                await self._mcp_client.__aexit__(None, None, None)
+                # 타임아웃 적용
+                await asyncio.wait_for(
+                    self._mcp_client.__aexit__(None, None, None),
+                    timeout=timeout
+                )
                 logger.info("MCP connections closed")
+            except asyncio.TimeoutError:
+                logger.warning(f"MCP cleanup timed out after {timeout}s")
             except Exception as e:
                 logger.error(f"Error closing MCP connections: {e}")
             finally:
