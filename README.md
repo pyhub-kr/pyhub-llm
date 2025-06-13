@@ -2,6 +2,21 @@
 
 다양한 LLM 제공업체를 위한 통합 Python 라이브러리입니다. OpenAI, Anthropic, Google, Ollama 등의 API를 일관된 인터페이스로 사용할 수 있습니다.
 
+## 치트 시트
+
+* [CHEATSHEET.md](./CHEATSHEET.md) 파일 참고
+
+```python
+from pyhub.llm import UpstageLLM
+
+# 시스템 프롬프트없이도, LLM이 똑똑하기에 감정 선택을 해줍니다.
+llm = UpstageLLM()  #system_prompt="유저 메시지의 감정은?")
+
+reply = llm.ask("우울해서 빵을 샀어.", choices=["기쁨", "슬픔", "분노", "불안", "무기력함"])
+print(reply.choice)        # "슬픔"
+print(reply.choice_index)  # 1
+```
+
 ## 주요 기능
 
 - 🔌 **통합 인터페이스**: 모든 LLM 제공업체를 동일한 방식으로 사용
