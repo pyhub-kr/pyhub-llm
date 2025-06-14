@@ -143,8 +143,6 @@ def validate_mcp_config(config: Dict[str, Any]) -> None:
     # 필수 필드 검사
     if 'type' not in config:
         raise ValueError("Missing required field 'type'")
-    if 'name' not in config:
-        raise ValueError("Missing required field 'name'")
     
     # type 값 검사
     valid_types = {'stdio', 'streamable_http', 'websocket', 'sse'}

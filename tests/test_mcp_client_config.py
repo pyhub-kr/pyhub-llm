@@ -32,6 +32,26 @@ class TestMCPClientConfig:
         assert client.transport is not None
         assert client.server_params is None
     
+    def test_mcpclient_without_name(self):
+        """name 없이 MCPClient 생성"""
+        # name 없는 STDIO config
+        stdio_config = McpStdioConfig(
+            cmd="python calculator.py"
+        )
+        
+        client = MCPClient(stdio_config)
+        assert client.transport is not None
+        assert client.server_params is None
+        
+        # name 없는 HTTP config
+        http_config = McpStreamableHttpConfig(
+            url="http://localhost:8080/mcp"
+        )
+        
+        client = MCPClient(http_config)
+        assert client.transport is not None
+        assert client.server_params is None
+    
     def test_mcpclient_with_dict_config(self):
         """기존 dict 방식으로 MCPClient 생성"""
         config = {

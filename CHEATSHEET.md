@@ -359,7 +359,6 @@ async def main():
     llm = await LLM.create_async(
         "gpt-4o-mini",
         mcp_servers=McpStdioConfig(
-            name="calculator",
             cmd="calculator-server"
         )
     )
@@ -822,6 +821,32 @@ for style in ["technical", "simple", "business"]:
 
 ## MCP 통합
 
+### 서버 이름 자동 감지
+
+MCP 서버는 초기화 시 자체 정보(이름, 버전)를 제공합니다. pyhub-llm은 이를 활용하여 서버 이름을 자동으로 감지합니다:
+
+```python
+# name 없이 설정 - 서버가 "calculator-server"로 자동 제공
+config = McpStdioConfig(
+    cmd="pyhub-llm mcp-server run calculator"
+)
+
+# 사용자가 원하면 name 오버라이드 가능
+config = McpStdioConfig(
+    name="my_calc",  # 서버 이름을 "my_calc"로 변경
+    cmd="pyhub-llm mcp-server run calculator"
+)
+```
+
+**서버 이름 우선순위:**
+1. 사용자가 지정한 `name` (최우선)
+2. 서버가 제공하는 이름 (자동 감지)
+3. 자동 생성된 이름 (transport_uuid 형태)
+
+**중복 처리:**
+- 동일한 이름의 서버가 여러 개인 경우 자동으로 suffix 추가 (`calculator-server_1`, `calculator-server_2`)
+- 중복 시 경고 로그 출력
+
 ### 기본 MCP 사용
 
 ```python
@@ -830,9 +855,7 @@ from pyhub.llm.mcp import McpStdioConfig
 
 # MCP 서버 설정
 mcp_config = McpStdioConfig(
-    name="calculator",
-    cmd="calculator-server",  # MCP 서버 실행 명령
-    description="수학 계산 도구"
+    cmd="calculator-server"  # MCP 서버 실행 명령 (name은 서버가 자동 제공)
 )
 
 # LLM과 MCP 통합
@@ -887,14 +910,10 @@ from pyhub.llm.mcp import McpStdioConfig, McpStreamableHttpConfig
 # 다양한 MCP 서버 설정
 servers = [
     McpStdioConfig(
-        name="calculator",
-        cmd="calculator-server",
-        description="수학 계산"
+        cmd="calculator-server"
     ),
     McpStreamableHttpConfig(
-        name="weather",
-        url="http://localhost:8080/mcp",
-        description="날씨 정보"
+        url="http://localhost:8080/mcp"
     )
 ]
 
@@ -919,7 +938,6 @@ if llm._mcp_tools:
 
 # 특정 도구만 사용하도록 필터링
 filtered_config = McpStdioConfig(
-    name="calculator",
     cmd="calculator-server",
     filter_tools=["add", "multiply"]  # 덧셈과 곱셈만 사용
 )

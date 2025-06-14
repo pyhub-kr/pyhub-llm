@@ -18,7 +18,7 @@ __all__ = [
 @dataclass(kw_only=True)
 class McpServerConfig:
     """MCP 서버 설정 기본 클래스"""
-    name: str  # 서버 식별자
+    name: Optional[str] = None  # 서버 식별자 (선택적 - 서버에서 자동으로 가져올 수 있음)
     description: Optional[str] = None
     filter_tools: Optional[List[str]] = None
     timeout: int = 30
