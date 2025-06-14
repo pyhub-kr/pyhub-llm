@@ -106,7 +106,7 @@ class FileCache(BaseCache):
 
             with open(cache_file, "w") as f:
                 json.dump(data, f, cls=JSONEncoder)
-            
+
             self._stats["sets"] += 1
             if self._debug:
                 logger.debug(f"Cache SET: {key}")
@@ -134,19 +134,14 @@ class FileCache(BaseCache):
             count += 1
         if self._debug:
             logger.debug(f"Cache CLEARED: {count} files removed")
-    
+
     @property
     def stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0.0
-        
+
         # Count cache files
         cache_files = list(self.cache_dir.glob("*.json"))
-        
-        return {
-            **self._stats,
-            "hit_rate": hit_rate,
-            "total_requests": total_requests,
-            "size": len(cache_files)
-        }
+
+        return {**self._stats, "hit_rate": hit_rate, "total_requests": total_requests, "size": len(cache_files)}

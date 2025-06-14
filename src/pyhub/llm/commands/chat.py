@@ -161,6 +161,7 @@ def chat(
             cache = None
             if enable_cache:
                 from pyhub.llm.cache import MemoryCache
+
                 cache = MemoryCache()
 
             llm = LLM.create(

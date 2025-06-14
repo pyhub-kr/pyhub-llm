@@ -157,7 +157,7 @@ def ask(
             except Exception as e:
                 console.print(f"[red]오류: 파일 읽기 실패 {file_path}: {e}[/red]")
                 raise typer.Exit(1)
-        
+
         # Combine file contents with existing context
         file_context = "\n\n---\n\n".join(file_contexts)
         if context:
@@ -322,6 +322,7 @@ def ask(
     cache = None
     if enable_cache:
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
 
     llm = LLM.create(

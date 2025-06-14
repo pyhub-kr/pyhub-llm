@@ -153,10 +153,7 @@ class TestLLMChaining:
         # MockLLM now processes dict inputs correctly
         assert "Mock response: Initial question" == response.values["step1"]
         # Second LLM receives the accumulated context (input + step1)
-        assert (
-            response.values["step2"]
-            == "Mock response: Mock response: Initial question"
-        )
+        assert response.values["step2"] == "Mock response: Mock response: Initial question"
 
     def test_pipe_operator(self):
         """Test pipe operator for chaining."""

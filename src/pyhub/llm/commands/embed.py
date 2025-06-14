@@ -75,6 +75,7 @@ def fill_jsonl(
     cache = None
     if enable_cache:
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
 
     llm = LLM.create(embedding_model, cache=cache)
@@ -171,6 +172,7 @@ def text(
     cache = None
     if enable_cache:
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
 
     llm = LLM.create(embedding_model, cache=cache)
@@ -275,6 +277,7 @@ def similarity(
         cache = None
         if enable_cache:
             from pyhub.llm.cache import MemoryCache
+
             cache = MemoryCache()
 
         llm = LLM.create(embedding_model, cache=cache)
@@ -410,6 +413,7 @@ def batch(
     cache = None
     if enable_cache:
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
 
     llm = LLM.create(embedding_model, cache=cache)

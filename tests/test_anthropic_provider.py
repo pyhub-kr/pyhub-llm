@@ -267,6 +267,7 @@ class TestAnthropicLLM:
 
         # Create LLM with cache for testing
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
         llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are Claude.", cache=cache)
 

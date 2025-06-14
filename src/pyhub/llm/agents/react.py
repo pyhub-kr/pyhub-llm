@@ -436,7 +436,9 @@ Important guidelines:
             self.llm.system_prompt = original_system_prompt
 
 
-def create_react_agent(llm: BaseLLM, tools: List[Union[Tool, Callable, Any]], **kwargs) -> Union[ReactAgent, AsyncReactAgent]:
+def create_react_agent(
+    llm: BaseLLM, tools: List[Union[Tool, Callable, Any]], **kwargs
+) -> Union[ReactAgent, AsyncReactAgent]:
     """
     React Agent를 생성하는 팩토리 함수
 
