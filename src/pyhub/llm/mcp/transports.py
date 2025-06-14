@@ -46,7 +46,7 @@ class StdioTransport(Transport):
             raise ImportError("MCP stdio support requires 'mcp' package. Install it with: pip install mcp")
 
         # UTF-8 환경변수 설정 (Windows 호환)
-        env = self.config.get("env", {}).copy()
+        env = (self.config.get("env") or {}).copy()
         env.update({"PYTHONIOENCODING": "utf-8", "PYTHONUTF8": "1"})
 
         server_params = StdioServerParameters(command=self.config["command"], args=self.config.get("args", []), env=env)
