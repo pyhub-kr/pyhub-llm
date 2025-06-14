@@ -1,0 +1,98 @@
+# CodeRabbit 설정 파일
+# 문서: https://docs.coderabbit.ai/getting-started/configure-coderabbit/
+
+# 언어 설정 - 한글로 리뷰 출력
+language: "ko-KR"
+
+# 리뷰 동작 설정
+reviews:
+  # PR 블로킹 없이 제안만 제공
+  request_changes_workflow: false
+  
+  # PR 상단에 전체 요약 제공
+  high_level_summary: true
+  
+  # 시 생성 비활성화 (전문성 유지)
+  poem: false
+  
+  # 리뷰 진행 상태 표시
+  review_status: true
+  
+  # 상세 설명은 펼쳐진 상태로 표시
+  collapse_walkthrough: false
+  
+  # 자동 리뷰 설정
+  auto_review:
+    enabled: true
+    # Draft PR도 리뷰
+    drafts: false
+
+# 파일별 설정
+path_filters:
+  # 테스트 파일은 덜 엄격하게 검토
+  - path: "tests/**"
+    instructions:
+      - "테스트 커버리지와 엣지 케이스를 중점적으로 검토해주세요"
+  
+  # 문서는 맞춤법과 명확성 위주로 검토
+  - path: "**/*.md"
+    instructions:
+      - "문서의 명확성과 완성도를 검토해주세요"
+      - "한글 맞춤법과 기술 용어의 일관성을 확인해주세요"
+
+# 프로젝트별 리뷰 지침
+instructions:
+  - "이 프로젝트는 Python 기반 LLM 라이브러리입니다"
+  - "FastAPI와 Django 프레임워크에서의 호환성을 중점적으로 검토해주세요"
+  - "비동기(async/await)와 동기 코드 간의 호환성을 확인해주세요"
+  - "웹 프레임워크의 요청/응답 사이클에서 LLM 호출 시 발생할 수 있는 문제점을 지적해주세요"
+  - "특히 다음 사항들을 검토해주세요:"
+  - "  - 긴 실행 시간으로 인한 타임아웃 문제"
+  - "  - 메모리 사용량과 리소스 관리"
+  - "  - 동시성(concurrency) 처리"
+  - "  - 에러 핸들링과 재시도 로직"
+  - "  - 스트리밍 응답 처리 방식"
+  - "MCP(Model Context Protocol) 통합 시 리소스 정리가 적절히 되는지 확인해주세요"
+  - "타입 힌트와 문서화가 적절한지 검토해주세요"
+
+# 검토에서 제외할 파일/폴더
+path_exclusions:
+  - "**/.venv/**"
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "**/node_modules/**"
+  - "**/.pytest_cache/**"
+  - "**/.mypy_cache/**"
+  - "**/htmlcov/**"
+  - "**/.coverage"
+
+# 추가 도구 설정
+tools:
+  # GitHub Actions 통합
+  github_actions:
+    enabled: true
+  
+  # 린터 통합
+  ruff:
+    enabled: true
+  
+  # 타입 체커
+  mypy:
+    enabled: true
+
+# 리뷰 우선순위
+review_priority:
+  # 중요 파일 우선 검토
+  - "src/pyhub/llm/base.py"
+  - "src/pyhub/llm/mcp/**"
+  - "src/pyhub/llm/factory.py"
+  - "src/pyhub/llm/__init__.py"
+
+# 라벨 자동 추가
+labels:
+  - "enhancement": "새로운 기능이 추가된 경우"
+  - "bug": "버그 수정이 포함된 경우"
+  - "documentation": "문서만 변경된 경우"
+  - "breaking-change": "하위 호환성이 깨지는 변경사항이 있는 경우"
+  - "performance": "성능 개선이 포함된 경우"
+  - "dependencies": "의존성이 변경된 경우"
