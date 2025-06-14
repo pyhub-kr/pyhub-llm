@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from pyhub.llm import LLM
-from pyhub.llm.mcp.configs import McpStdioConfig
+from pyhub.llm.mcp.configs import McpConfig
 
 
 class TestMCPResourceCleanup:

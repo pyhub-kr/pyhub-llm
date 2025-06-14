@@ -173,7 +173,7 @@ class LLM:
             # 단일 MCP 서버
             llm = await LLM.create_async(
                 "gpt-4o-mini",
-                mcp_servers=McpStdioConfig(
+                mcp_servers=McpConfig(
                     name="calculator",
                     cmd="python calculator.py"
                 )
@@ -183,8 +183,8 @@ class LLM:
             llm = await LLM.create_async(
                 "gpt-4o-mini",
                 mcp_servers=[
-                    McpStdioConfig(name="calc", cmd="..."),
-                    McpStreamableHttpConfig(name="web", url="...")
+                    McpConfig(name="calc", cmd="..."),
+                    McpConfig(name="web", url="...")
                 ]
             )
         """

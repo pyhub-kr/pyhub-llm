@@ -5,7 +5,7 @@ import logging
 import pytest
 
 from pyhub.llm import LLM
-from pyhub.llm.mcp.configs import McpStdioConfig
+from pyhub.llm.mcp.configs import McpConfig
 from pyhub.llm.mcp.policies import MCPConnectionError, MCPConnectionPolicy
 
 
@@ -123,8 +123,8 @@ class TestMCPConnectionPolicy:
             logger.removeHandler(handler)
 
     async def test_config_with_policy(self):
-        """McpStdioConfig에 정책 설정"""
-        config = McpStdioConfig(name="test_server", cmd="echo test", policy=MCPConnectionPolicy.REQUIRED)
+        """McpConfig에 정책 설정"""
+        config = McpConfig(name="test_server", cmd="echo test", policy=MCPConnectionPolicy.REQUIRED)
 
         assert config.policy == MCPConnectionPolicy.REQUIRED
 

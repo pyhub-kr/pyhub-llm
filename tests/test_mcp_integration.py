@@ -4,22 +4,22 @@ import pytest
 
 from pyhub.llm import LLM
 from pyhub.llm.base import BaseLLM
-from pyhub.llm.mcp import McpStdioConfig, McpStreamableHttpConfig
+from pyhub.llm.mcp import McpConfig
 from pyhub.llm.tools import Tool
 
 
 @pytest.fixture
 def mock_mcp_server_config():
     """테스트용 MCP 서버 설정"""
-    return McpStdioConfig(name="test_calculator", cmd="python calculator.py", description="테스트 계산기")
+    return McpConfig(name="test_calculator", cmd="python calculator.py")
 
 
 @pytest.fixture
 def mock_multiple_mcp_configs():
     """여러 MCP 서버 설정"""
     return [
-        McpStdioConfig(name="calculator", cmd="python calculator.py"),
-        McpStreamableHttpConfig(name="greeting", url="http://localhost:8888/mcp"),
+        McpConfig(name="calculator", cmd="python calculator.py"),
+        McpConfig(name="greeting", url="http://localhost:8888/mcp"),
     ]
 
 
