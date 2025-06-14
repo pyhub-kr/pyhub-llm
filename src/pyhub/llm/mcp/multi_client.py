@@ -65,9 +65,14 @@ class MultiServerMCPClient:
                         transport = getattr(config, 'transport', 'unknown')
                         temp_name = f"{transport}_{uuid.uuid4().hex[:8]}"
                     
-                    # 중복 검사
-                    if temp_name in self.servers:
-                        logger.warning(f"Duplicate server name '{temp_name}' detected. Previous configuration will be overwritten.")
+                    # 중복 검사 및 이름 충돌 방지
+                    original_name = temp_name
+                    suffix = 1
+                    while temp_name in self.servers:
+                        temp_name = f"{original_name}_{suffix}"
+                        suffix += 1
+                    if temp_name != original_name:
+                        logger.info(f"Duplicate server name '{original_name}' detected. Using unique name '{temp_name}' instead.")
                     
                     self.servers[temp_name] = config.to_dict()
                 else:
@@ -127,7 +132,7 @@ class MultiServerMCPClient:
             if "transport" not in config:
                 config["transport"] = infer_transport_type(config)
 
-            transport_type = config["transport"]
+            transport_type = config.get("transport", "unknown")
             logger.debug(f"Connecting to '{server_name}' using {transport_type} transport")
 
             # Transport 생성 및 검증
@@ -145,7 +150,8 @@ class MultiServerMCPClient:
             server_info = client.get_server_info()
             if server_info and server_info.get('name'):
                 # 우선순위: 1. 사용자 지정 name, 2. 서버 제공 name, 3. 임시 생성 name
-                if not config.get('name'):
+                user_defined_name = config.get('name')
+                if not user_defined_name:
                     # 사용자가 name을 지정하지 않았다면 서버 이름 사용
                     final_server_name = server_info['name']
                     

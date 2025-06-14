@@ -27,6 +27,7 @@ class McpServerConfig:
     def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         return {
+            "name": self.name,
             "transport": getattr(self, "transport", None),
             "description": self.description,
             "filter_tools": self.filter_tools,
