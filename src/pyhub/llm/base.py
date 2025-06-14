@@ -65,6 +65,7 @@ class BaseLLM(abc.ABC):
         tools: Optional[list] = None,
         cache: Optional[BaseCache] = None,
         mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpServerConfig"]], "McpServerConfig"]] = None,
+        mcp_policy: Optional["MCPConnectionPolicy"] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -79,6 +80,7 @@ class BaseLLM(abc.ABC):
         
         # MCP 설정 처리 (파일 경로, dict, list, McpServerConfig 지원)
         self.mcp_servers = self._process_mcp_servers(mcp_servers)
+        self.mcp_policy = mcp_policy
         self._mcp_client = None
         self._mcp_connected = False
         self._mcp_tools = []
@@ -1110,12 +1112,31 @@ class BaseLLM(abc.ABC):
             # MCP 모듈을 동적 import
             from .mcp import MultiServerMCPClient, load_mcp_tools
             from .mcp.configs import McpServerConfig
+            from .mcp.policies import MCPConnectionPolicy, MCPConnectionError
+            
+            # 기본 정책 설정
+            if self.mcp_policy is None:
+                self.mcp_policy = MCPConnectionPolicy.OPTIONAL
             
             # MultiServerMCPClient 생성
             self._mcp_client = MultiServerMCPClient(self.mcp_servers)
             
             # 연결 시작
             await self._mcp_client.__aenter__()
+            
+            # 연결 실패 확인
+            failed_servers = list(self._mcp_client._connection_errors.keys())
+            if failed_servers:
+                # 정책에 따른 처리
+                if self.mcp_policy == MCPConnectionPolicy.REQUIRED:
+                    # REQUIRED: 예외 발생
+                    error_msg = f"Failed to connect to MCP servers: {', '.join(failed_servers)}"
+                    await self.close_mcp()  # 정리
+                    raise MCPConnectionError(error_msg, failed_servers)
+                elif self.mcp_policy == MCPConnectionPolicy.WARN:
+                    # WARN: 경고 로그
+                    logger.warning(f"Failed to connect to some MCP servers: {', '.join(failed_servers)}")
+                # OPTIONAL: 조용히 계속 진행
             
             # 도구 로드
             self._mcp_tools = await self._mcp_client.get_tools()
@@ -1129,11 +1150,20 @@ class BaseLLM(abc.ABC):
             
             self._mcp_connected = True
             
+        except MCPConnectionError:
+            # 정책에 따른 예외는 다시 발생
+            raise
         except Exception as e:
-            logger.error(f"Failed to initialize MCP: {e}")
-            # MCP 연결 실패는 치명적이지 않으므로 계속 진행
-            self._mcp_client = None
-            self._mcp_connected = False
+            # 기타 예외 처리
+            if self.mcp_policy == MCPConnectionPolicy.REQUIRED:
+                error_msg = f"Failed to initialize MCP: {e}"
+                await self.close_mcp()  # 정리
+                raise MCPConnectionError(error_msg)
+            else:
+                logger.error(f"Failed to initialize MCP: {e}")
+                # MCP 연결 실패는 치명적이지 않으므로 계속 진행
+                self._mcp_client = None
+                self._mcp_connected = False
     
     async def close_mcp(self, timeout: float = 5.0) -> None:
         """MCP 연결을 종료합니다.
