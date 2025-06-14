@@ -1,7 +1,6 @@
 import abc
 import asyncio
 import logging
-import weakref
 from dataclasses import dataclass
 from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
@@ -77,7 +76,7 @@ class BaseLLM(abc.ABC):
         self.history = initial_messages or []
         self.api_key = api_key
         self.cache = cache
-        
+
         # MCP 설정 처리 (파일 경로, dict, list, McpServerConfig 지원)
         self.mcp_servers = self._process_mcp_servers(mcp_servers)
         self.mcp_policy = mcp_policy
@@ -92,39 +91,43 @@ class BaseLLM(abc.ABC):
             from .tools import ToolAdapter
 
             self.default_tools = ToolAdapter.adapt_tools(tools)
-        
+
         # Finalizer 등록 (MCP 사용 시)
         self._finalizer = None
         if self.mcp_servers:
             from .resource_manager import register_mcp_instance
+
             self._finalizer = register_mcp_instance(self)
 
     def _process_mcp_servers(self, mcp_servers) -> List["McpServerConfig"]:
         """MCP 서버 설정을 처리합니다."""
         if not mcp_servers:
             return []
-        
+
         # 문자열인 경우 파일 경로로 처리
         if isinstance(mcp_servers, str):
             # 동적 import (순환 import 방지)
             from .mcp import load_mcp_config
+
             return load_mcp_config(mcp_servers)
-        
+
         # dict인 경우 (mcpServers 키가 있을 수 있음)
         elif isinstance(mcp_servers, dict):
             from .mcp import load_mcp_config
+
             return load_mcp_config(mcp_servers)
-        
+
         # list인 경우
         elif isinstance(mcp_servers, list):
             # 리스트의 각 요소가 dict인지 확인
             if all(isinstance(item, dict) for item in mcp_servers):
                 from .mcp import load_mcp_config
+
                 return load_mcp_config(mcp_servers)
             else:
                 # McpServerConfig 인스턴스 리스트인 경우 그대로 반환
                 return mcp_servers
-        
+
         # 단일 McpServerConfig 인스턴스인 경우
         else:
             return [mcp_servers]
@@ -291,7 +294,7 @@ class BaseLLM(abc.ABC):
         # 매칭 실패
         logger.warning("No valid choice found in response: %s", text_clean)
         return None, None, 0.0
-    
+
     def _process_schema_response(
         self, text: str, schema: Type["BaseModel"]
     ) -> tuple[Optional["BaseModel"], Optional[list[str]]]:
@@ -303,30 +306,30 @@ class BaseLLM(abc.ABC):
         """
         import json
         import re
-        
+
         # 마크다운 코드 블록 제거
         text = text.strip()
-        
+
         # ```json ... ``` 패턴 매칭
-        json_block_pattern = r'```(?:json)?\s*\n?(.*?)\n?```'
+        json_block_pattern = r"```(?:json)?\s*\n?(.*?)\n?```"
         match = re.search(json_block_pattern, text, re.DOTALL)
         if match:
             text = match.group(1).strip()
-        
+
         try:
             # JSON 파싱 시도
             data = json.loads(text)
-            
+
             # Pydantic 모델로 검증
             model_instance = schema(**data)
             return model_instance, None
-            
+
         except json.JSONDecodeError as e:
             # JSON 파싱 실패
             error_msg = f"JSON parsing failed: {str(e)}"
             logger.warning(error_msg)
             return None, [error_msg]
-            
+
         except Exception as e:
             # Pydantic 검증 실패
             error_msg = f"Schema validation failed: {str(e)}"
@@ -432,12 +435,12 @@ class BaseLLM(abc.ABC):
             input_context["choices_formatted"] = "\n".join([f"{i+1}. {c}" for i, c in enumerate(internal_choices)])
             input_context["choices_optional"] = choices_optional
             input_context["original_choices"] = choices
-            
+
         # schema 처리
         if schema:
             input_context["schema"] = schema
             input_context["schema_json"] = schema.model_json_schema()
-            
+
         human_prompt = self.get_human_prompt(input, input_context)
         human_message = Message(role="user", content=human_prompt, files=files)
 
@@ -464,13 +467,11 @@ class BaseLLM(abc.ABC):
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
-                        
+
                     # 스트리밍 완료 후 schema 처리
                     if schema and text_list:
                         full_text = "".join(text_list)
-                        structured_data, validation_errors = self._process_schema_response(
-                            full_text, schema
-                        )
+                        structured_data, validation_errors = self._process_schema_response(full_text, schema)
                         # 마지막에 structured_data 정보를 포함한 Reply 전송
                         yield Reply(text="", structured_data=structured_data, validation_errors=validation_errors)
 
@@ -502,13 +503,11 @@ class BaseLLM(abc.ABC):
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
-                        
+
                     # 스트리밍 완료 후 schema 처리
                     if schema and text_list:
                         full_text = "".join(text_list)
-                        structured_data, validation_errors = self._process_schema_response(
-                            full_text, schema
-                        )
+                        structured_data, validation_errors = self._process_schema_response(full_text, schema)
                         # 마지막에 structured_data 정보를 포함한 Reply 전송
                         yield Reply(text="", structured_data=structured_data, validation_errors=validation_errors)
 
@@ -546,12 +545,10 @@ class BaseLLM(abc.ABC):
                         ask.choice = choice
                         ask.choice_index = index
                         ask.confidence = confidence
-                        
+
                     # schema가 있으면 처리
                     if schema:
-                        structured_data, validation_errors = self._process_schema_response(
-                            ask.text, schema
-                        )
+                        structured_data, validation_errors = self._process_schema_response(ask.text, schema)
                         ask.structured_data = structured_data
                         ask.validation_errors = validation_errors
 
@@ -580,12 +577,10 @@ class BaseLLM(abc.ABC):
                         ask.choice = choice
                         ask.choice_index = index
                         ask.confidence = confidence
-                        
+
                     # schema가 있으면 처리
                     if schema:
-                        structured_data, validation_errors = self._process_schema_response(
-                            ask.text, schema
-                        )
+                        structured_data, validation_errors = self._process_schema_response(ask.text, schema)
                         ask.structured_data = structured_data
                         ask.validation_errors = validation_errors
 
@@ -634,7 +629,7 @@ class BaseLLM(abc.ABC):
         # schema와 choices는 동시에 사용할 수 없음
         if schema and choices:
             raise ValueError("Cannot use both 'schema' and 'choices' parameters at the same time")
-            
+
         # 기본 도구와 ask 도구를 합침
         merged_tools = self._merge_tools(tools)
 
@@ -690,7 +685,7 @@ class BaseLLM(abc.ABC):
         # schema와 choices는 동시에 사용할 수 없음
         if schema and choices:
             raise ValueError("Cannot use both 'schema' and 'choices' parameters at the same time")
-            
+
         # 기본 도구와 ask 도구를 합침
         merged_tools = self._merge_tools(tools)
 
@@ -1098,32 +1093,31 @@ class BaseLLM(abc.ABC):
     #
     # MCP (Model Context Protocol) integration
     #
-    
+
     async def initialize_mcp(self) -> None:
         """MCP 서버들을 연결하고 도구를 로드합니다."""
         if not self.mcp_servers:
             return
-            
+
         if self._mcp_connected:
             logger.warning("MCP is already connected")
             return
-            
+
         try:
             # MCP 모듈을 동적 import
-            from .mcp import MultiServerMCPClient, load_mcp_tools
-            from .mcp.configs import McpServerConfig
-            from .mcp.policies import MCPConnectionPolicy, MCPConnectionError
-            
+            from .mcp import MultiServerMCPClient
+            from .mcp.policies import MCPConnectionError, MCPConnectionPolicy
+
             # 기본 정책 설정
             if self.mcp_policy is None:
                 self.mcp_policy = MCPConnectionPolicy.OPTIONAL
-            
+
             # MultiServerMCPClient 생성
             self._mcp_client = MultiServerMCPClient(self.mcp_servers)
-            
+
             # 연결 시작
             await self._mcp_client.__aenter__()
-            
+
             # 연결 실패 확인
             failed_servers = list(self._mcp_client._connection_errors.keys())
             if failed_servers:
@@ -1137,19 +1131,20 @@ class BaseLLM(abc.ABC):
                     # WARN: 경고 로그
                     logger.warning(f"Failed to connect to some MCP servers: {', '.join(failed_servers)}")
                 # OPTIONAL: 조용히 계속 진행
-            
+
             # 도구 로드
             self._mcp_tools = await self._mcp_client.get_tools()
-            
+
             # 기존 도구와 병합
             from .tools import ToolAdapter
+
             if self._mcp_tools:
                 adapted_mcp_tools = ToolAdapter.adapt_tools(self._mcp_tools)
                 self.default_tools.extend(adapted_mcp_tools)
                 logger.info(f"Loaded {len(self._mcp_tools)} MCP tools from {len(self.mcp_servers)} servers")
-            
+
             self._mcp_connected = True
-            
+
         except MCPConnectionError:
             # 정책에 따른 예외는 다시 발생
             raise
@@ -1164,20 +1159,17 @@ class BaseLLM(abc.ABC):
                 # MCP 연결 실패는 치명적이지 않으므로 계속 진행
                 self._mcp_client = None
                 self._mcp_connected = False
-    
+
     async def close_mcp(self, timeout: float = 5.0) -> None:
         """MCP 연결을 종료합니다.
-        
+
         Args:
             timeout: 종료 대기 시간 (초)
         """
         if self._mcp_client and self._mcp_connected:
             try:
                 # 타임아웃 적용
-                await asyncio.wait_for(
-                    self._mcp_client.__aexit__(None, None, None),
-                    timeout=timeout
-                )
+                await asyncio.wait_for(self._mcp_client.__aexit__(None, None, None), timeout=timeout)
                 logger.info("MCP connections closed")
             except asyncio.TimeoutError:
                 logger.warning(f"MCP cleanup timed out after {timeout}s")
@@ -1186,22 +1178,23 @@ class BaseLLM(abc.ABC):
             finally:
                 self._mcp_client = None
                 self._mcp_connected = False
-                
+
                 # MCP 도구 제거
                 if self._mcp_tools:
                     # 기존 도구에서 MCP 도구 제거
                     from .tools import ToolAdapter
+
                     adapted_mcp_tools = ToolAdapter.adapt_tools(self._mcp_tools)
                     for tool in adapted_mcp_tools:
                         if tool in self.default_tools:
                             self.default_tools.remove(tool)
                     self._mcp_tools = []
-    
+
     async def __aenter__(self):
         """비동기 컨텍스트 매니저 진입"""
         await self.initialize_mcp()
         return self
-        
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         """비동기 컨텍스트 매니저 종료"""
         await self.close_mcp()
@@ -1482,9 +1475,7 @@ class BaseLLM(abc.ABC):
                 self.max_tokens = max_tokens
 
             # ask_async 메서드 호출
-            result = await self.ask_async(
-                input=prompt, files=[image], use_history=use_history, **kwargs
-            )
+            result = await self.ask_async(input=prompt, files=[image], use_history=use_history, **kwargs)
         finally:
             # 원래 값들 복원
             self.system_prompt = original_system_prompt

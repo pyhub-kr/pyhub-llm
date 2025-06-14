@@ -149,11 +149,12 @@ class BaseAgent(ABC):
 
     def __init__(self, llm: Any, tools: List[Union[Tool, Callable, Any]], **kwargs):
         self.llm = llm
-        
+
         # 도구들을 Tool 객체로 자동 변환
         from pyhub.llm.tools import ToolAdapter
+
         self.tools = ToolAdapter.adapt_tools(tools)
-        
+
         self.max_iterations = kwargs.get("max_iterations", 10)
         self.timeout = kwargs.get("timeout", None)
         self._tool_map = {tool.name: tool for tool in self.tools}
@@ -173,11 +174,12 @@ class AsyncBaseAgent(ABC):
 
     def __init__(self, llm: Any, tools: List[Union[Tool, Callable, Any]], **kwargs):
         self.llm = llm
-        
+
         # 도구들을 Tool 객체로 자동 변환
         from pyhub.llm.tools import ToolAdapter
+
         self.tools = ToolAdapter.adapt_tools(tools)
-        
+
         self.max_iterations = kwargs.get("max_iterations", 10)
         self.timeout = kwargs.get("timeout", None)
         self._tool_map = {tool.name: tool for tool in self.tools}

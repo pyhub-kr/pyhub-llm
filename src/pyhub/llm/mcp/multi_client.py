@@ -2,8 +2,8 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List
-import uuid, Union
+import uuid
+from typing import Any, Dict, List, Union
 
 from pyhub.llm.agents.base import Tool
 
@@ -24,9 +24,9 @@ class MultiServerMCPClient:
             servers: 서버 설정
                 - Dict[str, Dict[str, Any]]: 기존 딕셔너리 방식 (하위 호환)
                 - List[McpServerConfig]: 새로운 dataclass 방식 (권장)
-                
+
             prefix_tools: 도구 이름에 서버 이름을 prefix로 추가할지 여부
-            
+
         Examples:
             >>> # Dataclass 방식 (권장)
             >>> from pyhub.llm.mcp.configs import McpStdioConfig, McpStreamableHttpConfig
@@ -41,7 +41,7 @@ class MultiServerMCPClient:
             ...     )
             ... ]
             >>> client = MultiServerMCPClient(servers)
-            
+
             >>> # 기존 딕셔너리 방식 (하위 호환)
             >>> servers = {
             ...     "calculator": {
@@ -62,9 +62,9 @@ class MultiServerMCPClient:
                         temp_name = config.name
                     else:
                         # transport 타입과 UUID로 임시 이름 생성
-                        transport = getattr(config, 'transport', 'unknown')
+                        transport = getattr(config, "transport", "unknown")
                         temp_name = f"{transport}_{uuid.uuid4().hex[:8]}"
-                    
+
                     # 중복 검사 및 이름 충돌 방지
                     original_name = temp_name
                     suffix = 1
@@ -72,19 +72,21 @@ class MultiServerMCPClient:
                         temp_name = f"{original_name}_{suffix}"
                         suffix += 1
                     if temp_name != original_name:
-                        logger.info(f"Duplicate server name '{original_name}' detected. Using unique name '{temp_name}' instead.")
-                    
+                        logger.info(
+                            f"Duplicate server name '{original_name}' detected. Using unique name '{temp_name}' instead."
+                        )
+
                     self.servers[temp_name] = config.to_dict()
                 else:
                     raise TypeError(f"리스트 요소는 McpServerConfig여야 합니다: {type(config)}")
         else:
             self.servers = servers
-            
+
         # 서버 설정에 None 값이 있는지 검증
         for server_name, config in self.servers.items():
             if config is None:
                 raise ValueError(f"Server configuration for '{server_name}' cannot be None")
-            
+
         self.prefix_tools = prefix_tools
         self._clients: Dict[str, MCPClient] = {}
         self._active_connections: Dict[str, Any] = {}
@@ -121,7 +123,7 @@ class MultiServerMCPClient:
             # Config 유효성 검사
             if config is None:
                 raise ValueError(f"Server configuration for '{server_name}' is None")
-            
+
             # Transport 타입 자동 추론
             from .transports import infer_transport_type
 
@@ -148,26 +150,28 @@ class MultiServerMCPClient:
 
             # 서버 정보를 가져와서 이름 결정
             server_info = client.get_server_info()
-            if server_info and server_info.get('name'):
+            if server_info and server_info.get("name"):
                 # 우선순위: 1. 사용자 지정 name, 2. 서버 제공 name, 3. 임시 생성 name
-                user_defined_name = config.get('name')
+                user_defined_name = config.get("name")
                 if not user_defined_name:
                     # 사용자가 name을 지정하지 않았다면 서버 이름 사용
-                    final_server_name = server_info['name']
-                    
+                    final_server_name = server_info["name"]
+
                     # 중복 처리: 서버 이름이 이미 사용 중이면 suffix 추가
                     if final_server_name in self._clients:
                         suffix = 1
                         while f"{final_server_name}_{suffix}" in self._clients:
                             suffix += 1
                         final_server_name = f"{final_server_name}_{suffix}"
-                        logger.info(f"Server name '{server_info['name']}' already in use, renamed to '{final_server_name}'")
-            
+                        logger.info(
+                            f"Server name '{server_info['name']}' already in use, renamed to '{final_server_name}'"
+                        )
+
             # 기존 server_name으로 저장된 것들을 final_server_name으로 업데이트
             if final_server_name != server_name:
                 # 임시 이름으로 저장된 서버 설정을 실제 서버 이름으로 변경
                 self.servers[final_server_name] = self.servers.pop(server_name)
-            
+
             self._clients[final_server_name] = client
             self._active_connections[final_server_name] = connection_context
 

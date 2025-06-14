@@ -117,6 +117,7 @@ def describe(
 
         try:
             import toml
+
             with open(toml_path, "r", encoding="utf-8") as f:
                 config = toml.load(f)
                 templates = config.get("prompt_templates", {}).get(prompt_type, {})
@@ -138,6 +139,7 @@ def describe(
     cache = None
     if enable_cache:
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
 
     llm = LLM.create(

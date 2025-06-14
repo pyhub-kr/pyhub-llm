@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 class MCPClient:
     """MCP 서버와 통신하는 클라이언트 래퍼
-    
+
     Attributes:
         _server_info: 서버가 제공하는 정보 (name, version)
     """
@@ -63,12 +63,14 @@ class MCPClient:
 
                     # 연결 초기화 및 서버 정보 저장
                     init_result = await session.initialize()
-                    if hasattr(init_result, 'serverInfo'):
+                    if hasattr(init_result, "serverInfo"):
                         self._server_info = {
-                            'name': init_result.serverInfo.name,
-                            'version': init_result.serverInfo.version
+                            "name": init_result.serverInfo.name,
+                            "version": init_result.serverInfo.version,
                         }
-                        logger.info(f"MCP session initialized with server '{self._server_info['name']}' v{self._server_info['version']}")
+                        logger.info(
+                            f"MCP session initialized with server '{self._server_info['name']}' v{self._server_info['version']}"
+                        )
                     else:
                         logger.info("MCP session initialized successfully")
 
@@ -91,12 +93,14 @@ class MCPClient:
 
                     # 연결 초기화 및 서버 정보 저장
                     init_result = await session.initialize()
-                    if hasattr(init_result, 'serverInfo'):
+                    if hasattr(init_result, "serverInfo"):
                         self._server_info = {
-                            'name': init_result.serverInfo.name,
-                            'version': init_result.serverInfo.version
+                            "name": init_result.serverInfo.name,
+                            "version": init_result.serverInfo.version,
                         }
-                        logger.info(f"MCP session initialized with server '{self._server_info['name']}' v{self._server_info['version']}")
+                        logger.info(
+                            f"MCP session initialized with server '{self._server_info['name']}' v{self._server_info['version']}"
+                        )
                     else:
                         logger.info("MCP session initialized successfully")
 
@@ -179,7 +183,7 @@ class MCPClient:
         except Exception as e:
             logger.warning(f"Failed to get prompts: {e}")
             return []
-    
+
     def get_server_info(self) -> Optional[Dict[str, str]]:
         """연결된 서버의 정보 반환"""
         return self._server_info.copy() if self._server_info else None

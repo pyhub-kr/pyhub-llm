@@ -17,11 +17,11 @@ class MockLLM(BaseLLM):
         # Extract mock-specific parameters before passing to parent
         self._custom_response = response
         self._streaming_response = streaming_response
-        
+
         # Set default model if not provided
-        if 'model' not in kwargs:
-            kwargs['model'] = 'mock-model'
-            
+        if "model" not in kwargs:
+            kwargs["model"] = "mock-model"
+
         super().__init__(**kwargs)
         self.call_count = 0
         self.last_question = None
@@ -275,7 +275,7 @@ class MockLLM(BaseLLM):
         """Generate a response using the mock LLM."""
         self.call_count += 1
         self.last_question = human_message.content
-        
+
         # Handle choices - for MockLLM, we simulate returning just the first choice
         # BaseLLM._ask_impl will handle the _process_choice_response logic
         if "choices" in input_context and input_context["choices"]:
@@ -288,7 +288,7 @@ class MockLLM(BaseLLM):
         else:
             # Default behavior - include the question in response
             response_text = f"{self.mock_response}: {human_message.content}"
-        
+
         return Reply(text=response_text, usage=self.mock_usage)
 
     async def _make_ask_async(
@@ -312,13 +312,13 @@ class MockLLM(BaseLLM):
         """Generate a streaming response using the mock LLM."""
         self.call_count += 1
         self.last_question = human_message.content
-        
+
         # Handle different response patterns
         if self._custom_response:
             response_text = self._custom_response
         else:
             response_text = f"{self.mock_response}: {human_message.content}"
-            
+
         for word in response_text.split():
             yield Reply(text=word + " ", usage=Usage(input=0, output=0))
 
@@ -332,13 +332,13 @@ class MockLLM(BaseLLM):
         """Generate a streaming response asynchronously using the mock LLM."""
         self.call_count += 1
         self.last_question = human_message.content
-        
+
         # Handle different response patterns
         if self._custom_response:
             response_text = self._custom_response
         else:
             response_text = f"{self.mock_response}: {human_message.content}"
-            
+
         for word in response_text.split():
             yield Reply(text=word + " ", usage=Usage(input=0, output=0))
             await asyncio.sleep(0.001)

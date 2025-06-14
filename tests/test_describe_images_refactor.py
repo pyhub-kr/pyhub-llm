@@ -187,6 +187,7 @@ class TestDescribeImagesRefactor:
     def test_with_cache_injection(self, tmp_path):
         """Test with cache injection."""
         from pyhub.llm.cache import MemoryCache
+
         cache = MemoryCache()
         # Create LLM with cache injected
         llm = MockLLM(model="mock-model", cache=cache)
