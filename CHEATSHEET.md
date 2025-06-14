@@ -352,16 +352,23 @@ asyncio.run(process_multiple_queries())
 
 ```python
 from pyhub.llm import LLM
-from pyhub.llm.mcp import McpStdioConfig
 
 async def main():
-    # MCP 서버와 함께 비동기로 LLM 생성
+    # 간편한 문자열 설정로 MCP 서버와 함께 LLM 생성
     llm = await LLM.create_async(
         "gpt-4o-mini",
-        mcp_servers=McpStdioConfig(
-            cmd="calculator-server"
-        )
+        mcp_servers="python calculator.py"  # 문자열로 간편 설정
     )
+    
+    # 또는 더 상세한 설정
+    # from pyhub.llm.mcp import McpConfig
+    # llm = await LLM.create_async(
+    #     "gpt-4o-mini",
+    #     mcp_servers=McpConfig(
+    #         cmd="calculator-server",
+    #         name="my-calc"
+    #     )
+    # )
     
     # MCP 도구 사용
     reply = await llm.ask_async("25 곱하기 17은?")
@@ -827,12 +834,12 @@ MCP 서버는 초기화 시 자체 정보(이름, 버전)를 제공합니다. py
 
 ```python
 # name 없이 설정 - 서버가 "calculator-server"로 자동 제공
-config = McpStdioConfig(
+config = McpConfig(
     cmd="pyhub-llm mcp-server run calculator"
 )
 
 # 사용자가 원하면 name 오버라이드 가능
-config = McpStdioConfig(
+config = McpConfig(
     name="my_calc",  # 서버 이름을 "my_calc"로 변경
     cmd="pyhub-llm mcp-server run calculator"
 )
@@ -847,14 +854,57 @@ config = McpStdioConfig(
 - 동일한 이름의 서버가 여러 개인 경우 자동으로 suffix 추가 (`calculator-server_1`, `calculator-server_2`)
 - 중복 시 경고 로그 출력
 
+### 통합 설정 및 자동 감지
+
+pyhub-llm 0.7.0부터는 모든 MCP transport 타입을 단일 `McpConfig` 클래스로 통합하고, transport 타입을 자동으로 감지합니다:
+
+```python
+from pyhub.llm.mcp import McpConfig, create_mcp_config
+
+# 1. 기본 설정 - transport 자동 감지
+stdio_config = McpConfig(
+    cmd="python calculator.py"  # stdio transport로 자동 감지
+)
+
+http_config = McpConfig(
+    url="http://localhost:8080/mcp"  # streamable_http transport로 자동 감지
+)
+
+ws_config = McpConfig(
+    url="ws://localhost:8080/ws"  # websocket transport로 자동 감지
+)
+
+sse_config = McpConfig(
+    url="http://localhost:8080/sse"  # sse transport로 자동 감지
+)
+
+# 2. 문자열로 간편 설정 - 팩토리 함수 사용
+config1 = create_mcp_config("python server.py")  # stdio
+config2 = create_mcp_config("http://localhost:8080")  # http
+config3 = create_mcp_config("ws://localhost:8080")  # websocket
+
+# 3. 딕셔너리로 설정
+config4 = create_mcp_config({
+    "cmd": "python server.py",
+    "name": "my-server",
+    "timeout": 60
+})
+```
+
+**Transport 자동 감지 규칙:**
+- `cmd` 또는 `command` 필드 → `stdio` transport
+- `http://` 또는 `https://` URL → `streamable_http` transport
+- `ws://` 또는 `wss://` URL → `websocket` transport
+- URL에 `/sse` 포함 또는 `text/event-stream` 헤더 → `sse` transport
+
 ### 기본 MCP 사용
 
 ```python
 from pyhub.llm import LLM
-from pyhub.llm.mcp import McpStdioConfig
+from pyhub.llm.mcp import McpConfig
 
 # MCP 서버 설정
-mcp_config = McpStdioConfig(
+mcp_config = McpConfig(
     cmd="calculator-server"  # MCP 서버 실행 명령 (name은 서버가 자동 제공)
 )
 
@@ -905,15 +955,29 @@ llm3 = await LLM.create_async(
 ### 여러 MCP 서버 통합
 
 ```python
-from pyhub.llm.mcp import McpStdioConfig, McpStreamableHttpConfig
+from pyhub.llm.mcp import McpConfig, create_mcp_config
 
-# 다양한 MCP 서버 설정
+# 방법 1: 문자열 리스트로 간편 설정
 servers = [
-    McpStdioConfig(
-        cmd="calculator-server"
+    "python calculator.py",  # stdio transport 자동 감지
+    "http://localhost:8080/mcp"  # http transport 자동 감지
+]
+
+# 방법 2: 딕셔너리 리스트로 상세 설정
+servers = [
+    {"cmd": "calculator-server", "name": "calc"},
+    {"url": "http://localhost:8080/mcp", "name": "web-api"}
+]
+
+# 방법 3: McpConfig 객체로 상세 설정
+servers = [
+    McpConfig(
+        cmd="calculator-server",
+        timeout=60
     ),
-    McpStreamableHttpConfig(
-        url="http://localhost:8080/mcp"
+    McpConfig(
+        url="http://localhost:8080/mcp",
+        headers={"Authorization": "Bearer token"}
     )
 ]
 
@@ -937,7 +1001,7 @@ if llm._mcp_tools:
         print(f"- {tool.name}: {tool.description}")
 
 # 특정 도구만 사용하도록 필터링
-filtered_config = McpStdioConfig(
+filtered_config = McpConfig(
     cmd="calculator-server",
     filter_tools=["add", "multiply"]  # 덧셈과 곱셈만 사용
 )
