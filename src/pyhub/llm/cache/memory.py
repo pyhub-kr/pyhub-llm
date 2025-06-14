@@ -71,7 +71,7 @@ class MemoryCache(BaseCache):
 
         self._cache[key] = value
         self._stats["sets"] += 1
-        
+
         if self._debug:
             logger.debug(f"Cache SET: {key}")
 
@@ -100,16 +100,11 @@ class MemoryCache(BaseCache):
         self._expiry.clear()
         if self._debug:
             logger.debug("Cache CLEARED")
-    
+
     @property
     def stats(self) -> dict[str, Any]:
         """Get cache statistics"""
         total_requests = self._stats["hits"] + self._stats["misses"]
         hit_rate = self._stats["hits"] / total_requests if total_requests > 0 else 0.0
-        
-        return {
-            **self._stats,
-            "hit_rate": hit_rate,
-            "total_requests": total_requests,
-            "size": len(self._cache)
-        }
+
+        return {**self._stats, "hit_rate": hit_rate, "total_requests": total_requests, "size": len(self._cache)}

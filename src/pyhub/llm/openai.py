@@ -181,14 +181,16 @@ class OpenAIMixin:
             }
             # structured output을 위해 낮은 temperature 사용
             request_params["temperature"] = 0.1
-        
+
         # schema가 있으면 response_format 추가 (OpenAI Structured Output 사용)
         elif "schema" in input_context:
             schema = input_context["schema"]
             # schema에 시스템 프롬프트 추가
             if system_prompt:
-                system_prompt += f"\n\nYou must return a JSON response that conforms to this schema: {input_context['schema_json']}"
-            
+                system_prompt += (
+                    f"\n\nYou must return a JSON response that conforms to this schema: {input_context['schema_json']}"
+                )
+
             request_params["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {

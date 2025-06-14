@@ -3,12 +3,13 @@
 
 MCP 라이브러리를 활용한 표준 MCP 서버 구현입니다.
 """
+
 import asyncio
+
 import mcp.server.stdio
 import mcp.types as types
 from mcp.server.lowlevel import NotificationOptions, Server
 from mcp.server.models import InitializationOptions
-
 
 # Create a server instance
 server = Server("calculator-server")
@@ -25,10 +26,10 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "a": {"type": "number", "description": "첫 번째 숫자"},
-                    "b": {"type": "number", "description": "두 번째 숫자"}
+                    "b": {"type": "number", "description": "두 번째 숫자"},
                 },
-                "required": ["a", "b"]
-            }
+                "required": ["a", "b"],
+            },
         ),
         types.Tool(
             name="subtract",
@@ -37,10 +38,10 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "a": {"type": "number", "description": "첫 번째 숫자"},
-                    "b": {"type": "number", "description": "두 번째 숫자"}
+                    "b": {"type": "number", "description": "두 번째 숫자"},
                 },
-                "required": ["a", "b"]
-            }
+                "required": ["a", "b"],
+            },
         ),
         types.Tool(
             name="multiply",
@@ -49,10 +50,10 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "a": {"type": "number", "description": "첫 번째 숫자"},
-                    "b": {"type": "number", "description": "두 번째 숫자"}
+                    "b": {"type": "number", "description": "두 번째 숫자"},
                 },
-                "required": ["a", "b"]
-            }
+                "required": ["a", "b"],
+            },
         ),
         types.Tool(
             name="divide",
@@ -61,10 +62,10 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "a": {"type": "number", "description": "나누어지는 수"},
-                    "b": {"type": "number", "description": "나누는 수"}
+                    "b": {"type": "number", "description": "나누는 수"},
                 },
-                "required": ["a", "b"]
-            }
+                "required": ["a", "b"],
+            },
         ),
         types.Tool(
             name="power",
@@ -73,10 +74,10 @@ async def handle_list_tools() -> list[types.Tool]:
                 "type": "object",
                 "properties": {
                     "base": {"type": "number", "description": "밑"},
-                    "exponent": {"type": "number", "description": "지수"}
+                    "exponent": {"type": "number", "description": "지수"},
                 },
-                "required": ["base", "exponent"]
-            }
+                "required": ["base", "exponent"],
+            },
         ),
     ]
 
@@ -88,7 +89,7 @@ async def handle_call_tool(
     """도구를 실행하고 결과를 반환합니다."""
     if not arguments:
         raise ValueError("Arguments are required")
-    
+
     try:
         if name == "add":
             result = arguments["a"] + arguments["b"]
@@ -104,20 +105,10 @@ async def handle_call_tool(
             result = arguments["base"] ** arguments["exponent"]
         else:
             raise ValueError(f"Unknown tool: {name}")
-        
-        return [
-            types.TextContent(
-                type="text",
-                text=str(result)
-            )
-        ]
+
+        return [types.TextContent(type="text", text=str(result))]
     except Exception as e:
-        return [
-            types.TextContent(
-                type="text",
-                text=f"오류: {str(e)}"
-            )
-        ]
+        return [types.TextContent(type="text", text=f"오류: {str(e)}")]
 
 
 async def run():

@@ -175,22 +175,22 @@ class TestStructuredOutput:
     def test_ask_with_markdown_json_response(self):
         """Test handling of JSON wrapped in markdown code blocks"""
         # Google often returns JSON in markdown code blocks
-        markdown_response = '''```json
+        markdown_response = """```json
 {
   "name": "Markdown User",
   "age": 28,
   "email": "markdown@example.com"
 }
-```'''
-        
+```"""
+
         llm = MockLLM(response=markdown_response)
         response = llm.ask("Create a user", schema=SimpleUser)
-        
+
         assert response.has_structured_data
         assert response.structured_data.name == "Markdown User"
         assert response.structured_data.age == 28
         assert response.structured_data.email == "markdown@example.com"
-        
+
     def test_schema_with_optional_fields(self):
         """Test schema with optional fields"""
         # Without optional fields

@@ -123,9 +123,7 @@ class TestDescribeImage:
             )
 
             # Check that ask was called with correct parameters
-            mock_ask.assert_called_once_with(
-                input="Custom prompt", files=["test.jpg"], use_history=True
-            )
+            mock_ask.assert_called_once_with(input="Custom prompt", files=["test.jpg"], use_history=True)
 
             # Check that original values were restored
             assert llm.system_prompt == original_system_prompt
