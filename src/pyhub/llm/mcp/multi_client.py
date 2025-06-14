@@ -62,6 +62,11 @@ class MultiServerMCPClient:
         else:
             self.servers = servers
             
+        # 서버 설정에 None 값이 있는지 검증
+        for server_name, config in self.servers.items():
+            if config is None:
+                raise ValueError(f"Server configuration for '{server_name}' cannot be None")
+            
         self.prefix_tools = prefix_tools
         self._clients: Dict[str, MCPClient] = {}
         self._active_connections: Dict[str, Any] = {}
@@ -94,6 +99,10 @@ class MultiServerMCPClient:
     async def _connect_server(self, server_name: str, config: Dict[str, Any]):
         """개별 서버에 연결 (모든 Transport 지원)"""
         try:
+            # Config 유효성 검사
+            if config is None:
+                raise ValueError(f"Server configuration for '{server_name}' is None")
+            
             # Transport 타입 자동 추론
             from .transports import infer_transport_type
 
