@@ -4,6 +4,8 @@ import shlex
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Literal, Optional, Union
 
+from .policies import MCPConnectionPolicy
+
 __all__ = [
     "McpServerConfig",
     "McpStdioConfig",
@@ -20,6 +22,7 @@ class McpServerConfig:
     description: Optional[str] = None
     filter_tools: Optional[List[str]] = None
     timeout: int = 30
+    policy: MCPConnectionPolicy = MCPConnectionPolicy.OPTIONAL  # 연결 정책
     
     def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
@@ -28,6 +31,7 @@ class McpServerConfig:
             "description": self.description,
             "filter_tools": self.filter_tools,
             "timeout": self.timeout,
+            "policy": self.policy,
         }
 
 
