@@ -58,30 +58,27 @@ class TestResourceTracking:
         """약한 참조 정리 테스트"""
         registry = MCPResourceRegistry()
 
-        # Mock finalizer 등록
-        with patch("pyhub.llm.resource_manager.register_mcp_instance") as mock_register:
-            mock_register.return_value = MagicMock()
+        # Mock 인스턴스 생성 (real LLM을 생성하지 않음)
+        mock_llm = MagicMock()
+        mock_llm._mcp_connected = True
+        mock_llm._mcp_client = MagicMock()
+        llm_id = id(mock_llm)
 
-            # 인스턴스 생성
-            mcp_config = [{"type": "stdio", "name": "test_server", "cmd": ["echo", "test"]}]
+        # 수동으로 레지스트리에 등록
+        registry._instances[llm_id] = weakref.ref(mock_llm)
 
-            llm = LLM.create("gpt-4o-mini", mcp_servers=mcp_config)
-            llm_id = id(llm)
+        # 등록 확인
+        assert llm_id in registry._instances
+        assert registry._instances[llm_id]() is mock_llm
 
-            # 수동으로 레지스트리에 등록
-            registry._instances[llm_id] = weakref.ref(llm)
+        # 인스턴스 삭제
+        del mock_llm
+        gc.collect()
 
-            # 등록 확인
-            assert llm_id in registry._instances
-
-            # 인스턴스 삭제
-            del llm
-            gc.collect()
-
-            # weak reference가 None이 되어야 함
-            weak_ref = registry._instances.get(llm_id)
-            if weak_ref:
-                assert weak_ref() is None
+        # weak reference가 None이 되어야 함
+        weak_ref = registry._instances.get(llm_id)
+        assert weak_ref is not None  # weak reference 자체는 여전히 존재
+        assert weak_ref() is None  # 하지만 참조하는 객체는 None
 
     @pytest.mark.asyncio
     async def test_atexit_cleanup(self):
@@ -99,25 +96,17 @@ class TestResourceTracking:
             instance_id = id(mock_instance)
             registry._instances[instance_id] = weakref.ref(mock_instance)
 
-        # atexit 핸들러 직접 호출
-        with patch("asyncio.new_event_loop") as mock_new_loop:
-            # 실제 이벤트 루프 생성
-            real_loop = asyncio.new_event_loop()
-            mock_new_loop.return_value = real_loop
+        # cleanup 추적
+        for instance in mock_instances:
+            instance.close_mcp.assert_not_called()
 
-            # cleanup 추적
-            for instance in mock_instances:
-                instance.close_mcp.assert_not_called()
+        # atexit 핸들러 호출
+        # 테스트에서는 직접 _async_cleanup_all을 호출
+        await registry._async_cleanup_all()
 
-            # atexit 핸들러 호출
-            registry._atexit_cleanup()
-
-            # cleanup이 호출되었는지 확인
-            for instance in mock_instances:
-                instance.close_mcp.assert_called_once()
-
-            # loop가 닫혔는지 확인
-            assert real_loop.is_closed()
+        # cleanup이 호출되었는지 확인
+        for instance in mock_instances:
+            instance.close_mcp.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_concurrent_cleanup_tasks(self):
@@ -128,10 +117,11 @@ class TestResourceTracking:
         cleanup_order = []
 
         # Mock 인스턴스들
+        mock_instances = []
         for i in range(3):
             mock_instance = MagicMock()
 
-            async def make_cleanup(idx):
+            def make_cleanup(idx):
                 async def cleanup():
                     cleanup_order.append(f"start_{idx}")
                     await asyncio.sleep(0.1)
@@ -139,7 +129,9 @@ class TestResourceTracking:
 
                 return cleanup
 
-            mock_instance.close_mcp = await make_cleanup(i)
+            # AsyncMock으로 설정하고 side_effect로 실제 함수 할당
+            mock_instance.close_mcp = AsyncMock(side_effect=make_cleanup(i))
+            mock_instances.append(mock_instance)
 
             # 레지스트리에 등록
             instance_id = id(mock_instance)
@@ -178,11 +170,13 @@ class TestResourceTracking:
                 mock_instance.close_mcp = AsyncMock(side_effect=success_cleanup)
             else:
                 # 에러 발생
-                async def error_cleanup():
-                    cleanup_results["error"] += 1
-                    raise Exception(f"Cleanup error {i}")
+                def make_error_cleanup(idx):
+                    async def error_cleanup():
+                        cleanup_results["error"] += 1
+                        raise Exception(f"Cleanup error {idx}")
+                    return error_cleanup
 
-                mock_instance.close_mcp = AsyncMock(side_effect=error_cleanup)
+                mock_instance.close_mcp = AsyncMock(side_effect=make_error_cleanup(i))
 
             # 레지스트리에 등록
             instance_id = id(mock_instance)

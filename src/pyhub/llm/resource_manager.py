@@ -65,10 +65,11 @@ class MCPResourceRegistry:
         logger.info(f"Received signal {signum}, initiating graceful shutdown...")
 
         # 비동기 cleanup 시작
-        if asyncio.get_event_loop().is_running():
+        try:
+            loop = asyncio.get_running_loop()
             asyncio.create_task(self._async_cleanup_all())
-        else:
-            # 새 이벤트 루프에서 실행
+        except RuntimeError:
+            # 실행 중인 이벤트 루프가 없는 경우
             asyncio.run(self._async_cleanup_all())
 
         # 원래 핸들러 호출

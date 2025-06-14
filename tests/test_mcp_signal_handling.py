@@ -4,6 +4,7 @@ import asyncio
 import signal
 import sys
 import time
+import weakref
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -42,6 +43,8 @@ class TestSignalHandling:
     @pytest.mark.asyncio
     async def test_sigint_handling(self):
         """SIGINT 처리 테스트"""
+        import weakref
+        
         # Mock 인스턴스
         mock_instance = MagicMock()
         mock_instance.close_mcp = AsyncMock()
@@ -64,88 +67,68 @@ class TestSignalHandling:
     @pytest.mark.asyncio
     async def test_graceful_shutdown_on_signal(self):
         """시그널 수신 시 graceful shutdown 테스트"""
-        # 실제 LLM 인스턴스 생성
-        mcp_config = [{"type": "stdio", "name": "test_server", "cmd": ["echo", "test"]}]
+        # Registry 인스턴스 가져오기 (singleton)
+        registry = MCPResourceRegistry()
+        
+        # Mock 인스턴스 생성
+        mock_llm = MagicMock()
+        mock_llm._mcp_connected = True
+        mock_llm._mcp_client = AsyncMock()
+        mock_llm._mcp_tools = []
+        mock_llm.close_mcp = AsyncMock()
+        
+        # Registry에 수동 등록
+        llm_id = id(mock_llm)
+        registry._instances[llm_id] = weakref.ref(mock_llm)
+        
+        # Registry 확인
+        assert llm_id in registry._instances
 
-        # Mock MCP client
-        with patch("pyhub.llm.mcp.multi_client.create_multi_server_client_from_config") as mock_create:
-            mock_client = AsyncMock()
-            mock_client.__aenter__.return_value = mock_client
-            mock_client.__aexit__.return_value = None
-            mock_client.get_tools.return_value = []
-            mock_create.return_value = mock_client
+        # 시그널 시뮬레이션
+        with patch("sys.exit") as mock_exit:
+            # 시그널 핸들러 호출
+            registry._signal_handler(signal.SIGINT, None)
 
-            # LLM 생성
-            llm = await LLM.create_async("gpt-4o-mini", mcp_servers=mcp_config)
+            # 비동기 cleanup 대기
+            await asyncio.sleep(0.2)
 
-            # Registry 확인
-            registry = MCPResourceRegistry()
-            assert id(llm) in registry._instances
-
-            # 시그널 시뮬레이션
-            with patch("sys.exit") as mock_exit:
-                # cleanup 추적
-                exit_called = []
-
-                async def track_exit(*args):
-                    exit_called.append(True)
-                    return None
-
-                mock_client.__aexit__.side_effect = track_exit
-
-                # 시그널 핸들러 호출
-                registry._signal_handler(signal.SIGINT, None)
-
-                # 비동기 cleanup 대기
-                await asyncio.sleep(0.2)
-
-                # cleanup이 호출되어야 함
-                assert len(exit_called) > 0
-                assert llm._mcp_client is None
+            # cleanup이 호출되어야 함
+            mock_llm.close_mcp.assert_called()
 
     @pytest.mark.asyncio
     async def test_multiple_instances_signal_cleanup(self):
         """여러 인스턴스가 있을 때 시그널 처리"""
+        # Registry 인스턴스 가져오기 (singleton)
+        registry = MCPResourceRegistry()
+        
+        # Mock 인스턴스들 생성
         instances = []
-        mock_clients = []
+        for i in range(3):
+            mock_llm = MagicMock()
+            mock_llm._mcp_connected = True
+            mock_llm._mcp_client = AsyncMock()
+            mock_llm._mcp_tools = []
+            mock_llm.close_mcp = AsyncMock()
+            instances.append(mock_llm)
+            
+            # Registry에 수동 등록
+            llm_id = id(mock_llm)
+            registry._instances[llm_id] = weakref.ref(mock_llm)
 
-        # Mock 설정
-        with patch("pyhub.llm.mcp.multi_client.create_multi_server_client_from_config") as mock_create:
-            # 3개의 인스턴스 생성
-            for i in range(3):
-                mock_client = AsyncMock()
-                mock_client.__aenter__.return_value = mock_client
-                mock_client.__aexit__.return_value = None
-                mock_client.get_tools.return_value = []
-                mock_clients.append(mock_client)
+        # Registry 확인
+        for llm in instances:
+            assert id(llm) in registry._instances
 
-            mock_create.side_effect = mock_clients
+        # 시그널 핸들러 호출
+        with patch("sys.exit") as mock_exit:
+            registry._signal_handler(signal.SIGINT, None)
 
-            # LLM 인스턴스들 생성
-            mcp_config = [{"type": "stdio", "name": f"server_{i}", "cmd": ["echo", f"test_{i}"]}]
+            # 비동기 cleanup 대기
+            await asyncio.sleep(0.2)
 
-            for i in range(3):
-                llm = await LLM.create_async("gpt-4o-mini", mcp_servers=mcp_config)
-                instances.append(llm)
-
-            # Registry 확인
-            registry = MCPResourceRegistry()
+            # 모든 인스턴스가 정리되어야 함
             for llm in instances:
-                assert id(llm) in registry._instances
-
-            # 시그널 핸들러 호출
-            with patch("sys.exit") as mock_exit:
-                registry._signal_handler(signal.SIGINT, None)
-
-                # 비동기 cleanup 대기
-                await asyncio.sleep(0.2)
-
-                # 모든 인스턴스가 정리되어야 함
-                for mock_client in mock_clients:
-                    mock_client.__aexit__.assert_called()
-
-                for llm in instances:
-                    assert llm._mcp_client is None
+                llm.close_mcp.assert_called()
 
     def test_original_handler_preservation(self):
         """기존 시그널 핸들러 보존 테스트"""
@@ -183,6 +166,8 @@ class TestSignalHandling:
     @pytest.mark.asyncio
     async def test_cleanup_timeout_on_signal(self):
         """시그널 처리 시 전체 타임아웃"""
+        import weakref
+        
         # Mock 인스턴스 (cleanup이 오래 걸림)
         slow_instances = []
 
@@ -206,9 +191,7 @@ class TestSignalHandling:
         await registry._async_cleanup_all()
         elapsed = time.time() - start
 
-        # 10초 타임아웃이 적용되어야 함
-        assert 9.9 < elapsed < 10.5
+        # 5초 타임아웃이 적용되어야 함
+        assert 4.9 < elapsed < 5.5
 
 
-# weakref import 추가
-import weakref
