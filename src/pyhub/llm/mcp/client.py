@@ -4,7 +4,7 @@ import logging
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional, Union
 
-from .configs import McpServerConfig
+from .configs import McpConfig
 from .transports import create_transport
 
 logger = logging.getLogger(__name__)
@@ -17,16 +17,16 @@ class MCPClient:
         _server_info: 서버가 제공하는 정보 (name, version)
     """
 
-    def __init__(self, server_params_or_config: Union[Any, Dict[str, Any], McpServerConfig]):
+    def __init__(self, server_params_or_config: Union[Any, Dict[str, Any], McpConfig]):
         """
         Args:
             server_params_or_config: MCP 서버 연결 설정
-                - McpServerConfig: 새로운 dataclass 방식 (권장)
+                - McpConfig: 새로운 dataclass 방식 (권장)
                 - Dict[str, Any]: 기존 dict 방식
                 - StdioServerParameters: 레거시 방식
         """
-        # McpServerConfig 처리
-        if isinstance(server_params_or_config, McpServerConfig):
+        # McpConfig 처리
+        if isinstance(server_params_or_config, McpConfig):
             config_dict = server_params_or_config.to_dict()
             self.server_params = None
             self.transport = create_transport(config_dict)

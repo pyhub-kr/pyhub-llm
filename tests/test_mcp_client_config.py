@@ -5,7 +5,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from pyhub.llm.mcp import MCPClient
-from pyhub.llm.mcp.configs import McpStdioConfig, McpStreamableHttpConfig
+from pyhub.llm.mcp.configs import McpConfig
 
 
 class TestMCPClientConfig:
@@ -14,14 +14,14 @@ class TestMCPClientConfig:
     def test_mcpclient_with_dataclass_config(self):
         """Dataclass config로 MCPClient 생성"""
         # STDIO config
-        stdio_config = McpStdioConfig(name="test_calculator", cmd="python calculator.py")
+        stdio_config = McpConfig(name="test_calculator", cmd="python calculator.py")
 
         client = MCPClient(stdio_config)
         assert client.transport is not None
         assert client.server_params is None
 
         # HTTP config
-        http_config = McpStreamableHttpConfig(name="test_http", url="http://localhost:8080/mcp")
+        http_config = McpConfig(name="test_http", url="http://localhost:8080/mcp")
 
         client = MCPClient(http_config)
         assert client.transport is not None
@@ -30,14 +30,14 @@ class TestMCPClientConfig:
     def test_mcpclient_without_name(self):
         """name 없이 MCPClient 생성"""
         # name 없는 STDIO config
-        stdio_config = McpStdioConfig(cmd="python calculator.py")
+        stdio_config = McpConfig(cmd="python calculator.py")
 
         client = MCPClient(stdio_config)
         assert client.transport is not None
         assert client.server_params is None
 
         # name 없는 HTTP config
-        http_config = McpStreamableHttpConfig(url="http://localhost:8080/mcp")
+        http_config = McpConfig(url="http://localhost:8080/mcp")
 
         client = MCPClient(http_config)
         assert client.transport is not None
@@ -64,25 +64,24 @@ class TestMCPClientConfig:
 
     def test_config_to_dict_conversion(self):
         """Config의 to_dict() 메서드 테스트"""
-        config = McpStdioConfig(name="test", cmd=["python", "server.py", "--port", "8080"], description="Test server")
+        config = McpConfig(name="test", cmd=["python", "server.py", "--port", "8080"])
 
         config_dict = config.to_dict()
 
         assert config_dict["transport"] == "stdio"
         assert config_dict["command"] == "python"
         assert config_dict["args"] == ["server.py", "--port", "8080"]
-        assert config_dict["description"] == "Test server"
 
     def test_cmd_parsing_string(self):
         """문자열 cmd 파싱 테스트"""
-        config = McpStdioConfig(name="test", cmd="python '/path/to/my server.py' --config 'config.json'")
+        config = McpConfig(name="test", cmd="python '/path/to/my server.py' --config 'config.json'")
 
         assert config.command == "python"
         assert config.args == ["/path/to/my server.py", "--config", "config.json"]
 
     def test_cmd_parsing_list(self):
         """리스트 cmd 파싱 테스트"""
-        config = McpStdioConfig(name="test", cmd=["python", "/path/to/server.py", "--config", "config.json"])
+        config = McpConfig(name="test", cmd=["python", "/path/to/server.py", "--config", "config.json"])
 
         assert config.command == "python"
         assert config.args == ["/path/to/server.py", "--config", "config.json"]
@@ -90,7 +89,7 @@ class TestMCPClientConfig:
     @pytest.mark.asyncio
     async def test_mcpclient_connect_with_config(self):
         """Config를 사용한 MCPClient 연결 테스트"""
-        config = McpStdioConfig(name="test", cmd="echo test")
+        config = McpConfig(name="test", cmd="echo test")
 
         # Mock transport and session
         mock_transport = MagicMock()

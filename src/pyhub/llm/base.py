@@ -63,7 +63,7 @@ class BaseLLM(abc.ABC):
         api_key: Optional[str] = None,
         tools: Optional[list] = None,
         cache: Optional[BaseCache] = None,
-        mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpServerConfig"]], "McpServerConfig"]] = None,
+        mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpConfig"]], "McpConfig"]] = None,
         mcp_policy: Optional["MCPConnectionPolicy"] = None,
     ):
         self.model = model
@@ -77,7 +77,7 @@ class BaseLLM(abc.ABC):
         self.api_key = api_key
         self.cache = cache
 
-        # MCP 설정 처리 (파일 경로, dict, list, McpServerConfig 지원)
+        # MCP 설정 처리 (파일 경로, dict, list, McpConfig 지원)
         self.mcp_servers = self._process_mcp_servers(mcp_servers)
         self.mcp_policy = mcp_policy
         self._mcp_client = None
@@ -99,7 +99,7 @@ class BaseLLM(abc.ABC):
 
             self._finalizer = register_mcp_instance(self)
 
-    def _process_mcp_servers(self, mcp_servers) -> List["McpServerConfig"]:
+    def _process_mcp_servers(self, mcp_servers) -> List["McpConfig"]:
         """MCP 서버 설정을 처리합니다."""
         if not mcp_servers:
             return []
@@ -125,10 +125,10 @@ class BaseLLM(abc.ABC):
 
                 return load_mcp_config(mcp_servers)
             else:
-                # McpServerConfig 인스턴스 리스트인 경우 그대로 반환
+                # McpConfig 인스턴스 리스트인 경우 그대로 반환
                 return mcp_servers
 
-        # 단일 McpServerConfig 인스턴스인 경우
+        # 단일 McpConfig 인스턴스인 경우
         else:
             return [mcp_servers]
 

@@ -5,8 +5,8 @@ import os
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from .config_loader import load_mcp_config, normalize_mcp_config, validate_mcp_config
-from .configs import McpServerConfig
+from .config_loader import load_mcp_config
+from .configs import McpConfig, create_mcp_config
 
 
 class MCPConfigLoader:
@@ -35,7 +35,7 @@ class MCPConfigLoader:
         return None
 
     @staticmethod
-    def load_from_default_file() -> List[McpServerConfig]:
+    def load_from_default_file() -> List[McpConfig]:
         """기본 설정 파일에서 로드"""
         for config_path in MCPConfigLoader.DEFAULT_CONFIG_PATHS:
             if config_path.exists():
@@ -46,12 +46,12 @@ class MCPConfigLoader:
         return []
 
     @staticmethod
-    def load_from_file(file_path: Union[str, Path]) -> List[McpServerConfig]:
+    def load_from_file(file_path: Union[str, Path]) -> List[McpConfig]:
         """지정된 파일에서 로드"""
         return load_mcp_config(file_path)
 
     @staticmethod
-    def load_from_json(json_str: str) -> List[McpServerConfig]:
+    def load_from_json(json_str: str) -> List[McpConfig]:
         """JSON 문자열에서 로드"""
         try:
             data = json.loads(json_str)
@@ -63,7 +63,7 @@ class MCPConfigLoader:
             raise ValueError(f"Invalid JSON: {e}")
 
     @staticmethod
-    def load_from_environment() -> List[McpServerConfig]:
+    def load_from_environment() -> List[McpConfig]:
         """환경변수에서 MCP 설정 로드"""
         configs = []
 
@@ -98,54 +98,72 @@ class MCPConfigLoader:
 
     @staticmethod
     def load_from_cli_args(
-        mcp_stdio: Optional[List[str]] = None, mcp_sse: Optional[List[str]] = None, mcp_http: Optional[List[str]] = None
-    ) -> List[McpServerConfig]:
+        mcp_stdio: Optional[List[str]] = None, 
+        mcp_sse: Optional[List[str]] = None, 
+        mcp_http: Optional[List[str]] = None
+    ) -> List[McpConfig]:
         """CLI 인자에서 MCP 설정 생성"""
         configs = []
 
         # stdio 타입 서버
         if mcp_stdio:
             for idx, cmd in enumerate(mcp_stdio):
-                config_dict = {"type": "stdio", "name": f"stdio-{idx}", "cmd": cmd}
                 try:
-                    validate_mcp_config(config_dict)
-                    normalized = normalize_mcp_config(config_dict)
-                    configs.extend(load_mcp_config([normalized]))
+                    config = create_mcp_config({
+                        "transport": "stdio", 
+                        "name": f"stdio-{idx}", 
+                        "cmd": cmd
+                    })
+                    configs.append(config)
                 except Exception:
                     pass
 
         # sse 타입 서버
         if mcp_sse:
             for idx, url in enumerate(mcp_sse):
-                config_dict = {"type": "sse", "name": f"sse-{idx}", "url": url}
                 try:
-                    validate_mcp_config(config_dict)
-                    normalized = normalize_mcp_config(config_dict)
-                    configs.extend(load_mcp_config([normalized]))
+                    config = create_mcp_config({
+                        "transport": "sse", 
+                        "name": f"sse-{idx}", 
+                        "url": url
+                    })
+                    configs.append(config)
                 except Exception:
                     pass
 
         # streamable_http 타입 서버 (--mcp-http)
         if mcp_http:
             for idx, url in enumerate(mcp_http):
-                config_dict = {"type": "streamable_http", "name": f"http-{idx}", "url": url}
                 try:
-                    validate_mcp_config(config_dict)
-                    normalized = normalize_mcp_config(config_dict)
-                    configs.extend(load_mcp_config([normalized]))
+                    config = create_mcp_config({
+                        "transport": "streamable_http", 
+                        "name": f"http-{idx}", 
+                        "url": url
+                    })
+                    configs.append(config)
                 except Exception:
                     pass
 
         return configs
 
     @staticmethod
-    def merge_configs(*config_lists: List[McpServerConfig]) -> Dict[str, McpServerConfig]:
+    def merge_configs(*config_lists: List[McpConfig]) -> Dict[str, McpConfig]:
         """여러 설정 리스트를 병합 (나중 것이 우선)"""
         merged = {}
 
         for config_list in config_lists:
             for config in config_list:
-                # 서버 이름을 키로 사용하여 병합
-                merged[config.name] = config
+                # 서버 이름을 키로 사용하여 병합 (이름이 없으면 transport_index 형태로 생성)
+                if config.name:
+                    key = config.name
+                else:
+                    # 이름이 없는 경우 transport와 인덱스로 키 생성
+                    base_key = f"{config.transport}"
+                    key = base_key
+                    idx = 1
+                    while key in merged:
+                        key = f"{base_key}_{idx}"
+                        idx += 1
+                merged[key] = config
 
         return merged

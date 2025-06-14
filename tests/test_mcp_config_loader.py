@@ -11,15 +11,8 @@ try:
 except ImportError:
     HAS_YAML = False
 
-from pyhub.llm.mcp import (
-    McpSseConfig,
-    McpStdioConfig,
-    McpStreamableHttpConfig,
-    McpWebSocketConfig,
-)
-from pyhub.llm.mcp.config_loader import (
-    load_mcp_config,
-)
+from pyhub.llm.mcp import McpConfig
+from pyhub.llm.mcp.config_loader import load_mcp_config
 
 
 class TestMCPConfigLoader:
@@ -29,8 +22,8 @@ class TestMCPConfigLoader:
         """JSON 파일에서 MCP 설정 로드"""
         config_data = {
             "mcpServers": [
-                {"type": "stdio", "name": "calculator", "cmd": "python calculator.py", "description": "계산기"},
-                {"type": "streamable_http", "name": "web", "url": "http://localhost:8888/mcp"},
+                {"cmd": "python calculator.py", "name": "calculator"},
+                {"url": "http://localhost:8888/mcp", "name": "web"},
             ]
         }
 
@@ -41,10 +34,12 @@ class TestMCPConfigLoader:
         try:
             configs = load_mcp_config(temp_path)
             assert len(configs) == 2
-            assert isinstance(configs[0], McpStdioConfig)
+            assert isinstance(configs[0], McpConfig)
+            assert configs[0].transport == "stdio"
             assert configs[0].name == "calculator"
             assert configs[0].cmd == "python calculator.py"
-            assert isinstance(configs[1], McpStreamableHttpConfig)
+            assert isinstance(configs[1], McpConfig)
+            assert configs[1].transport == "streamable_http"
             assert configs[1].name == "web"
             assert configs[1].url == "http://localhost:8888/mcp"
         finally:
@@ -55,13 +50,11 @@ class TestMCPConfigLoader:
         """YAML 파일에서 MCP 설정 로드"""
         yaml_content = """
 mcpServers:
-  - type: stdio
+  - cmd: pyhub-llm mcp-server run calculator
     name: calculator
-    cmd: pyhub-llm mcp-server run calculator
     timeout: 60
-  - type: websocket
+  - url: ws://localhost:8080/ws
     name: ws_server
-    url: ws://localhost:8080/ws
 """
 
         with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
@@ -71,102 +64,121 @@ mcpServers:
         try:
             configs = load_mcp_config(temp_path)
             assert len(configs) == 2
-            assert isinstance(configs[0], McpStdioConfig)
+            assert isinstance(configs[0], McpConfig)
+            assert configs[0].transport == "stdio"
+            assert configs[0].name == "calculator"
+            assert configs[0].cmd == "pyhub-llm mcp-server run calculator"
             assert configs[0].timeout == 60
-            assert isinstance(configs[1], McpWebSocketConfig)
+            assert isinstance(configs[1], McpConfig)
+            assert configs[1].transport == "websocket"
+            assert configs[1].name == "ws_server"
+            assert configs[1].url == "ws://localhost:8080/ws"
         finally:
             Path(temp_path).unlink()
 
     def test_load_from_dict(self):
-        """dict에서 직접 MCP 설정 로드"""
-        config_dict = {"mcpServers": [{"type": "sse", "name": "sse_server", "url": "http://localhost:8080/sse"}]}
-
-        configs = load_mcp_config(config_dict)
-        assert len(configs) == 1
-        assert isinstance(configs[0], McpSseConfig)
-
-    def test_load_from_list(self):
-        """리스트에서 직접 MCP 설정 로드"""
-        config_list = [{"type": "stdio", "name": "test", "cmd": "test command"}]
-
-        configs = load_mcp_config(config_list)
-        assert len(configs) == 1
-        assert isinstance(configs[0], McpStdioConfig)
-
-    def test_type_conversion(self):
-        """타입 자동 변환 테스트"""
-        config_dict = {
+        """딕셔너리에서 MCP 설정 로드"""
+        config_data = {
             "mcpServers": [
-                {
-                    "type": "stdio",
-                    "name": "test",
-                    "cmd": "test",
-                    "timeout": "30",  # 문자열 -> 숫자
-                    "filter_tools": "tool1,tool2,tool3",  # 문자열 -> 리스트
-                }
+                {"cmd": "python server.py", "name": "test1"},
+                {"url": "http://localhost:8080", "name": "test2"},
+                {"url": "ws://localhost:8080", "name": "test3"},
             ]
         }
 
-        configs = load_mcp_config(config_dict)
-        assert configs[0].timeout == 30
-        assert configs[0].filter_tools == ["tool1", "tool2", "tool3"]
+        configs = load_mcp_config(config_data)
+        assert len(configs) == 3
+        assert configs[0].transport == "stdio"
+        assert configs[1].transport == "streamable_http"
+        assert configs[2].transport == "websocket"
+
+    def test_load_from_list(self):
+        """리스트에서 MCP 설정 로드"""
+        config_list = [
+            {"cmd": "python server.py", "name": "test1"},
+            {"url": "http://localhost:8080", "name": "test2"},
+        ]
+
+        configs = load_mcp_config(config_list)
+        assert len(configs) == 2
+        assert configs[0].transport == "stdio"
+        assert configs[1].transport == "streamable_http"
+
+    def test_type_conversion(self):
+        """type 필드를 transport로 변환"""
+        config_data = {
+            "mcpServers": [
+                {"type": "stdio", "cmd": "python server.py", "name": "test"},
+                {"type": "streamable_http", "url": "http://localhost:8080", "name": "test2"},
+            ]
+        }
+
+        configs = load_mcp_config(config_data)
+        assert len(configs) == 2
+        assert configs[0].transport == "stdio"
+        assert configs[1].transport == "streamable_http"
 
     def test_validation_missing_required_field(self):
         """type 필드 누락 시 에러 (name은 이제 선택적)"""
         config_dict = {
             "mcpServers": [
                 {
-                    # type 필드 누락
-                    "cmd": "test"
+                    # cmd와 url 모두 누락
+                    "name": "test"
                 }
             ]
         }
 
-        with pytest.raises(ValueError, match="Missing required field 'type'"):
+        with pytest.raises(ValueError, match="'cmd', 'command', 또는 'url' 중 하나는 반드시 지정되어야 합니다"):
             load_mcp_config(config_dict)
 
     def test_validation_invalid_type(self):
-        """잘못된 type 값"""
-        config_dict = {"mcpServers": [{"type": "invalid_type", "name": "test", "cmd": "test"}]}
-
-        with pytest.raises(ValueError, match="Invalid type"):
-            load_mcp_config(config_dict)
+        """잘못된 설정 타입"""
+        with pytest.raises(TypeError):
+            load_mcp_config(123)
 
     def test_validation_missing_cmd_for_stdio(self):
-        """stdio 타입에서 cmd 필드 누락"""
+        """stdio transport에 cmd 누락"""
         config_dict = {
             "mcpServers": [
                 {
-                    "type": "stdio",
-                    "name": "test",
-                    # cmd 필드 누락
+                    "transport": "stdio",
+                    "name": "test"
+                    # cmd 누락
                 }
             ]
         }
 
-        with pytest.raises(ValueError, match="'cmd' is required for stdio type"):
+        with pytest.raises(ValueError, match="stdio transport에는 'cmd' 또는 'command' 필드가 필요합니다"):
             load_mcp_config(config_dict)
 
     def test_validation_missing_url_for_http(self):
-        """HTTP 타입에서 url 필드 누락"""
+        """http transport에 url 누락"""
         config_dict = {
             "mcpServers": [
                 {
-                    "type": "streamable_http",
-                    "name": "test",
-                    # url 필드 누락
+                    "transport": "streamable_http",
+                    "name": "test"
+                    # url 누락
                 }
             ]
         }
 
-        with pytest.raises(ValueError, match="'url' is required for streamable_http type"):
+        with pytest.raises(ValueError, match="streamable_http transport에는 'url' 필드가 필요합니다"):
             load_mcp_config(config_dict)
 
     def test_validation_invalid_url_format(self):
         """잘못된 URL 형식"""
-        config_dict = {"mcpServers": [{"type": "streamable_http", "name": "test", "url": "not a valid url"}]}
+        config_dict = {
+            "mcpServers": [
+                {
+                    "url": "invalid-url",
+                    "name": "test"
+                }
+            ]
+        }
 
-        with pytest.raises(ValueError, match="Invalid URL format"):
+        with pytest.raises(ValueError, match="지원하지 않는 URL 스키마"):
             load_mcp_config(config_dict)
 
     def test_env_normalization(self):
@@ -174,17 +186,16 @@ mcpServers:
         config_dict = {
             "mcpServers": [
                 {
-                    "type": "stdio",
+                    "cmd": "python server.py",
                     "name": "test",
-                    "cmd": "test",
-                    "env": {"PATH": "/usr/bin", "NUMBER": 123},  # 숫자 -> 문자열
+                    "env": {"DEBUG": "1", "PORT": "8080"},
                 }
             ]
         }
 
         configs = load_mcp_config(config_dict)
-        assert configs[0].env["PATH"] == "/usr/bin"
-        assert configs[0].env["NUMBER"] == "123"
+        assert len(configs) == 1
+        assert configs[0].env == {"DEBUG": "1", "PORT": "8080"}
 
     def test_file_not_found(self):
         """존재하지 않는 파일"""
@@ -194,7 +205,7 @@ mcpServers:
     def test_invalid_json(self):
         """잘못된 JSON 파일"""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
-            f.write("{ invalid json")
+            f.write("invalid json content")
             temp_path = f.name
 
         try:
@@ -205,34 +216,37 @@ mcpServers:
 
     def test_empty_config(self):
         """빈 설정"""
-        config_dict = {"mcpServers": []}
-        configs = load_mcp_config(config_dict)
-        assert configs == []
+        configs = load_mcp_config([])
+        assert len(configs) == 0
 
     def test_mixed_llm_and_mcp_config(self):
-        """LLM 설정과 MCP 설정이 함께 있는 경우"""
+        """LLM과 MCP 설정이 혼재된 경우"""
+        config_data = {
+            "llm": {"model": "gpt-4"},
+            "mcpServers": [
+                {"cmd": "python server.py", "name": "test"},
+            ],
+        }
+
+        configs = load_mcp_config(config_data)
+        assert len(configs) == 1
+        assert configs[0].name == "test"
+
+    def test_command_args_conversion(self):
+        """command + args를 cmd로 변환"""
         config_dict = {
-            "model": "gpt-4o-mini",
-            "temperature": 0.7,
-            "mcpServers": [{"type": "stdio", "name": "calc", "cmd": "python calc.py"}],
-            "cache": {"type": "memory", "ttl": 3600},
+            "mcpServers": [
+                {
+                    "transport": "stdio",
+                    "command": "python",
+                    "args": ["server.py", "--port", "8080"],
+                    "name": "test"
+                }
+            ]
         }
 
         configs = load_mcp_config(config_dict)
         assert len(configs) == 1
-        assert configs[0].name == "calc"
-
-    def test_normalize_filter_tools(self):
-        """filter_tools 정규화 테스트"""
-        test_cases = [
-            ("tool1,tool2,tool3", ["tool1", "tool2", "tool3"]),
-            ("tool1, tool2, tool3", ["tool1", "tool2", "tool3"]),  # 공백 처리
-            (["tool1", "tool2"], ["tool1", "tool2"]),  # 이미 리스트인 경우
-            (None, None),  # None 값
-        ]
-
-        for input_val, expected in test_cases:
-            config_dict = {"mcpServers": [{"type": "stdio", "name": "test", "cmd": "test", "filter_tools": input_val}]}
-
-            configs = load_mcp_config(config_dict)
-            assert configs[0].filter_tools == expected
+        assert configs[0].cmd == ["python", "server.py", "--port", "8080"]
+        assert configs[0].command == "python"
+        assert configs[0].args == ["server.py", "--port", "8080"]
