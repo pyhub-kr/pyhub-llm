@@ -2,7 +2,9 @@
 
 import shlex
 from dataclasses import dataclass, field
-from typing import Dict, List, Literal, Optional, Union
+from typing import Any, Dict, List, Literal, Optional, Union
+
+from .policies import MCPConnectionPolicy
 
 __all__ = [
     "McpServerConfig",
@@ -20,14 +22,16 @@ class McpServerConfig:
     description: Optional[str] = None
     filter_tools: Optional[List[str]] = None
     timeout: int = 30
+    policy: MCPConnectionPolicy = MCPConnectionPolicy.OPTIONAL  # 연결 정책
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         return {
             "transport": getattr(self, "transport", None),
             "description": self.description,
             "filter_tools": self.filter_tools,
             "timeout": self.timeout,
+            "policy": self.policy,
         }
 
 
@@ -89,7 +93,7 @@ class McpStdioConfig(McpServerConfig):
         """명령어 인자들"""
         return self._args
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         result = super().to_dict()
         result.update({
@@ -116,7 +120,7 @@ class McpStreamableHttpConfig(McpServerConfig):
     transport: Literal["streamable_http"] = "streamable_http"
     headers: Optional[Dict[str, str]] = None
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         result = super().to_dict()
         result.update({
@@ -140,7 +144,7 @@ class McpWebSocketConfig(McpServerConfig):
     transport: Literal["websocket"] = "websocket"
     headers: Optional[Dict[str, str]] = None
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         result = super().to_dict()
         result.update({
@@ -164,7 +168,7 @@ class McpSseConfig(McpServerConfig):
     transport: Literal["sse"] = "sse"
     headers: Optional[Dict[str, str]] = None
     
-    def to_dict(self) -> Dict[str, any]:
+    def to_dict(self) -> Dict[str, Any]:
         """설정을 딕셔너리로 변환"""
         result = super().to_dict()
         result.update({

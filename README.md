@@ -1225,7 +1225,78 @@ servers = {
 multi_client = MultiServerMCPClient(servers)
 ```
 
-#### 고급 사용법: 다양한 전송 방식
+#### 6. MCP 연결 정책 설정하기
+
+MCP 서버 연결이 실패할 때의 동작을 정책으로 제어할 수 있습니다:
+
+```python
+from pyhub.llm import LLM
+from pyhub.llm.mcp import McpStdioConfig, MCPConnectionPolicy
+
+# 1. OPTIONAL (기본값) - MCP 연결 실패해도 LLM은 계속 작동
+llm = await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=McpStdioConfig(
+        name="optional_tool",
+        cmd="optional-mcp-server"
+    )
+    # mcp_policy 생략 시 기본값은 OPTIONAL
+)
+
+# 2. REQUIRED - MCP 연결이 필수, 실패 시 예외 발생
+try:
+    llm = await LLM.create_async(
+        "gpt-4o-mini",
+        mcp_servers=McpStdioConfig(
+            name="critical_tool",
+            cmd="required-mcp-server"
+        ),
+        mcp_policy=MCPConnectionPolicy.REQUIRED
+    )
+except MCPConnectionError as e:
+    print(f"MCP 연결 실패: {e}")
+    print(f"실패한 서버: {e.failed_servers}")
+
+# 3. WARN - MCP 연결 실패 시 경고만 표시
+llm = await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=McpStdioConfig(
+        name="optional_tool",
+        cmd="optional-mcp-server"
+    ),
+    mcp_policy=MCPConnectionPolicy.WARN
+)
+```
+
+정책별 동작:
+- **OPTIONAL**: MCP 연결 실패를 무시하고 LLM 사용 가능 (기본값)
+- **REQUIRED**: MCP 연결 실패 시 `MCPConnectionError` 예외 발생
+- **WARN**: MCP 연결 실패 시 경고 로그만 출력하고 계속 진행
+
+여러 MCP 서버 사용 시:
+```python
+# 여러 서버 중 하나라도 실패하면 정책이 적용됨
+servers = [
+    McpStdioConfig(name="tool1", cmd="mcp-tool1"),
+    McpStdioConfig(name="tool2", cmd="mcp-tool2"),
+]
+
+# REQUIRED 정책: 모든 서버가 연결되어야 함
+llm = await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=servers,
+    mcp_policy=MCPConnectionPolicy.REQUIRED
+)
+
+# WARN 정책: 일부 실패해도 경고만 표시
+llm = await LLM.create_async(
+    "gpt-4o-mini",
+    mcp_servers=servers,
+    mcp_policy=MCPConnectionPolicy.WARN
+)
+```
+
+#### 7. 고급 사용법: 다양한 전송 방식
 
 MCP는 다양한 전송 방식을 지원합니다:
 
