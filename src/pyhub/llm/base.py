@@ -306,15 +306,36 @@ class BaseLLM(abc.ABC):
         Returns:
             (choice, index, confidence) 튜플
         """
+        import re
+
         # JSON 응답 파싱 시도 (OpenAI, Google 등)
         try:
             import json
 
-            data = json.loads(text)
+            # 먼저 원본 텍스트로 파싱 시도 (strict=False로 제어 문자 허용)
+            try:
+                data = json.loads(text, strict=False)
+            except json.JSONDecodeError:
+                # 파싱 실패 시 제어 문자 제거 후 재시도
+                # 제어 문자와 그 뒤의 반복되는 패턴 제거
+                text_cleaned = re.sub(r"[\x00-\x1f\x7f]+[0-9\x00-\x1f\x7f]*", "", text)
+                data = json.loads(text_cleaned)
+
             if isinstance(data, dict) and "choice" in data:
                 choice = data["choice"]
+                # choice 값에서 제어 문자와 뒤따르는 잘못된 문자들 제거
+                # 예: "\u001cA/S\u001d0\u001d\u001d" → "A/S요청"
+                choice = re.sub(r"[\x00-\x1f\x7f]+[0-9\x00-\x1f\x7f]*", "", choice)
+
+                # choices에서 정확한 매칭 찾기
                 if choice in choices:
                     return choice, choices.index(choice), data.get("confidence", 1.0)
+
+                # 부분 매칭 시도 (제어 문자로 인해 잘린 경우)
+                for i, candidate in enumerate(choices):
+                    if candidate.startswith(choice) or choice in candidate:
+                        return candidate, i, data.get("confidence", 0.8)
+
         except (json.JSONDecodeError, KeyError, TypeError):
             pass
 
