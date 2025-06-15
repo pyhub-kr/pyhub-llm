@@ -219,7 +219,7 @@ class TestMCPCleanupScenarios:
         # 모든 인스턴스가 정리되었는지 확인
         for llm in mock_instances:
             # _async_cleanup_all이 close_mcp_connection을 호출했는지 확인
-            if hasattr(llm, 'close_mcp_connection'):
+            if hasattr(llm, "close_mcp_connection"):
                 llm._mcp_client.disconnect.assert_called_once()
 
     @pytest.mark.asyncio
@@ -240,7 +240,7 @@ class TestMCPCleanupScenarios:
                     mock_multi_client._connection_errors = {}
                     mock_multi_client.get_tools = AsyncMock(return_value=[])
                     MockMultiServerMCPClient.return_value = mock_multi_client
-                    
+
                     mcp_config = [{"type": "stdio", "name": f"test_{i}", "cmd": ["echo", "test"]}]
 
                     llm = LLM.create("gpt-4o-mini", mcp_servers=mcp_config)

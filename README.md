@@ -23,6 +23,7 @@ pyhub-llm의 모든 기능을 자세히 알아보려면 CHEATSHEET.md를 참고�
 - 📷 **이미지 처리**: 이미지 설명 및 분석 기능
 - ⚡ **비동기 지원**: 동기/비동기 모두 지원
 - 🔗 **체이닝**: 여러 LLM을 연결하여 복잡한 워크플로우 구성
+- 💾 **대화 히스토리 백업**: 대화 내역을 외부 저장소에 백업 및 복원
 
 ## 설치
 
@@ -297,6 +298,42 @@ reply = llm.ask("서울 날씨 알려줘", tools=[get_weather])
 > - MCP 통합
 > - 웹 프레임워크 통합 (FastAPI, Django)
 > - 에러 처리 및 재시도
+> - 대화 히스토리 백업 및 복원
+
+### 4. 대화 히스토리 백업
+
+```python
+from pyhub.llm import LLM
+from pyhub.llm.history import InMemoryHistoryBackup
+
+# 백업 저장소 생성
+backup = InMemoryHistoryBackup(user_id="user123", session_id="session456")
+
+# 백업이 활성화된 LLM 생성
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+
+# 대화 진행 (자동으로 백업됨)
+llm.ask("Python의 장점은 무엇인가요?")
+llm.ask("더 자세히 설명해주세요")
+
+# 사용량 확인
+usage = backup.get_usage_summary()
+print(f"총 사용 토큰: {usage.input + usage.output}")
+
+# SQLAlchemy로 영구 저장
+from pyhub.llm.history import SQLAlchemyHistoryBackup
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+engine = create_engine("sqlite:///chat_history.db")
+Session = sessionmaker(bind=engine)
+session = Session()
+
+db_backup = SQLAlchemyHistoryBackup(session, user_id="user123", session_id="session456")
+llm_with_db = LLM.create("gpt-4o-mini", history_backup=db_backup)
+```
+
+> 🔍 대화 히스토리 백업은 도구(Tool) 사용 내역도 자동으로 저장합니다. 자세한 사용법은 [CHEATSHEET.md](./CHEATSHEET.md#history-backup)를 참고하세요.
 
 ## API 키 설정
 

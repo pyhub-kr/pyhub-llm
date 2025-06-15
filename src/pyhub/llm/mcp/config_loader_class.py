@@ -98,9 +98,7 @@ class MCPConfigLoader:
 
     @staticmethod
     def load_from_cli_args(
-        mcp_stdio: Optional[List[str]] = None, 
-        mcp_sse: Optional[List[str]] = None, 
-        mcp_http: Optional[List[str]] = None
+        mcp_stdio: Optional[List[str]] = None, mcp_sse: Optional[List[str]] = None, mcp_http: Optional[List[str]] = None
     ) -> List[McpConfig]:
         """CLI 인자에서 MCP 설정 생성"""
         configs = []
@@ -109,11 +107,7 @@ class MCPConfigLoader:
         if mcp_stdio:
             for idx, cmd in enumerate(mcp_stdio):
                 try:
-                    config = create_mcp_config({
-                        "transport": "stdio", 
-                        "name": f"stdio-{idx}", 
-                        "cmd": cmd
-                    })
+                    config = create_mcp_config({"transport": "stdio", "name": f"stdio-{idx}", "cmd": cmd})
                     configs.append(config)
                 except Exception:
                     pass
@@ -122,11 +116,7 @@ class MCPConfigLoader:
         if mcp_sse:
             for idx, url in enumerate(mcp_sse):
                 try:
-                    config = create_mcp_config({
-                        "transport": "sse", 
-                        "name": f"sse-{idx}", 
-                        "url": url
-                    })
+                    config = create_mcp_config({"transport": "sse", "name": f"sse-{idx}", "url": url})
                     configs.append(config)
                 except Exception:
                     pass
@@ -135,11 +125,7 @@ class MCPConfigLoader:
         if mcp_http:
             for idx, url in enumerate(mcp_http):
                 try:
-                    config = create_mcp_config({
-                        "transport": "streamable_http", 
-                        "name": f"http-{idx}", 
-                        "url": url
-                    })
+                    config = create_mcp_config({"transport": "streamable_http", "name": f"http-{idx}", "url": url})
                     configs.append(config)
                 except Exception:
                     pass

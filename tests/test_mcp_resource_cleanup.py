@@ -4,12 +4,11 @@ import asyncio
 import gc
 import time
 import weakref
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from pyhub.llm import LLM
-from pyhub.llm.mcp.configs import McpConfig
 
 
 class TestMCPResourceCleanup:
@@ -87,11 +86,11 @@ class TestMCPResourceCleanup:
             mock_multi_client._active_connections = {}
             mock_multi_client._connection_errors = {}
             mock_multi_client.get_tools = AsyncMock(return_value=[])
-            
+
             # 종료 시 예외 발생
             mock_multi_client.__aexit__ = AsyncMock(side_effect=Exception("Cleanup error"))
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             # LLM 생성
@@ -124,7 +123,7 @@ class TestMCPResourceCleanup:
 
             mock_multi_client.__aexit__ = AsyncMock(side_effect=track_cleanup)
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             # LLM 생성
@@ -159,7 +158,7 @@ class TestMCPResourceCleanup:
 
             mock_multi_client.__aexit__ = AsyncMock(side_effect=slow_exit)
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             # LLM 생성
@@ -183,19 +182,16 @@ class TestMCPResourceCleanup:
             mock_multi_client._clients = {}
             mock_multi_client._active_connections = {}
             mock_multi_client._connection_errors = {}
-            
+
             # 도구 목록 반환
             from pyhub.llm.agents.base import Tool
-            mock_tool = Tool(
-                name="test_tool",
-                description="Test tool",
-                func=lambda: "test"
-            )
+
+            mock_tool = Tool(name="test_tool", description="Test tool", func=lambda: "test")
             mock_multi_client.get_tools = AsyncMock(return_value=[mock_tool])
-            
+
             mock_multi_client.__aexit__ = AsyncMock(return_value=None)
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             # LLM 생성
@@ -226,7 +222,7 @@ class TestMCPResourceCleanup:
         with patch("pyhub.llm.mcp.MultiServerMCPClient") as MockMultiServerMCPClient:
             # 각 인스턴스마다 다른 mock client
             mock_multi_clients = []
-            
+
             def create_mock_client():
                 mock_client = AsyncMock()
                 mock_client._clients = {}
@@ -236,10 +232,10 @@ class TestMCPResourceCleanup:
                 mock_client.__aenter__ = AsyncMock(return_value=mock_client)
                 mock_client.__aexit__ = AsyncMock(return_value=None)
                 return mock_client
-            
+
             for _ in range(3):
                 mock_multi_clients.append(create_mock_client())
-            
+
             MockMultiServerMCPClient.side_effect = mock_multi_clients
 
             # 여러 LLM 인스턴스 생성
@@ -279,7 +275,7 @@ class TestMCPProcessCleanup:
             mock_proc.returncode = None
             mock_proc.terminate = AsyncMock()
             mock_proc.wait = AsyncMock()
-            
+
             # Mock MultiServerMCPClient
             mock_multi_client = AsyncMock()
             mock_multi_client._clients = {}
@@ -288,16 +284,17 @@ class TestMCPProcessCleanup:
             mock_multi_client.get_tools = AsyncMock(return_value=[])
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
             mock_multi_client.__aexit__ = AsyncMock(return_value=None)
-            
+
             # 프로세스 종료를 추적하기 위한 mock
             terminate_called = []
+
             async def track_terminate(*args):
                 terminate_called.append(True)
                 await mock_proc.terminate()
                 return None
-                
+
             mock_multi_client.__aexit__ = AsyncMock(side_effect=track_terminate)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             # MCP 설정 - 리스트 형식으로 직접 전달
@@ -329,7 +326,7 @@ class TestMCPProcessCleanup:
 
             # terminate 후에도 종료되지 않는 상황
             mock_proc.wait.side_effect = asyncio.TimeoutError()
-            
+
             # Mock MultiServerMCPClient
             mock_multi_client = AsyncMock()
             mock_multi_client._clients = {}
@@ -337,15 +334,15 @@ class TestMCPProcessCleanup:
             mock_multi_client._connection_errors = {}
             mock_multi_client.get_tools = AsyncMock(return_value=[])
             mock_multi_client.__aenter__ = AsyncMock(return_value=mock_multi_client)
-            
+
             # 타임아웃 후 kill 호출을 시뮬레이션
             async def timeout_exit(*args):
                 # wait에서 timeout 발생
                 await asyncio.sleep(0.1)
                 raise asyncio.TimeoutError()
-                
+
             mock_multi_client.__aexit__ = AsyncMock(side_effect=timeout_exit)
-            
+
             MockMultiServerMCPClient.return_value = mock_multi_client
 
             config = [{"type": "stdio", "name": "hanging_server", "cmd": ["python", "-m", "hanging_server"]}]

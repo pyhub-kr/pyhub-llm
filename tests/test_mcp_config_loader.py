@@ -143,7 +143,7 @@ mcpServers:
             "mcpServers": [
                 {
                     "transport": "stdio",
-                    "name": "test"
+                    "name": "test",
                     # cmd 누락
                 }
             ]
@@ -158,7 +158,7 @@ mcpServers:
             "mcpServers": [
                 {
                     "transport": "streamable_http",
-                    "name": "test"
+                    "name": "test",
                     # url 누락
                 }
             ]
@@ -169,14 +169,7 @@ mcpServers:
 
     def test_validation_invalid_url_format(self):
         """잘못된 URL 형식"""
-        config_dict = {
-            "mcpServers": [
-                {
-                    "url": "invalid-url",
-                    "name": "test"
-                }
-            ]
-        }
+        config_dict = {"mcpServers": [{"url": "invalid-url", "name": "test"}]}
 
         with pytest.raises(ValueError, match="지원하지 않는 URL 스키마"):
             load_mcp_config(config_dict)
@@ -236,12 +229,7 @@ mcpServers:
         """command + args를 cmd로 변환"""
         config_dict = {
             "mcpServers": [
-                {
-                    "transport": "stdio",
-                    "command": "python",
-                    "args": ["server.py", "--port", "8080"],
-                    "name": "test"
-                }
+                {"transport": "stdio", "command": "python", "args": ["server.py", "--port", "8080"], "name": "test"}
             ]
         }
 
