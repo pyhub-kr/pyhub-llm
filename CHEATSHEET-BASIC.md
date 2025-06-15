@@ -450,7 +450,7 @@ result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout
 - **MCP (Model Context Protocol)**: 외부 도구와 통합
 
 ### 추가 리소스
-- [전체 치트시트 (CHEATSHEET.md)](/Users/allieus/Work/pyhub-llm/CHEATSHEET.md) - 모든 기능의 상세한 예제
+- [전체 치트시트 (CHEATSHEET.md)](./CHEATSHEET.md) - 모든 기능의 상세한 예제
 - [공식 문서](https://github.com/pyhub-kr/pyhub-llm) - 최신 업데이트 및 API 문서
 - [예제 코드](https://github.com/pyhub-kr/pyhub-llm/tree/main/examples) - 실제 사용 사례
 
