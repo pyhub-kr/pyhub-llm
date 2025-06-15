@@ -1,5 +1,5 @@
 # 고급 예제 요구사항
-pyhub-llm
+pyhub-llm[all]
 
 # 임베딩 및 유사도 계산
 numpy

@@ -321,7 +321,7 @@ class ToolExecutor:
             if tool.is_async:
                 # 비동기 도구의 경우
                 try:
-                    loop = asyncio.get_running_loop()
+                    _ = asyncio.get_running_loop()
                     # 이미 이벤트 루프가 실행 중이면 에러
                     return f"Error: Cannot execute async tool '{tool_name}' in sync context"
                 except RuntimeError:
@@ -413,7 +413,7 @@ async def execute_mcp_function_call(tool_call: Dict[str, Any]) -> str:
         실행 결과 문자열
     """
     tool_name = tool_call.get("name")
-    arguments = tool_call.get("arguments", {})
+    # arguments = tool_call.get("arguments", {})
 
     if not tool_name:
         return "Error: Missing tool name in function call"

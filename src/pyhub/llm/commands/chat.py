@@ -63,10 +63,11 @@ def chat(
 ):
     """대화형 LLM 세션을 시작합니다."""
 
-    if is_verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
+    # 로깅 레벨 설정 (추후 사용을 위해 보관)
+    # if is_verbose:
+    #     log_level = logging.DEBUG
+    # else:
+    #     log_level = logging.INFO
     # init(debug=True, log_level=log_level)
 
     # 세션 정보 표시
@@ -210,7 +211,7 @@ def chat(
                             f"[dim]토큰: 입력 {usage.input}, 출력 {usage.output} | "
                             f"비용: ${cost['total_cost']:.6f} (₩{cost['total_cost'] * 1300:.0f})[/dim]"
                         )
-                    except:
+                    except Exception:
                         pass
 
             # 히스토리 저장
@@ -250,7 +251,7 @@ def chat(
                 total_cost = calculate_cost(model.value, total_usage.input, total_usage.output)
                 stats_table.add_row("총 비용", f"${total_cost['total_cost']:.4f}")
                 stats_table.add_row("원화 환산", f"₩{total_cost['total_cost'] * 1300:.0f}")
-            except:
+            except Exception:
                 pass
 
         console.print(stats_table)

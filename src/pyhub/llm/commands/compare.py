@@ -82,10 +82,11 @@ def compare(
         console.print('[dim]예: pyhub.llm compare "질문" -m gpt-4o-mini -m claude-3-5-haiku-latest[/dim]')
         raise typer.Exit(1)
 
-    if is_verbose:
-        log_level = logging.DEBUG
-    else:
-        log_level = logging.INFO
+    # 로깅 레벨 설정 (추후 사용을 위해 보관)
+    # if is_verbose:
+    #     log_level = logging.DEBUG
+    # else:
+    #     log_level = logging.INFO
     # init(debug=True, log_level=log_level)
 
     # 비교 시작
@@ -135,7 +136,7 @@ def compare(
                     from pyhub.llm.utils.pricing import calculate_cost
 
                     cost_info = calculate_cost(model_enum.value, usage.input, usage.output)
-                except:
+                except Exception:
                     pass
 
             return {

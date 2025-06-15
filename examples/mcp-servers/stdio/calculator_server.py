@@ -9,11 +9,9 @@ basic calculator functionality as MCP tools.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')

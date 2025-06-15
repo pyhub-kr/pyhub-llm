@@ -6,11 +6,8 @@ This server communicates via WebSocket and provides
 basic calculator functionality as MCP tools.
 """
 
-import asyncio
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect

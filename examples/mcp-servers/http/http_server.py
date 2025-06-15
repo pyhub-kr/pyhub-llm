@@ -10,11 +10,9 @@ import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 import uvicorn
 from fastapi import FastAPI, Request, Response
-from fastapi.responses import StreamingResponse
 from mcp.server import Server
 from mcp.server.streamable_http import StreamableHTTPServerTransport
 

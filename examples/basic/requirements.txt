@@ -1,5 +1,5 @@
 # 초급 예제 실행에 필요한 패키지
-pyhub-llm
+pyhub-llm[all]
 
 # 환경 변수 필요:
 # export OPENAI_API_KEY="your-api-key"

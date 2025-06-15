@@ -2,12 +2,14 @@
 MCP (Model Context Protocol) 통합 예제
 
 이 예제는 LLM과 MCP 서버를 통합하여 사용하는 방법을 보여줍니다.
+
+예제 실행 중 오류가 발생하면 me@pyhub.kr로 문의 부탁드립니다.
 """
 
 import asyncio
 import logging
 from pyhub.llm import LLM
-from pyhub.llm.mcp import McpStdioConfig, McpStreamableHttpConfig
+from pyhub.llm.mcp import McpStdioConfig
 
 # 로깅 설정 (디버깅용)
 logging.basicConfig(level=logging.INFO)
