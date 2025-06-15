@@ -12,6 +12,7 @@
 - [파일 처리](#파일-처리)
 - [임베딩](#임베딩)
 - [템플릿 활용](#템플릿-활용)
+- [History Backup](#history-backup)
 - [MCP 통합](#mcp-통합)
 - [웹 프레임워크 통합](#웹-프레임워크-통합)
 - [도구/함수 호출](#도구함수-호출)
@@ -825,6 +826,287 @@ for style in ["technical", "simple", "business"]:
     reply = llm.ask(prompt)
     print(f"\n[{style.upper()}]\n{reply.text[:200]}...")
 ```
+
+## History Backup
+
+대화 히스토리를 외부 저장소에 백업하고 복원하는 기능입니다. 메모리 기반 히스토리와 별도로 영구 저장소에 대화 내역을 보관할 수 있습니다.
+
+### 기본 사용법 (InMemoryHistoryBackup)
+
+```python
+from pyhub.llm import LLM
+from pyhub.llm.history import InMemoryHistoryBackup
+
+# 메모리 기반 백업 (테스트용)
+backup = InMemoryHistoryBackup(
+    user_id="user123",
+    session_id="session456"
+)
+
+# 백업이 활성화된 LLM 생성
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+
+# 대화 진행 (자동으로 백업됨)
+llm.ask("Python의 장점은 무엇인가요?")
+llm.ask("더 자세히 설명해주세요")
+
+# 백업된 히스토리 확인
+messages = backup.load_history()
+for msg in messages:
+    print(f"{msg.role}: {msg.content[:50]}...")
+
+# 사용량 통계
+usage = backup.get_usage_summary()
+print(f"총 입력 토큰: {usage.input}")
+print(f"총 출력 토큰: {usage.output}")
+```
+
+### SQLAlchemy 백업 (영구 저장)
+
+```python
+from pyhub.llm import LLM
+from pyhub.llm.history import SQLAlchemyHistoryBackup
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+
+# 데이터베이스 설정
+engine = create_engine("sqlite:///chat_history.db")
+Session = sessionmaker(bind=engine)
+session = Session()
+
+# SQLAlchemy 백업 생성
+backup = SQLAlchemyHistoryBackup(
+    session=session,
+    user_id="user123",
+    session_id="session456"
+)
+
+# 테이블 자동 생성
+from pyhub.llm.history.sqlalchemy_backup import Base
+Base.metadata.create_all(engine)
+
+# 백업이 활성화된 LLM 생성
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+
+# 대화 진행
+llm.ask("데이터베이스 설계 원칙을 설명해주세요")
+llm.ask("정규화에 대해 더 자세히 알려주세요")
+
+# 세션 커밋 (영구 저장)
+session.commit()
+```
+
+### 이전 대화 복원
+
+```python
+# 새로운 세션에서 이전 대화 불러오기
+new_session = Session()
+backup = SQLAlchemyHistoryBackup(
+    session=new_session,
+    user_id="user123",
+    session_id="session456"
+)
+
+# 이전 대화가 자동으로 복원된 LLM
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+
+# 이전 대화 컨텍스트를 유지한 채 계속 대화
+llm.ask("앞서 설명한 정규화의 단점은 무엇인가요?")
+```
+
+### 여러 세션 관리
+
+```python
+# 사용자별 여러 세션 관리
+user_id = "user123"
+
+# 세션 1: 프로그래밍 질문
+session1_backup = SQLAlchemyHistoryBackup(
+    session=session,
+    user_id=user_id,
+    session_id="programming_session"
+)
+llm1 = LLM.create("gpt-4o-mini", history_backup=session1_backup)
+llm1.ask("Python과 JavaScript의 차이점은?")
+
+# 세션 2: 수학 질문
+session2_backup = SQLAlchemyHistoryBackup(
+    session=session,
+    user_id=user_id,
+    session_id="math_session"
+)
+llm2 = LLM.create("gpt-4o-mini", history_backup=session2_backup)
+llm2.ask("미적분학의 기본 정리를 설명해주세요")
+
+# 각 세션은 독립적으로 관리됨
+```
+
+### Tool 사용 내역 자동 저장
+
+```python
+# 도구 호출 내역도 자동으로 백업됨
+def get_weather(city: str) -> str:
+    """도시의 날씨 정보를 가져옵니다."""
+    return f"{city}의 날씨는 맑음, 25°C입니다."
+
+def get_time(timezone: str = "UTC") -> str:
+    """현재 시간을 반환합니다."""
+    from datetime import datetime
+    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+reply = llm.ask(
+    "서울의 날씨와 현재 시간을 알려주세요",
+    tools=[get_weather, get_time]
+)
+
+# 백업된 메시지 확인
+messages = backup.load_history()
+assistant_msg = messages[-1]  # 마지막 어시스턴트 메시지
+
+# tool_interactions 필드에 도구 사용 내역이 저장됨
+if assistant_msg.tool_interactions:
+    for interaction in assistant_msg.tool_interactions:
+        print(f"도구: {interaction['tool']}")
+        print(f"인자: {interaction['arguments']}")
+        print(f"결과: {interaction.get('result', 'N/A')}")
+```
+
+### 사용자 정의 백업 구현
+
+```python
+from abc import ABC, abstractmethod
+from pyhub.llm.history import HistoryBackup
+from pyhub.llm.types import Message, Usage
+
+class MongoDBHistoryBackup(HistoryBackup):
+    """MongoDB를 사용한 히스토리 백업 예제"""
+    
+    def __init__(self, collection, user_id: str, session_id: str):
+        self.collection = collection
+        self.user_id = user_id
+        self.session_id = session_id
+    
+    def save_exchange(
+        self,
+        user_msg: Message,
+        assistant_msg: Message,
+        usage: Optional[Usage] = None,
+        model: Optional[str] = None
+    ) -> None:
+        """대화 교환을 MongoDB에 저장"""
+        doc = {
+            "user_id": self.user_id,
+            "session_id": self.session_id,
+            "timestamp": datetime.utcnow(),
+            "user_message": {
+                "content": user_msg.content,
+                "files": user_msg.files
+            },
+            "assistant_message": {
+                "content": assistant_msg.content,
+                "tool_interactions": assistant_msg.tool_interactions
+            },
+            "usage": {
+                "input": usage.input if usage else 0,
+                "output": usage.output if usage else 0
+            },
+            "model": model
+        }
+        self.collection.insert_one(doc)
+    
+    def load_history(self, limit: Optional[int] = None) -> list[Message]:
+        """MongoDB에서 히스토리 로드"""
+        query = {
+            "user_id": self.user_id,
+            "session_id": self.session_id
+        }
+        
+        cursor = self.collection.find(query).sort("timestamp", 1)
+        if limit:
+            cursor = cursor.limit(limit // 2)  # 각 교환은 2개 메시지
+        
+        messages = []
+        for doc in cursor:
+            # 사용자 메시지
+            messages.append(Message(
+                role="user",
+                content=doc["user_message"]["content"],
+                files=doc["user_message"].get("files")
+            ))
+            
+            # 어시스턴트 메시지
+            messages.append(Message(
+                role="assistant",
+                content=doc["assistant_message"]["content"],
+                tool_interactions=doc["assistant_message"].get("tool_interactions")
+            ))
+        
+        return messages
+    
+    def get_usage_summary(self) -> Usage:
+        """총 사용량 계산"""
+        pipeline = [
+            {"$match": {"user_id": self.user_id, "session_id": self.session_id}},
+            {"$group": {
+                "_id": None,
+                "total_input": {"$sum": "$usage.input"},
+                "total_output": {"$sum": "$usage.output"}
+            }}
+        ]
+        
+        result = list(self.collection.aggregate(pipeline))
+        if result:
+            return Usage(
+                input=result[0]["total_input"],
+                output=result[0]["total_output"]
+            )
+        return Usage(input=0, output=0)
+    
+    def clear(self) -> int:
+        """히스토리 삭제"""
+        result = self.collection.delete_many({
+            "user_id": self.user_id,
+            "session_id": self.session_id
+        })
+        return result.deleted_count * 2  # 각 문서는 2개 메시지
+```
+
+### 백업 실패 처리
+
+```python
+# 백업 실패 시에도 LLM은 정상 동작
+import logging
+
+class UnreliableBackup(HistoryBackup):
+    """간헐적으로 실패하는 백업 (예제)"""
+    
+    def save_exchange(self, user_msg, assistant_msg, usage=None, model=None):
+        import random
+        if random.random() < 0.3:  # 30% 확률로 실패
+            raise Exception("Backup service temporarily unavailable")
+        # 실제 저장 로직...
+
+# 백업 실패는 자동으로 처리됨
+backup = UnreliableBackup()
+llm = LLM.create("gpt-4o-mini", history_backup=backup)
+
+# 백업이 실패해도 대화는 계속됨
+reply = llm.ask("백업이 실패해도 괜찮나요?")
+# 경고 로그만 출력되고 정상 동작
+```
+
+### 주요 메서드 설명
+
+- `save_exchange()`: 사용자 메시지와 어시스턴트 응답을 한 쌍으로 저장
+- `load_history(limit)`: 저장된 히스토리를 Message 리스트로 반환
+- `get_usage_summary()`: 총 토큰 사용량 통계 반환
+- `clear()`: 해당 세션의 모든 히스토리 삭제
+
+> 💡 **팁**: 
+> - 백업은 메모리 히스토리와 별개로 동작하며, 주로 영구 저장 용도로 사용됩니다
+> - Tool 사용 내역은 `tool_interactions` 필드에 자동으로 저장됩니다
+> - 백업 실패 시에도 LLM은 정상적으로 동작하며, 경고 로그만 출력됩니다
 
 ## MCP 통합
 

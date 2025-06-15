@@ -2,7 +2,6 @@
 
 from unittest.mock import Mock
 
-
 from pyhub.llm.agents import ReactAgent
 from pyhub.llm.agents.base import Tool
 from pyhub.llm.agents.tools import Calculator

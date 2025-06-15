@@ -242,6 +242,8 @@ class Message:
     role: Literal["system", "user", "assistant", "function"]
     content: str
     files: Optional[list[Union[str, Path, IO]]] = None
+    # Tool calling 과정 기록 (assistant 메시지에만 사용)
+    tool_interactions: Optional[list[dict]] = None
 
     def __iter__(self):
         for key, value in self.to_dict().items():
@@ -250,6 +252,8 @@ class Message:
     def to_dict(self) -> dict:
         d = asdict(self)
         del d["files"]  # LLM API에서는 없는 속성이기에 제거
+        if "tool_interactions" in d:
+            del d["tool_interactions"]  # LLM API에서는 없는 속성이기에 제거
         return d
 
 

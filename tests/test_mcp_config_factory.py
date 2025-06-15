@@ -11,7 +11,7 @@ class TestCreateMcpConfig:
     def test_create_from_string_stdio(self):
         """문자열로 stdio 설정 생성"""
         config = create_mcp_config("python calculator.py")
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "stdio"
         assert config.cmd == "python calculator.py"
@@ -20,7 +20,7 @@ class TestCreateMcpConfig:
     def test_create_from_string_http_url(self):
         """HTTP URL 문자열로 설정 생성"""
         config = create_mcp_config("http://localhost:8080/mcp")
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "streamable_http"
         assert config.url == "http://localhost:8080/mcp"
@@ -29,7 +29,7 @@ class TestCreateMcpConfig:
     def test_create_from_string_https_url(self):
         """HTTPS URL 문자열로 설정 생성"""
         config = create_mcp_config("https://api.example.com/mcp")
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "streamable_http"
         assert config.url == "https://api.example.com/mcp"
@@ -37,7 +37,7 @@ class TestCreateMcpConfig:
     def test_create_from_string_websocket_url(self):
         """WebSocket URL 문자열로 설정 생성"""
         config = create_mcp_config("ws://localhost:8080/ws")
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "websocket"
         assert config.url == "ws://localhost:8080/ws"
@@ -45,21 +45,17 @@ class TestCreateMcpConfig:
     def test_create_from_string_wss_url(self):
         """WSS URL 문자열로 설정 생성"""
         config = create_mcp_config("wss://api.example.com/ws")
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "websocket"
         assert config.url == "wss://api.example.com/ws"
 
     def test_create_from_dict_stdio(self):
         """딕셔너리로 stdio 설정 생성"""
-        config_dict = {
-            "cmd": "python server.py",
-            "name": "test_server",
-            "timeout": 30
-        }
-        
+        config_dict = {"cmd": "python server.py", "name": "test_server", "timeout": 30}
+
         config = create_mcp_config(config_dict)
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "stdio"
         assert config.cmd == "python server.py"
@@ -68,14 +64,10 @@ class TestCreateMcpConfig:
 
     def test_create_from_dict_with_explicit_transport(self):
         """transport가 명시된 딕셔너리"""
-        config_dict = {
-            "transport": "streamable_http",
-            "url": "http://localhost:8080",
-            "name": "http_server"
-        }
-        
+        config_dict = {"transport": "streamable_http", "url": "http://localhost:8080", "name": "http_server"}
+
         config = create_mcp_config(config_dict)
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "streamable_http"
         assert config.url == "http://localhost:8080"
@@ -83,13 +75,10 @@ class TestCreateMcpConfig:
 
     def test_create_from_dict_command_args(self):
         """command + args 조합"""
-        config_dict = {
-            "cmd": ["python", "server.py", "--port", "8080"],
-            "name": "cmd_args_server"
-        }
-        
+        config_dict = {"cmd": ["python", "server.py", "--port", "8080"], "name": "cmd_args_server"}
+
         config = create_mcp_config(config_dict)
-        
+
         assert isinstance(config, McpConfig)
         assert config.transport == "stdio"
         assert config.command == "python"
@@ -100,7 +89,7 @@ class TestCreateMcpConfig:
         """기존 McpConfig 객체 전달"""
         original = McpConfig(name="test", cmd="python test.py")
         config = create_mcp_config(original)
-        
+
         # 동일한 객체를 반환해야 함
         assert config is original
 
@@ -168,10 +157,7 @@ class TestTransportAutoDetection:
 
     def test_explicit_transport_override(self):
         """명시적 transport가 자동 감지를 우선함"""
-        config = McpConfig(
-            transport="sse",
-            url="http://localhost:8080"  # 일반적으로는 streamable_http로 감지될 URL
-        )
+        config = McpConfig(transport="sse", url="http://localhost:8080")  # 일반적으로는 streamable_http로 감지될 URL
         assert config.transport == "sse"
 
     def test_no_detection_possible(self):
@@ -186,7 +172,7 @@ class TestMcpConfigValidation:
     def test_valid_stdio_config(self):
         """유효한 stdio 설정"""
         config = McpConfig(name="test", cmd="python server.py", timeout=30)
-        
+
         assert config.name == "test"
         assert config.cmd == "python server.py"
         assert config.timeout == 30
@@ -195,11 +181,9 @@ class TestMcpConfigValidation:
     def test_valid_http_config(self):
         """유효한 HTTP 설정"""
         config = McpConfig(
-            name="http_server",
-            url="http://localhost:8080/mcp",
-            headers={"Authorization": "Bearer token"}
+            name="http_server", url="http://localhost:8080/mcp", headers={"Authorization": "Bearer token"}
         )
-        
+
         assert config.name == "http_server"
         assert config.url == "http://localhost:8080/mcp"
         assert config.headers == {"Authorization": "Bearer token"}
@@ -208,7 +192,7 @@ class TestMcpConfigValidation:
     def test_cmd_string_parsing(self):
         """문자열 cmd 파싱"""
         config = McpConfig(cmd="python '/path/with spaces/server.py' --config 'config.json'")
-        
+
         assert config.command == "python"
         assert config.args == ["/path/with spaces/server.py", "--config", "config.json"]
 
@@ -216,22 +200,17 @@ class TestMcpConfigValidation:
         """리스트 cmd 처리"""
         cmd_list = ["python", "/path/to/server.py", "--port", "8080"]
         config = McpConfig(cmd=cmd_list)
-        
+
         assert config.command == "python"
         assert config.args == ["/path/to/server.py", "--port", "8080"]
         assert config.cmd == cmd_list
 
     def test_to_dict_conversion(self):
         """to_dict() 메서드 테스트"""
-        config = McpConfig(
-            name="test_server",
-            cmd="python server.py",
-            timeout=60,
-            env={"DEBUG": "1"}
-        )
-        
+        config = McpConfig(name="test_server", cmd="python server.py", timeout=60, env={"DEBUG": "1"})
+
         config_dict = config.to_dict()
-        
+
         assert config_dict["name"] == "test_server"
         assert config_dict["transport"] == "stdio"
         assert config_dict["command"] == "python"
@@ -242,13 +221,11 @@ class TestMcpConfigValidation:
     def test_to_dict_with_url(self):
         """URL이 있는 설정의 to_dict()"""
         config = McpConfig(
-            name="web_server",
-            url="https://api.example.com/mcp",
-            headers={"Content-Type": "application/json"}
+            name="web_server", url="https://api.example.com/mcp", headers={"Content-Type": "application/json"}
         )
-        
+
         config_dict = config.to_dict()
-        
+
         assert config_dict["name"] == "web_server"
         assert config_dict["transport"] == "streamable_http"
         assert config_dict["url"] == "https://api.example.com/mcp"
@@ -257,7 +234,7 @@ class TestMcpConfigValidation:
     def test_optional_fields(self):
         """선택적 필드들"""
         config = McpConfig(cmd="python server.py")  # name 없이
-        
+
         assert config.name is None
         assert config.cmd == "python server.py"
         assert config.transport == "stdio"
@@ -265,13 +242,10 @@ class TestMcpConfigValidation:
     def test_policy_field(self):
         """정책 필드 테스트"""
         from pyhub.llm.mcp.policies import MCPConnectionPolicy
-        
-        config = McpConfig(
-            cmd="python server.py",
-            policy=MCPConnectionPolicy.REQUIRED
-        )
-        
+
+        config = McpConfig(cmd="python server.py", policy=MCPConnectionPolicy.REQUIRED)
+
         assert config.policy == MCPConnectionPolicy.REQUIRED
-        
+
         config_dict = config.to_dict()
         assert config_dict["policy"] == MCPConnectionPolicy.REQUIRED

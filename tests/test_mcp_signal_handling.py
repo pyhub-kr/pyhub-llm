@@ -9,7 +9,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from pyhub.llm import LLM
 from pyhub.llm.resource_manager import MCPResourceRegistry
 
 
@@ -44,7 +43,7 @@ class TestSignalHandling:
     async def test_sigint_handling(self):
         """SIGINT 처리 테스트"""
         import weakref
-        
+
         # Mock 인스턴스
         mock_instance = MagicMock()
         mock_instance.close_mcp = AsyncMock()
@@ -69,18 +68,18 @@ class TestSignalHandling:
         """시그널 수신 시 graceful shutdown 테스트"""
         # Registry 인스턴스 가져오기 (singleton)
         registry = MCPResourceRegistry()
-        
+
         # Mock 인스턴스 생성
         mock_llm = MagicMock()
         mock_llm._mcp_connected = True
         mock_llm._mcp_client = AsyncMock()
         mock_llm._mcp_tools = []
         mock_llm.close_mcp = AsyncMock()
-        
+
         # Registry에 수동 등록
         llm_id = id(mock_llm)
         registry._instances[llm_id] = weakref.ref(mock_llm)
-        
+
         # Registry 확인
         assert llm_id in registry._instances
 
@@ -100,7 +99,7 @@ class TestSignalHandling:
         """여러 인스턴스가 있을 때 시그널 처리"""
         # Registry 인스턴스 가져오기 (singleton)
         registry = MCPResourceRegistry()
-        
+
         # Mock 인스턴스들 생성
         instances = []
         for i in range(3):
@@ -110,7 +109,7 @@ class TestSignalHandling:
             mock_llm._mcp_tools = []
             mock_llm.close_mcp = AsyncMock()
             instances.append(mock_llm)
-            
+
             # Registry에 수동 등록
             llm_id = id(mock_llm)
             registry._instances[llm_id] = weakref.ref(mock_llm)
@@ -167,7 +166,7 @@ class TestSignalHandling:
     async def test_cleanup_timeout_on_signal(self):
         """시그널 처리 시 전체 타임아웃"""
         import weakref
-        
+
         # Mock 인스턴스 (cleanup이 오래 걸림)
         slow_instances = []
 
@@ -193,5 +192,3 @@ class TestSignalHandling:
 
         # 5초 타임아웃이 적용되어야 함
         assert 4.9 < elapsed < 5.5
-
-

@@ -32,11 +32,11 @@ def load_mcp_config(config_source: Union[str, Path, Dict[str, Any], List[Dict[st
         json.JSONDecodeError: JSON 파싱 실패
         yaml.YAMLError: YAML 파싱 실패
         ValueError: 설정 검증 실패
-        
+
     Examples:
         >>> # 파일에서 로드
         >>> configs = load_mcp_config("mcp_config.json")
-        
+
         >>> # dict에서 로드
         >>> configs = load_mcp_config({
         ...     "mcpServers": [
@@ -44,7 +44,7 @@ def load_mcp_config(config_source: Union[str, Path, Dict[str, Any], List[Dict[st
         ...         {"url": "http://localhost:8080"}
         ...     ]
         ... })
-        
+
         >>> # 리스트에서 로드
         >>> configs = load_mcp_config([
         ...     {"cmd": "python server.py"},
@@ -136,7 +136,7 @@ def _create_config_from_dict(config_dict: Dict[str, Any]) -> McpConfig:
     if transport == "stdio":
         if "cmd" not in config_dict and "command" not in config_dict:
             raise ValueError("stdio transport에는 'cmd' 또는 'command' 필드가 필요합니다")
-        
+
         # command + args 형태를 cmd로 변환
         if "command" in config_dict:
             command = config_dict.pop("command")
