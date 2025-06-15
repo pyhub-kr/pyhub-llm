@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 
 try:
-    import yaml
+    import yaml  # noqa: F401
 
     HAS_YAML = True
 except ImportError:

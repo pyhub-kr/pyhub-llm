@@ -4,7 +4,7 @@
 
 ## 📁 디렉토리 구조
 
-```
+```text
 examples/mcp-servers/
 ├── README.md                    # 이 문서
 ├── requirements.txt             # Python 의존성

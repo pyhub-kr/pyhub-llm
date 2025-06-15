@@ -94,7 +94,7 @@ class MCPTool(AsyncBaseTool):
 
         # 이미 이벤트 루프가 실행 중인지 확인
         try:
-            loop = asyncio.get_running_loop()
+            _ = asyncio.get_running_loop()
             # 이미 루프가 실행 중이면 에러
             raise RuntimeError(
                 f"MCPTool '{self.name}' requires async execution. " "Use 'await arun()' or AsyncReactAgent instead."

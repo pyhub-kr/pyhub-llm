@@ -6,11 +6,8 @@ This server communicates via WebSocket and provides
 basic calculator functionality as MCP tools.
 """
 
-import asyncio
-import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 import uvicorn
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -82,12 +79,43 @@ async def echo(message: str) -> str:
 async def calculate_expression(expression: str) -> str:
     """Safely evaluate a mathematical expression."""
     try:
-        # Only allow safe mathematical operations
-        allowed_chars = "0123456789+-*/()., "
-        if not all(c in allowed_chars for c in expression):
-            return "Error: Invalid characters in expression"
-        
-        result = eval(expression)
+        # simpleeval을 사용한 안전한 계산
+        try:
+            import simpleeval
+            import math
+            evaluator = simpleeval.SimpleEval()
+            # 기본 수학 함수들 허용
+            evaluator.functions.update({
+                'abs': abs, 'round': round, 'min': min, 'max': max,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pow': pow
+            })
+            evaluator.names.update({'pi': math.pi, 'e': math.e})
+            result = evaluator.eval(expression)
+        except ImportError:
+            # simpleeval이 없으면 기본 제한 방식 사용
+            import re
+            # 위험한 키워드 검사
+            dangerous_patterns = [
+                r'__\w+__', r'import', r'exec', r'eval', r'open', r'file',
+                r'globals', r'locals', r'vars', r'dir'
+            ]
+            for pattern in dangerous_patterns:
+                if re.search(pattern, expression, re.IGNORECASE):
+                    return f"Error: 위험한 키워드 사용 금지: {pattern}"
+
+            # 허용된 문자만 확인 (수학 함수명 포함)
+            if not re.match(r'^[0-9+\-*/().,\s_a-zA-Z]+$', expression):
+                return "Error: 허용되지 않은 문자 포함"
+
+            import math
+            allowed_names = {
+                'abs': abs, 'round': round, 'min': min, 'max': max, 'pow': pow,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pi': math.pi, 'e': math.e
+            }
+            result = eval(expression, {"__builtins__": {}}, allowed_names)
+
         logger.info(f"calculate_expression('{expression}') = {result}")
         return f"Result: {expression} = {result}"
     except Exception as e:
@@ -113,11 +141,11 @@ async def mcp_websocket_endpoint(websocket: WebSocket):
     """WebSocket endpoint for MCP communication."""
     await websocket.accept()
     logger.info("New WebSocket MCP connection established")
-    
+
     try:
         # Create WebSocket transport
         transport = WebSocketServerTransport(websocket)
-        
+
         # Handle MCP session
         async with transport.connect() as (read_stream, write_stream):
             await mcp_server.run(
@@ -125,7 +153,7 @@ async def mcp_websocket_endpoint(websocket: WebSocket):
                 write_stream,
                 mcp_server.create_initialization_options()
             )
-            
+
     except WebSocketDisconnect:
         logger.info("WebSocket MCP connection closed")
     except Exception as e:
@@ -141,22 +169,22 @@ async def health_check():
 
 class SimpleWebSocketTransport:
     """Simple WebSocket transport implementation for MCP."""
-    
+
     def __init__(self, websocket: WebSocket):
         self.websocket = websocket
         self._closed = False
-    
+
     async def connect(self):
         """Context manager for connection."""
         return self, self
-    
+
     async def __aenter__(self):
         return self, self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         if not self._closed:
             await self.close()
-    
+
     async def read(self) -> str:
         """Read message from WebSocket."""
         try:
@@ -165,12 +193,12 @@ class SimpleWebSocketTransport:
         except WebSocketDisconnect:
             self._closed = True
             raise
-    
+
     async def write(self, message: str):
         """Write message to WebSocket."""
         if not self._closed:
             await self.websocket.send_text(message)
-    
+
     async def close(self):
         """Close the WebSocket connection."""
         if not self._closed:
@@ -183,17 +211,17 @@ async def simple_mcp_websocket_endpoint(websocket: WebSocket):
     """Simplified WebSocket endpoint for MCP communication."""
     await websocket.accept()
     logger.info("New simple WebSocket MCP connection established")
-    
+
     try:
         transport = SimpleWebSocketTransport(websocket)
-        
+
         async with transport.connect() as (read_stream, write_stream):
             await mcp_server.run(
                 read_stream,
                 write_stream,
                 mcp_server.create_initialization_options()
             )
-            
+
     except WebSocketDisconnect:
         logger.info("Simple WebSocket MCP connection closed")
     except Exception as e:

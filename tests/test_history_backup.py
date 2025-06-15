@@ -110,11 +110,11 @@ class TestInMemoryHistoryBackup:
         assert messages[1].tool_interactions is not None
         assert len(messages[1].tool_interactions) == 1
         assert messages[1].tool_interactions[0]["tool"] == "convert_temperature"
-    
+
     def test_multiple_tool_interactions(self):
         """여러 도구 호출이 포함된 경우 테스트"""
         backup = InMemoryHistoryBackup(user_id="test_user", session_id="test_session")
-        
+
         # 여러 도구 호출이 포함된 응답
         user_msg = Message(role="user", content="서울과 도쿄의 날씨와 환율을 알려줘")
         assistant_msg = Message(
@@ -124,12 +124,12 @@ class TestInMemoryHistoryBackup:
                 {"tool": "get_weather", "arguments": {"city": "Seoul"}, "result": "맑음, 25°C"},
                 {"tool": "get_weather", "arguments": {"city": "Tokyo"}, "result": "흐림, 22°C"},
                 {"tool": "get_exchange_rate", "arguments": {"from": "USD", "to": "KRW"}, "result": 1300},
-                {"tool": "get_exchange_rate", "arguments": {"from": "USD", "to": "JPY"}, "result": 150}
+                {"tool": "get_exchange_rate", "arguments": {"from": "USD", "to": "JPY"}, "result": 150},
             ],
         )
-        
+
         backup.save_exchange(user_msg, assistant_msg)
-        
+
         # 로드 확인
         messages = backup.load_history()
         assert messages[1].tool_interactions is not None
@@ -227,7 +227,6 @@ class TestLLMWithHistoryBackup:
         assert messages[1].content == "비동기 응답"
 
 
-
 class TestSQLAlchemyHistoryBackup:
     """SQLAlchemy 백업 테스트 (SQLAlchemy 설치 시에만)"""
 
@@ -271,7 +270,7 @@ class TestSQLAlchemyHistoryBackup:
 
 # SQLAlchemy 설치 여부 확인
 try:
-    import sqlalchemy
+    import sqlalchemy  # noqa: F401
 
     HAS_SQLALCHEMY = True
 except ImportError:
