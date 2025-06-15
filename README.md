@@ -4,14 +4,13 @@
 
 ## 📚 문서
 
-### [✨ CHEATSHEET.md](./CHEATSHEET.md) - 모든 기능과 예제가 포함된 완전한 가이드
+### [✨ CHEATSHEET](./CHEATSHEET.md) - 수준별 완전한 가이드
 
-pyhub-llm의 모든 기능을 자세히 알아보려면 CHEATSHEET.md를 참고하세요:
-- 다양한 LLM 프로바이더 사용법
-- 스트리밍, 캐싱, 체이닝 등 고급 기능
-- 웹 프레임워크 통합 (FastAPI, Django, Streamlit)
-- MCP(Model Context Protocol) 통합
-- 실용적인 예제와 베스트 프랙티스
+pyhub-llm의 모든 기능을 수준별로 나누어 정리했습니다:
+- 🌱 [초급 가이드](./CHEATSHEET-BASIC.md): 설치, 기본 사용법, 파일 처리
+- 🚀 [중급 가이드](./CHEATSHEET-INTERMEDIATE.md): 구조화된 출력, 캐싱, 도구 호출, History Backup
+- 🔥 [고급 가이드](./CHEATSHEET-ADVANCED.md): MCP 통합, 체이닝, 웹 프레임워크 통합
+- 📖 [기능별 찾아보기](./CHEATSHEET.md#기능별-찾아보기): 원하는 기능을 빠르게 검색
 
 ## 주요 기능
 
@@ -145,7 +144,7 @@ reply = llm.ask("Python의 장점은 무엇인가요?")
 print(reply.text)
 ```
 
-> 더 많은 예시와 고급 사용법은 [CHEATSHEET.md](./CHEATSHEET.md#기본-사용법)를 참고하세요.
+> 더 많은 예시와 고급 사용법은 [초급 가이드](./CHEATSHEET-BASIC.md#기본-사용법)를 참고하세요.
 
 ## Ollama 로컬 모델 사용
 
@@ -290,7 +289,7 @@ def get_weather(city: str) -> str:
 reply = llm.ask("서울 날씨 알려줘", tools=[get_weather])
 ```
 
-> 📖 더 많은 고급 기능과 상세한 예시는 [CHEATSHEET.md](./CHEATSHEET.md)를 참고하세요:
+> 📖 더 많은 고급 기능과 상세한 예시는 [가이드 문서](./CHEATSHEET.md)를 참고하세요:
 > - 대화 히스토리 관리
 > - 구조화된 출력 (Pydantic)
 > - LLM 체이닝
@@ -333,7 +332,7 @@ db_backup = SQLAlchemyHistoryBackup(session, user_id="user123", session_id="sess
 llm_with_db = LLM.create("gpt-4o-mini", history_backup=db_backup)
 ```
 
-> 🔍 대화 히스토리 백업은 도구(Tool) 사용 내역도 자동으로 저장합니다. 자세한 사용법은 [CHEATSHEET.md](./CHEATSHEET.md#history-backup)를 참고하세요.
+> 🔍 대화 히스토리 백업은 도구(Tool) 사용 내역도 자동으로 저장합니다. 자세한 사용법은 [중급 가이드](./CHEATSHEET-INTERMEDIATE.md#history-backup)를 참고하세요.
 
 ## API 키 설정
 
@@ -378,7 +377,7 @@ pyhub-llm ask "Python과 Go의 차이점은?"
 pyhub-llm ask "이 코드를 리뷰해주세요" --file main.py
 ```
 
-> 🔧 더 많은 CLI 옵션과 사용법은 [CHEATSHEET.md](./CHEATSHEET.md#cli-사용법)를 참고하세요.
+> 🔧 더 많은 CLI 옵션과 사용법은 [초급 가이드](./CHEATSHEET-BASIC.md)를 참고하세요.
 
 
 ## 개발
