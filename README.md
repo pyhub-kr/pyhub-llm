@@ -488,6 +488,24 @@ if len(llm) > 10:
     llm.clear()
 ```
 
+## 알려진 이슈
+
+### JSON Schema 모드에서 특수문자 포함 choices 사용 시 주의사항
+
+OpenAI의 JSON Schema 구조화된 출력 모드를 사용할 때, choices에 슬래시(`/`) 등의 특수문자가 포함된 경우 간헐적으로 유니코드 제어 문자가 생성되는 문제가 있을 수 있습니다.
+
+**증상:**
+```python
+llm.ask("분류해주세요", choices=["환불/반품", "A/S요청"])
+# 에러: {"choice":"\u001cA/S\u001d0\u001d\u001d..."}
+```
+
+**해결 방법:**
+1. 특수문자를 제거하거나 대체: `"A/S요청"` → `"AS요청"`
+2. 이미 버전 0.7.1 이상에서는 자동으로 제어 문자가 필터링됩니다
+
+자세한 내용은 [Issue #22](https://github.com/pyhub-kr/pyhub-llm/issues/22)를 참조하세요.
+
 ## 링크
 
 - [문서](https://pyhub-llm.readthedocs.io)
