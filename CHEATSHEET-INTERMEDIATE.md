@@ -14,6 +14,8 @@ pyhub-llm의 고급 기능들을 활용하여 더 복잡하고 효율적인 LLM 
 - [다음 단계](#다음-단계)
 ## 구조화된 출력
 
+💻 [실행 가능한 예제](examples/intermediate/01_structured_output.py)
+
 ### Pydantic 스키마 사용
 
 ```python
@@ -165,6 +167,8 @@ print(f"분류된 주제: {', '.join(reply.structured_data.topics)}")  # "IT, �
 
 ## 비동기 처리
 
+💻 [실행 가능한 예제](examples/intermediate/02_async_processing.py)
+
 ### 기본 비동기 사용
 
 ```python
@@ -211,6 +215,8 @@ asyncio.run(process_multiple_queries())
 
 ### MCP와 함께 비동기 사용
 
+💻 [실행 가능한 예제](examples/mcp_integration_example.py)
+
 ```python
 from pyhub.llm import LLM
 
@@ -243,6 +249,8 @@ asyncio.run(main())
 
 
 ## 캐싱
+
+💻 [실행 가능한 예제](examples/intermediate/03_caching.py)
 
 ### 인메모리 캐싱
 
@@ -676,6 +684,8 @@ for style in ["technical", "simple", "business"]:
 ## History Backup
 
 대화 히스토리를 외부 저장소에 백업하고 복원하는 기능입니다. 메모리 기반 히스토리와 별도로 영구 저장소에 대화 내역을 보관할 수 있습니다.
+
+💻 [실행 가능한 예제](examples/history_backup_example.py)
 
 ### 기본 사용법 (InMemoryHistoryBackup)
 

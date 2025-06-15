@@ -115,6 +115,8 @@ for score, doc in results:
 
 ## MCP 통합
 
+💻 [실행 가능한 예제](examples/mcp_integration_example.py)
+
 ### 서버 이름 자동 감지
 
 MCP 서버는 초기화 시 자체 정보(이름, 버전)를 제공합니다. pyhub-llm은 이를 활용하여 서버 이름을 자동으로 감지합니다:
@@ -295,6 +297,8 @@ filtered_config = McpConfig(
 ```
 
 ## 웹 프레임워크 통합
+
+💻 [실행 가능한 예제](examples/advanced/03_web_frameworks/)
 
 ### FastAPI 통합
 
@@ -871,6 +875,8 @@ result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout
 ```
 
 ## 실용적인 예제
+
+💻 [실행 가능한 예제](examples/advanced/06_practical_examples/)
 
 ### 챗봇 구현
 

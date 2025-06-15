@@ -45,6 +45,8 @@ pip install "pyhub-llm[all,mcp]"
 
 ## 기본 사용법
 
+💻 [실행 가능한 예제](examples/basic/01_hello_world.py)
+
 ### 환경변수 설정
 
 ```bash
@@ -137,6 +139,8 @@ print(reply.text)
 
 실시간으로 응답을 받아 처리합니다.
 
+💻 [실행 가능한 예제](examples/basic/02_streaming.py)
+
 ```python
 from pyhub.llm import LLM
 
@@ -162,6 +166,8 @@ def process_stream(llm, prompt):
 ```
 
 ## 대화 관리
+
+💻 [실행 가능한 예제](examples/basic/03_conversation.py)
 
 ### 대화 히스토리 유지
 
@@ -251,6 +257,8 @@ print(doctor.chat("두통이 자주 있어요"))  # 주의: 실제 의료 조언
 ```
 
 ## 파일 처리
+
+💻 [실행 가능한 예제](examples/basic/04_file_processing.py)
 
 ### 이미지 분석
 
