@@ -14,6 +14,8 @@
 
 ## 임베딩
 
+💻 [실행 가능한 예제](examples/advanced/01_embeddings.py)
+
 ### 텍스트 임베딩 생성
 
 ```python
@@ -671,6 +673,8 @@ if uploaded_file is not None:
 
 ## 체이닝
 
+💻 [실행 가능한 예제](examples/advanced/02_chaining.py)
+
 ### 기본 체이닝
 
 ```python
@@ -783,6 +787,8 @@ for key, value in result.items():
 
 ## 에러 처리
 
+💻 [실행 가능한 예제](examples/advanced/04_advanced_error_handling.py)
+
 ### 기본 에러 처리
 
 ```python
@@ -876,9 +882,11 @@ result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout
 
 ## 실용적인 예제
 
-💻 [실행 가능한 예제](examples/advanced/06_practical_examples/)
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/)
 
 ### 챗봇 구현
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/chatbot.py)
 
 ```python
 class AdvancedChatBot:
@@ -945,6 +953,8 @@ class AdvancedChatBot:
 ```
 
 ### 문서 요약기
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/document_summarizer.py)
 
 ```python
 class DocumentSummarizer:
@@ -1013,6 +1023,8 @@ print(summary)
 ```
 
 ### 코드 리뷰어
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/code_reviewer.py)
 
 ```python
 class CodeReviewer:
@@ -1094,6 +1106,8 @@ print(f"\n리팩토링 제안:\n{refactored}")
 ```
 
 ### 번역기
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/translator.py)
 
 ```python
 class SmartTranslator:
@@ -1190,6 +1204,8 @@ for text in texts:
 ```
 
 ### Q&A 시스템
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/qa_system.py)
 
 ```python
 class QASystem:

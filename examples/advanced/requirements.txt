@@ -1,0 +1,30 @@
+# 고급 예제 요구사항
+pyhub-llm
+
+# 임베딩 및 유사도 계산
+numpy
+scikit-learn
+
+# 웹 프레임워크
+fastapi
+uvicorn
+django
+djangorestframework
+streamlit
+
+# 문서 처리
+PyPDF2
+python-docx
+beautifulsoup4
+
+# 데이터 시각화
+plotly
+pandas
+
+# 비동기 처리
+asyncio
+aiofiles
+
+# 기타 유틸리티
+pydantic
+python-multipart  # FastAPI 파일 업로드용

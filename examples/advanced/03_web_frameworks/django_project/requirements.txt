@@ -1,0 +1,6 @@
+# Django 프로젝트 요구사항
+pyhub-llm
+django>=4.0
+djangorestframework
+django-cors-headers
+pillow  # 이미지 처리
