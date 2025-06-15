@@ -1,6 +1,8 @@
 """MCP 연결 정책 사용 예제
 
 MCP 연결 실패 시 동작을 제어하는 다양한 정책을 보여줍니다.
+
+예제 실행 중 오류가 발생하면 me@pyhub.kr로 문의 부탁드립니다.
 """
 
 import asyncio
@@ -53,7 +55,7 @@ async def example_required_policy():
     
     try:
         # REQUIRED 정책 설정
-        llm = await LLM.create_async(
+        _ = await LLM.create_async(
             "gpt-4o-mini",
             mcp_servers=mcp_config,
             mcp_policy=MCPConnectionPolicy.REQUIRED

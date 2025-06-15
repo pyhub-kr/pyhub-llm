@@ -6,15 +6,12 @@ This server communicates via Server-Sent Events (SSE) and provides
 basic calculator functionality as MCP tools.
 """
 
-import asyncio
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict
 
 import uvicorn
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
 from mcp.server import Server
 from mcp.server.sse import SseServerTransport
 from sse_starlette.sse import EventSourceResponse

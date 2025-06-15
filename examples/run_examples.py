@@ -30,7 +30,7 @@ def check_requirements():
             print(f"  ❌ {package}")
     
     if missing:
-        print(f"\n⚠️  다음 패키지를 설치해주세요:")
+        print("\n⚠️  다음 패키지를 설치해주세요:")
         print(f"pip install {' '.join(missing)}")
         return False
     
@@ -64,7 +64,7 @@ def test_example(file_path: Path, timeout: int = 30):
         )
         
         if result.returncode == 0:
-            print(f"  ✅ 성공")
+            print("  ✅ 성공")
             # 출력의 첫 몇 줄만 표시
             output_lines = result.stdout.strip().split('\n')[:3]
             for line in output_lines:

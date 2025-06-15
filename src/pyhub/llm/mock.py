@@ -87,10 +87,10 @@ class MockLLM(BaseLLM):
         await asyncio.sleep(0.01)
 
         # Convert input to string if it's a dict
-        if isinstance(input, dict):
-            question = str(input)
-        else:
-            question = input
+        # if isinstance(input, dict):
+        #     question = str(input)
+        # else:
+        #     question = input
 
         # Use sync implementation
         result = self.ask(

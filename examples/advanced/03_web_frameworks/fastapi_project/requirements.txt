@@ -1,5 +1,5 @@
 # FastAPI 프로젝트 요구사항
-pyhub-llm
+pyhub-llm[all]
 fastapi
 uvicorn[standard]
 python-multipart

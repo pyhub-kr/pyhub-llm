@@ -3,6 +3,7 @@ from pathlib import Path
 from typing import IO, Any, AsyncGenerator, Generator, Optional, Type, Union, cast
 
 import pydantic
+from pydantic import BaseModel
 
 from pyhub.llm.base import BaseLLM
 from pyhub.llm.settings import llm_settings
@@ -748,7 +749,7 @@ class OpenAIMixin:
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
-        schema: Optional[Type["BaseModel"]] = None,
+        schema: Optional[Type[BaseModel]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
@@ -781,7 +782,7 @@ class OpenAIMixin:
         *,
         choices: Optional[list[str]] = None,
         choices_optional: bool = False,
-        schema: Optional[Type["BaseModel"]] = None,
+        schema: Optional[Type[BaseModel]] = None,
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,

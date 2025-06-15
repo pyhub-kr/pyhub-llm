@@ -14,8 +14,8 @@ from pathlib import Path
 # Add pyhub-llm to path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent / "src"))
 
-from pyhub.llm import LLM
 from pyhub.llm.mcp import MCPClient, load_mcp_tools
+from pyhub.llm import LLM
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -46,7 +46,7 @@ async def test_stdio_transport():
             logger.info(f"STDIO - add(10, 5) = {result}")
             
             # Test with LLM
-            llm = LLMFactory.create("mock")  # Use mock LLM for testing
+            llm = LLM.create("mock")  # Use mock LLM for testing
             
             # Load tools for LLM
             mcp_tools = await load_mcp_tools(client)
@@ -86,7 +86,7 @@ async def test_sse_transport():
             logger.info(f"SSE - multiply(7, 8) = {result}")
             
             # Test with LLM
-            llm = LLMFactory.create("mock")
+            llm = LLM.create("mock")
             mcp_tools = await load_mcp_tools(client)
             
             response = await llm.ask_async(
@@ -124,7 +124,7 @@ async def test_websocket_transport():
             logger.info(f"WebSocket - divide(20, 4) = {result}")
             
             # Test with LLM
-            llm = LLMFactory.create("mock")
+            llm = LLM.create("mock")
             mcp_tools = await load_mcp_tools(client)
             
             response = await llm.ask_async(
@@ -162,7 +162,7 @@ async def test_http_transport():
             logger.info(f"HTTP - get_time() = {result}")
             
             # Test with LLM
-            llm = LLMFactory.create("mock")
+            llm = LLM.create("mock")
             mcp_tools = await load_mcp_tools(client)
             
             response = await llm.ask_async(
@@ -213,7 +213,7 @@ async def demo_usage():
     
     for config in configs:
         try:
-            client = MCPClient(config)
+            _ = MCPClient(config)
             logger.info(f"Created client for config: {config}")
         except Exception as e:
             logger.error(f"Failed to create client: {e}")

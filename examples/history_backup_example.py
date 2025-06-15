@@ -1,4 +1,6 @@
-"""히스토리 백업 시스템 사용 예제"""
+"""히스토리 백업 시스템 사용 예제
+예제 실행 중 오류가 발생하면 me@pyhub.kr로 문의 부탁드립니다.
+"""
 
 from pyhub.llm import LLM
 from pyhub.llm.history import InMemoryHistoryBackup
@@ -19,12 +21,12 @@ def main():
     # 3. 대화 (자동으로 백업됨)
     print("첫 번째 대화:")
     reply1 = llm.ask("안녕하세요! 제 이름은 김철수입니다.")
-    print(f"User: 안녕하세요! 제 이름은 김철수입니다.")
+    print("User: 안녕하세요! 제 이름은 김철수입니다.")
     print(f"Assistant: {reply1.text}\n")
     
     print("두 번째 대화:")
     reply2 = llm.ask("제 이름이 뭐라고 했죠?")
-    print(f"User: 제 이름이 뭐라고 했죠?")
+    print("User: 제 이름이 뭐라고 했죠?")
     print(f"Assistant: {reply2.text}\n")
     
     # 4. 백업된 히스토리 확인

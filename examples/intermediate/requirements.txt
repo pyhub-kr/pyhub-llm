@@ -1,5 +1,5 @@
 # 중급 예제 실행에 필요한 패키지
-pyhub-llm
+pyhub-llm[all]
 
 # 선택적 패키지 (특정 예제에만 필요)
 # sqlalchemy  # 06_history_backup.py의 SQLAlchemyHistoryBackup 사용 시
