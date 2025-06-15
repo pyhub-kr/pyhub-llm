@@ -87,6 +87,8 @@ export GOOGLE_API_KEY="..."
 | 체이닝 | 고급 | [ADVANCED - 체이닝](./CHEATSHEET-ADVANCED.md#체이닝) |
 | 웹 프레임워크 | 고급 | [ADVANCED - 웹 프레임워크 통합](./CHEATSHEET-ADVANCED.md#웹-프레임워크-통합) |
 | 임베딩 | 고급 | [ADVANCED - 임베딩](./CHEATSHEET-ADVANCED.md#임베딩) |
+| 고급 에러 처리 | 고급 | [ADVANCED - 에러 처리](./CHEATSHEET-ADVANCED.md#에러-처리) |
+| 성능 최적화 | 고급 | [ADVANCED - 실용적인 예제](./CHEATSHEET-ADVANCED.md#실용적인-예제) |
 
 ## 💡 도움말
 

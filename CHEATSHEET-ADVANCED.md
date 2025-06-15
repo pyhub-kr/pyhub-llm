@@ -1316,17 +1316,17 @@ print(f"신뢰도: {result['confidence']:.2%}")
 ## 추가 자료
 
 ### 공식 문서
-- [pyhub-llm GitHub 저장소](https://github.com/allieus/pyhub-llm)
+- [pyhub-llm GitHub 저장소](https://github.com/pyhub-kr/pyhub-llm)
 - [API 레퍼런스](https://pyhub-llm.readthedocs.io/)
 - [기본 사용법 CHEATSHEET](./CHEATSHEET-BASIC.md)
 
 ### 예제 코드
-- [GitHub Examples 폴더](https://github.com/allieus/pyhub-llm/tree/main/examples)
-- [Jupyter Notebooks](https://github.com/allieus/pyhub-llm/tree/main/notebooks)
+- [GitHub Examples 폴더](https://github.com/pyhub-kr/pyhub-llm/tree/main/examples)
+- [Jupyter Notebooks](https://github.com/pyhub-kr/pyhub-llm/tree/main/notebooks)
 
 ### 커뮤니티
-- [GitHub Issues](https://github.com/allieus/pyhub-llm/issues)
-- [GitHub Discussions](https://github.com/allieus/pyhub-llm/discussions)
+- [GitHub Issues](https://github.com/pyhub-kr/pyhub-llm/issues)
+- [GitHub Discussions](https://github.com/pyhub-kr/pyhub-llm/discussions)
 
 ### 추가 리소스
 - [MCP 공식 문서](https://modelcontextprotocol.io/)
