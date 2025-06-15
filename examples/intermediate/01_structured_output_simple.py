@@ -10,6 +10,7 @@
 
 import json
 import os
+import sys
 
 from pyhub.llm import LLM
 
@@ -43,7 +44,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("🏗️  구조화된 출력 (간단 버전)")
     print("=" * 50)

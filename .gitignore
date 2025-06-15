@@ -68,3 +68,5 @@ CLAUDE.md
 
 *.sqlite3
 
+# TODO files
+TODO*

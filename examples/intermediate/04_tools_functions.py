@@ -11,6 +11,7 @@
 import json
 import math
 import os
+import sys
 from datetime import datetime
 from typing import Any, Dict
 
@@ -50,11 +51,41 @@ def get_current_weather(location: str, unit: str = "celsius") -> str:
 def calculate(expression: str) -> str:
     """수학 계산을 수행하는 함수"""
     try:
-        # 안전한 수학 연산만 허용
-        allowed_names = {k: v for k, v in math.__dict__.items() if not k.startswith("__")}
-        allowed_names.update({"abs": abs, "round": round})
+        # simpleeval을 사용한 안전한 계산
+        try:
+            import simpleeval
+            evaluator = simpleeval.SimpleEval()
+            # 추가 수학 함수들 허용
+            evaluator.functions.update({
+                'abs': abs, 'round': round, 'min': min, 'max': max, 'sum': sum,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'log10': math.log10, 'exp': math.exp,
+                'floor': math.floor, 'ceil': math.ceil, 'pow': pow
+            })
+            evaluator.names.update({
+                'pi': math.pi, 'e': math.e
+            })
+            result = evaluator.eval(expression)
+        except ImportError:
+            # simpleeval이 없으면 제한된 eval 사용 (보안 강화)
+            import re
+            # 위험한 키워드 검사
+            dangerous_patterns = [
+                r'__\w+__', r'import', r'exec', r'eval', r'open', r'file',
+                r'globals', r'locals', r'vars', r'dir', r'getattr', r'setattr'
+            ]
+            for pattern in dangerous_patterns:
+                if re.search(pattern, expression, re.IGNORECASE):
+                    raise ValueError(f"위험한 키워드가 포함됨: {pattern}")
 
-        result = eval(expression, {"__builtins__": {}}, allowed_names)
+            # 허용된 문자만 확인
+            if not re.match(r'^[0-9+\-*/().,\s_a-zA-Z]+$', expression):
+                raise ValueError("허용되지 않은 문자가 포함됨")
+
+            allowed_names = {k: v for k, v in math.__dict__.items() if not k.startswith("__")}
+            allowed_names.update({"abs": abs, "round": round, "min": min, "max": max, "sum": sum, "pow": pow})
+            result = eval(expression, {"__builtins__": {}}, allowed_names)
+
         return json.dumps({"result": result, "expression": expression})
     except Exception as e:
         return json.dumps({"error": str(e), "expression": expression})
@@ -368,7 +399,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("🛠️  도구/함수 호출 예제")
     print("=" * 50)

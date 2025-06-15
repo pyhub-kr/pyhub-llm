@@ -111,7 +111,7 @@ Django 관리자 페이지에서 데이터를 관리할 수 있습니다:
 
 ## 프로젝트 구조
 
-```
+```text
 django_project/
 ├── chatbot/          # 프로젝트 설정
 │   ├── settings.py

@@ -9,6 +9,7 @@
 """
 
 import os
+import sys
 from typing import List
 
 from pydantic import BaseModel, Field
@@ -203,7 +204,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("🏗️  구조화된 출력 예제")
     print("=" * 50)

@@ -64,7 +64,7 @@ python 04_file_processing.py
 ## 문제 해결
 
 ### API 키 오류
-```
+```text
 ⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.
 ```
 위 메시지가 나오면 OpenAI API 키를 환경 변수로 설정해야 합니다.

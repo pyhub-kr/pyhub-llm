@@ -126,5 +126,5 @@ def pytest_collection_modifyitems(config, items):
                 response = httpx.get("http://localhost:11434/api/tags")
                 if response.status_code != 200:
                     item.add_marker(skip_ollama)
-            except:
+            except Exception:
                 item.add_marker(skip_ollama)

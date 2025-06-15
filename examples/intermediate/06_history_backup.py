@@ -11,6 +11,7 @@
 import json
 import os
 import sqlite3
+import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List
@@ -140,13 +141,24 @@ def example_sqlite_backup():
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
 
-            # 대화 생성/업데이트
+            # 대화 생성/업데이트 (created_at 보존)
+            current_time = datetime.now()
             cursor.execute(
                 """
-                INSERT OR REPLACE INTO conversations (id, created_at, updated_at)
+                INSERT OR IGNORE INTO conversations (id, created_at, updated_at)
                 VALUES (?, ?, ?)
             """,
-                (conversation_id, datetime.now(), datetime.now()),
+                (conversation_id, current_time, current_time),
+            )
+
+            # 기존 대화가 있으면 updated_at만 업데이트
+            cursor.execute(
+                """
+                UPDATE conversations 
+                SET updated_at = ?
+                WHERE id = ?
+            """,
+                (current_time, conversation_id),
             )
 
             # 기존 메시지 삭제 (간단한 구현)
@@ -410,7 +422,44 @@ def example_tool_interaction_backup():
     def calculate(expression: str):
         """수식 계산"""
         try:
-            return str(eval(expression))
+            # simpleeval을 사용한 안전한 계산
+            try:
+                import simpleeval
+                import math
+                evaluator = simpleeval.SimpleEval()
+                # 기본 수학 함수들 허용
+                evaluator.functions.update({
+                    'abs': abs, 'round': round, 'min': min, 'max': max,
+                    'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                    'log': math.log, 'exp': math.exp, 'pow': pow
+                })
+                evaluator.names.update({'pi': math.pi, 'e': math.e})
+                result = evaluator.eval(expression)
+                return str(result)
+            except ImportError:
+                # simpleeval이 없으면 기본 제한 방식 사용
+                import re
+                # 위험한 키워드 검사
+                dangerous_patterns = [
+                    r'__\w+__', r'import', r'exec', r'eval', r'open', r'file',
+                    r'globals', r'locals', r'vars', r'dir'
+                ]
+                for pattern in dangerous_patterns:
+                    if re.search(pattern, expression, re.IGNORECASE):
+                        return "오류: 위험한 키워드 사용 금지"
+
+                # 허용된 문자만 확인
+                if not re.match(r'^[0-9+\-*/().,\s_a-zA-Z]+$', expression):
+                    return "오류: 허용되지 않은 문자 포함"
+
+                import math
+                allowed_names = {
+                    'abs': abs, 'round': round, 'min': min, 'max': max, 'pow': pow,
+                    'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                    'log': math.log, 'exp': math.exp, 'pi': math.pi, 'e': math.e
+                }
+                result = eval(expression, {"__builtins__": {}}, allowed_names)
+                return str(result)
         except Exception:
             return "계산 오류"
 
@@ -502,7 +551,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("💾 History Backup 예제")
     print("=" * 50)
