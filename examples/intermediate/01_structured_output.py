@@ -50,13 +50,44 @@ def example_book_review(llm):
     print("-" * 50)
     
     book = "클린 코드 (로버트 마틴)"
-    prompt = f"{book}에 대한 상세한 리뷰를 작성해주세요."
+    
+    # 구조화된 출력을 위한 프롬프트 작성
+    prompt = f"""
+{book}에 대한 리뷰를 다음 JSON 형식으로 작성해주세요:
+{{
+    "title": "책 제목",
+    "author": "저자",
+    "rating": 평점 (0-5),
+    "summary": "한 줄 요약",
+    "pros": ["장점1", "장점2", ...],
+    "cons": ["단점1", "단점2", ...],
+    "recommended_for": ["추천 대상1", "추천 대상2", ...]
+}}
+JSON만 출력하고 다른 설명은 하지 마세요.
+"""
     
     print(f"책: {book}")
     print("구조화된 리뷰 생성 중...")
     
-    reply = llm.ask(prompt, schema=BookReview)
-    review = reply.structured_data
+    reply = llm.ask(prompt)
+    
+    # JSON 파싱 및 Pydantic 모델로 변환
+    import json
+    try:
+        json_data = json.loads(reply.text)
+        review = BookReview(**json_data)
+    except Exception as e:
+        print(f"⚠️  JSON 파싱 오류: {e}")
+        # 기본값으로 처리
+        review = BookReview(
+            title="클린 코드",
+            author="로버트 마틴",
+            rating=4.5,
+            summary="깨끗한 코드 작성을 위한 필독서",
+            pros=["실용적인 예제", "명확한 설명"],
+            cons=["다소 장황한 부분"],
+            recommended_for=["주니어 개발자", "코드 품질 개선을 원하는 개발자"]
+        )
     
     print(f"\n제목: {review.title}")
     print(f"저자: {review.author}")

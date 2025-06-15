@@ -3,7 +3,9 @@
 예제: pyhub-llm으로 Hello World
 난이도: 초급
 설명: pyhub-llm을 사용한 첫 번째 프로그램
-요구사항: OPENAI_API_KEY 환경 변수
+요구사항: 
+  - pyhub-llm (pip install pyhub-llm)
+  - OPENAI_API_KEY 환경 변수
 """
 
 import os
@@ -36,8 +38,8 @@ def main():
     # 사용 통계 출력 (있는 경우)
     if reply.usage:
         print(f"\n📊 토큰 사용량:")
-        print(f"  - 입력: {reply.usage.input_tokens}")
-        print(f"  - 출력: {reply.usage.output_tokens}")
+        print(f"  - 입력: {reply.usage.input}")
+        print(f"  - 출력: {reply.usage.output}")
         print(f"  - 총합: {reply.usage.total}")
 
 

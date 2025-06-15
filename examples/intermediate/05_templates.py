@@ -11,7 +11,7 @@ from pathlib import Path
 from datetime import datetime
 from typing import List, Dict, Any
 from pyhub.llm import LLM
-from pyhub.llm.templates import TemplateManager
+from pyhub.llm.templates.engine import TemplateEngine
 
 
 def create_sample_templates():
@@ -102,8 +102,8 @@ def example_basic_templates():
     print("\n📝 기본 템플릿 사용 예제")
     print("-" * 50)
     
-    # 템플릿 매니저 생성
-    tm = TemplateManager("./templates")
+    # 템플릿 엔진 생성
+    te = TemplateEngine("./templates")
     llm = LLM.create("gpt-4o-mini")
     
     # 1. 번역 템플릿 사용
@@ -115,7 +115,7 @@ def example_basic_templates():
         "text": "안녕하세요. 이번 프로젝트 진행 상황을 보고드립니다."
     }
     
-    prompt = tm.render("translation.j2", **variables)
+    prompt = te.render_template("translation.j2", variables)
     print(f"생성된 프롬프트:\n{prompt}\n")
     
     reply = llm.ask(prompt)
@@ -127,7 +127,7 @@ def example_code_review_template():
     print("\n💻 코드 리뷰 템플릿 예제")
     print("-" * 50)
     
-    tm = TemplateManager("./templates")
+    te = TemplateEngine("./templates")
     llm = LLM.create("gpt-4o-mini")
     
     # 리뷰할 코드
@@ -162,7 +162,7 @@ print(result)
         ]
     }
     
-    prompt = tm.render("code_review.j2", **variables)
+    prompt = te.render_template("code_review.j2", **variables)
     reply = llm.ask(prompt)
     
     print("🔍 코드 리뷰 결과:")
@@ -284,7 +284,7 @@ def example_template_inheritance():
     (templates_dir / "report.j2").write_text(report_template, encoding='utf-8')
     
     # 템플릿 사용
-    tm = TemplateManager("./templates")
+    te = TemplateEngine("./templates")
     llm = LLM.create("gpt-4o-mini")
     
     variables = {
@@ -299,7 +299,7 @@ def example_template_inheritance():
         }
     }
     
-    prompt = tm.render("report.j2", **variables)
+    prompt = te.render_template("report.j2", **variables)
     print("생성된 프롬프트:")
     print("-" * 30)
     print(prompt)
@@ -431,7 +431,7 @@ def example_template_best_practices():
     (templates_dir.parent / "analysis_report.j2").write_text(analysis_with_macros, encoding='utf-8')
     
     # 사용
-    tm = TemplateManager("./templates")
+    te = TemplateEngine("./templates")
     llm = LLM.create("gpt-4o-mini")
     
     report_data = {
@@ -453,7 +453,7 @@ def example_template_best_practices():
         ]
     }
     
-    prompt = tm.render("analysis_report.j2", **report_data)
+    prompt = te.render_template("analysis_report.j2", **report_data)
     print("생성된 분석 리포트 템플릿:")
     print(prompt)
     

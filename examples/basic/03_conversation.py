@@ -65,7 +65,15 @@ def main():
         
         try:
             # AI 응답 받기
-            reply = llm.messages(messages)
+            # 최근 대화 내역만 포함하여 컨텍스트 유지
+            context = ""
+            for msg in messages[-5:]:  # 최근 5개 메시지만
+                if msg.role != "system":
+                    context += f"{msg.role}: {msg.content}\n"
+            
+            # 현재 질문에 대한 응답 요청
+            prompt = f"{context}\nassistant:"
+            reply = llm.ask(prompt)
             print(f"🤖 AI: {reply.text}")
             
             # AI 응답을 대화 내역에 추가

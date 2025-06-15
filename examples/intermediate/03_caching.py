@@ -12,7 +12,7 @@ import json
 from pathlib import Path
 from datetime import datetime
 from pyhub.llm import LLM
-from pyhub.llm.cache import InMemoryCache, FileCache, BaseCache
+from pyhub.llm.cache import MemoryCache, FileCache, BaseCache
 
 
 class CustomJSONCache(BaseCache):
@@ -74,7 +74,7 @@ def example_memory_cache():
     print("-" * 50)
     
     # 메모리 캐시 사용
-    cache = InMemoryCache()
+    cache = MemoryCache()
     llm = LLM.create("gpt-4o-mini", cache=cache)
     
     # 같은 질문을 여러 번 수행
@@ -176,7 +176,7 @@ def example_cache_strategy():
     print("-" * 50)
     
     # 짧은 TTL의 메모리 캐시
-    short_cache = InMemoryCache(ttl=5)  # 5초 TTL
+    short_cache = MemoryCache(ttl=5)  # 5초 TTL
     llm_short = LLM.create("gpt-4o-mini", cache=short_cache)
     
     question = "현재 시간은 몇 시인가요?"
@@ -212,7 +212,7 @@ def example_cache_statistics():
     print("-" * 50)
     
     # 통계 기능이 있는 캐시
-    class StatisticsCache(InMemoryCache):
+    class StatisticsCache(MemoryCache):
         def __init__(self, *args, **kwargs):
             super().__init__(*args, **kwargs)
             self.stats = {'hits': 0, 'misses': 0}
