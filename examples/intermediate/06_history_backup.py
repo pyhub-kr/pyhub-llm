@@ -14,7 +14,11 @@ from pathlib import Path
 from typing import List, Optional
 from pyhub.llm import LLM
 from pyhub.llm.types import Message
-from pyhub.llm.history_backup import MemoryHistoryBackup, SQLAlchemyHistoryBackup
+from pyhub.llm.history import InInMemoryHistoryBackup
+try:
+    from pyhub.llm.history import SQLAlchemyHistoryBackup
+except ImportError:
+    SQLAlchemyHistoryBackup = None
 
 
 def example_memory_backup():
@@ -23,7 +27,7 @@ def example_memory_backup():
     print("-" * 50)
     
     # 메모리 백업 사용
-    backup = MemoryHistoryBackup()
+    backup = InMemoryHistoryBackup()
     llm = LLM.create("gpt-4o-mini", history_backup=backup)
     
     # 대화 시작
@@ -248,7 +252,7 @@ def example_advanced_backup():
     print("-" * 50)
     
     # 고급 기능이 있는 백업 클래스
-    class AdvancedHistoryBackup(MemoryHistoryBackup):
+    class AdvancedHistoryBackup(InMemoryHistoryBackup):
         def __init__(self):
             super().__init__()
             self.metadata = {}  # 대화별 메타데이터
@@ -427,7 +431,7 @@ def example_tool_interaction_backup():
     ]
     
     # 백업과 함께 LLM 생성
-    backup = MemoryHistoryBackup()
+    backup = InMemoryHistoryBackup()
     llm = LLM.create("gpt-4o-mini", history_backup=backup)
     
     # 도구를 사용하는 대화
