@@ -11,8 +11,16 @@ if TYPE_CHECKING:
 
 # SQLAlchemy는 선택적 의존성이므로 try-except로 처리
 try:
-    from sqlalchemy import JSON, Column, DateTime, Integer, String, Text  # create_engine imported but unused
+    from sqlalchemy import (  # create_engine imported but unused
+        JSON,
+        Column,
+        DateTime,
+        Integer,
+        String,
+        Text,
+    )
     from sqlalchemy.ext.declarative import declarative_base
+
     # from sqlalchemy.orm import Session, sessionmaker  # imported but unused
 
     Base = declarative_base()

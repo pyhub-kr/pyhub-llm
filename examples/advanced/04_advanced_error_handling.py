@@ -14,6 +14,7 @@ import asyncio
 import json
 import logging
 import os
+import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -625,7 +626,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("🛡️ 고급 에러 처리 예제")
     print("=" * 50)

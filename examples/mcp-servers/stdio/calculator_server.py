@@ -76,13 +76,43 @@ async def echo(message: str) -> str:
 async def calculate_expression(expression: str) -> str:
     """Safely evaluate a mathematical expression."""
     try:
-        # Only allow safe mathematical operations
-        allowed_chars = "0123456789+-*/()., "
-        if not all(c in allowed_chars for c in expression):
-            return "Error: Invalid characters in expression"
-        
-        # Evaluate the expression
-        result = eval(expression)
+        # simpleeval을 사용한 안전한 계산
+        try:
+            import simpleeval
+            import math
+            evaluator = simpleeval.SimpleEval()
+            # 기본 수학 함수들 허용
+            evaluator.functions.update({
+                'abs': abs, 'round': round, 'min': min, 'max': max,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pow': pow
+            })
+            evaluator.names.update({'pi': math.pi, 'e': math.e})
+            result = evaluator.eval(expression)
+        except ImportError:
+            # simpleeval이 없으면 기본 제한 방식 사용
+            import re
+            # 위험한 키워드 검사
+            dangerous_patterns = [
+                r'__\w+__', r'import', r'exec', r'eval', r'open', r'file',
+                r'globals', r'locals', r'vars', r'dir'
+            ]
+            for pattern in dangerous_patterns:
+                if re.search(pattern, expression, re.IGNORECASE):
+                    return f"Error: 위험한 키워드 사용 금지: {pattern}"
+
+            # 허용된 문자만 확인 (수학 함수명 포함)
+            if not re.match(r'^[0-9+\-*/().,\s_a-zA-Z]+$', expression):
+                return "Error: 허용되지 않은 문자 포함"
+
+            import math
+            allowed_names = {
+                'abs': abs, 'round': round, 'min': min, 'max': max, 'pow': pow,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pi': math.pi, 'e': math.e
+            }
+            result = eval(expression, {"__builtins__": {}}, allowed_names)
+
         logger.info(f"calculate_expression('{expression}') = {result}")
         return f"Result: {expression} = {result}"
     except Exception as e:
@@ -93,7 +123,7 @@ async def calculate_expression(expression: str) -> str:
 async def main():
     """Run the STDIO MCP server."""
     logger.info("Starting Calculator MCP Server (STDIO)")
-    
+
     try:
         # Run the server with stdio transport
         async with stdio_server() as (read_stream, write_stream):

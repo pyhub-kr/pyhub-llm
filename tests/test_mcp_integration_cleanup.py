@@ -68,7 +68,7 @@ if __name__ == "__main__":
         # Cleanup
         try:
             os.unlink(script_path)
-        except:
+        except Exception:
             pass
 
     @pytest.mark.asyncio
@@ -167,7 +167,7 @@ sys.exit(1)
         finally:
             try:
                 os.unlink(crash_script_path)
-            except:
+            except Exception:
                 pass
 
     def _get_python_processes(self):
@@ -183,7 +183,7 @@ sys.exit(1)
                     python_processes.append(line)
 
             return python_processes
-        except:
+        except Exception:
             # Windows 또는 ps 명령이 없는 경우
             return []
 

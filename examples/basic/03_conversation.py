@@ -9,6 +9,7 @@
 """
 
 import os
+import sys
 
 from pyhub.llm import LLM
 from pyhub.llm.types import Message
@@ -30,7 +31,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("💬 대화 관리 예제")
     print("종료하려면 'quit' 또는 'exit'를 입력하세요.\n")

@@ -11,6 +11,7 @@
 """
 
 import os
+import sys
 
 from pyhub.llm import LLM
 
@@ -22,7 +23,7 @@ def main():
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
         print("예: export OPENAI_API_KEY='your-api-key'")
-        return
+        sys.exit(1)
 
     print("🚀 pyhub-llm Hello World 예제\n")
 

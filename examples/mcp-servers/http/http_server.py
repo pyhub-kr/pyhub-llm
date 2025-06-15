@@ -81,12 +81,43 @@ async def echo(message: str) -> str:
 async def calculate_expression(expression: str) -> str:
     """Safely evaluate a mathematical expression."""
     try:
-        # Only allow safe mathematical operations
-        allowed_chars = "0123456789+-*/()., "
-        if not all(c in allowed_chars for c in expression):
-            return "Error: Invalid characters in expression"
-        
-        result = eval(expression)
+        # simpleeval을 사용한 안전한 계산
+        try:
+            import simpleeval
+            import math
+            evaluator = simpleeval.SimpleEval()
+            # 기본 수학 함수들 허용
+            evaluator.functions.update({
+                'abs': abs, 'round': round, 'min': min, 'max': max,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pow': pow
+            })
+            evaluator.names.update({'pi': math.pi, 'e': math.e})
+            result = evaluator.eval(expression)
+        except ImportError:
+            # simpleeval이 없으면 기본 제한 방식 사용
+            import re
+            # 위험한 키워드 검사
+            dangerous_patterns = [
+                r'__\w+__', r'import', r'exec', r'eval', r'open', r'file',
+                r'globals', r'locals', r'vars', r'dir'
+            ]
+            for pattern in dangerous_patterns:
+                if re.search(pattern, expression, re.IGNORECASE):
+                    return f"Error: 위험한 키워드 사용 금지: {pattern}"
+
+            # 허용된 문자만 확인 (수학 함수명 포함)
+            if not re.match(r'^[0-9+\-*/().,\s_a-zA-Z]+$', expression):
+                return "Error: 허용되지 않은 문자 포함"
+
+            import math
+            allowed_names = {
+                'abs': abs, 'round': round, 'min': min, 'max': max, 'pow': pow,
+                'sin': math.sin, 'cos': math.cos, 'tan': math.tan, 'sqrt': math.sqrt,
+                'log': math.log, 'exp': math.exp, 'pi': math.pi, 'e': math.e
+            }
+            result = eval(expression, {"__builtins__": {}}, allowed_names)
+
         logger.info(f"calculate_expression('{expression}') = {result}")
         return f"Result: {expression} = {result}"
     except Exception as e:
@@ -111,26 +142,26 @@ async def root():
 async def mcp_http_endpoint(request: Request):
     """HTTP endpoint for MCP communication."""
     logger.info("New HTTP MCP request received")
-    
+
     try:
         # Get request body
         body = await request.body()
-        
+
         # Create HTTP transport
         transport = StreamableHTTPServerTransport()
-        
+
         # Process MCP request
         async def process_request():
             async with transport.connect() as (read_stream, write_stream):
                 # Send request to MCP server
                 await write_stream.send(body)
-                
+
                 # Get response from MCP server
                 response = await read_stream.receive()
                 return response
-        
+
         response_data = await process_request()
-        
+
         return Response(
             content=response_data,
             media_type="application/json",
@@ -140,7 +171,7 @@ async def mcp_http_endpoint(request: Request):
                 "Access-Control-Allow-Headers": "Content-Type"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"HTTP MCP request error: {e}")
         return Response(
@@ -164,32 +195,32 @@ async def mcp_options():
 
 class SimpleHTTPTransport:
     """Simple HTTP transport implementation for MCP."""
-    
+
     def __init__(self):
         self.request_queue = asyncio.Queue()
         self.response_queue = asyncio.Queue()
-    
+
     async def connect(self):
         """Context manager for connection."""
         return self, self
-    
+
     async def __aenter__(self):
         return self, self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         pass
-    
+
     async def send_request(self, data: bytes) -> bytes:
         """Send request and get response."""
         await self.request_queue.put(data)
         response = await self.response_queue.get()
         return response
-    
+
     async def read(self) -> str:
         """Read message from queue."""
         data = await self.request_queue.get()
         return data.decode('utf-8')
-    
+
     async def write(self, message: str):
         """Write message to queue."""
         await self.response_queue.put(message.encode('utf-8'))
@@ -203,14 +234,14 @@ simple_transport = SimpleHTTPTransport()
 async def simple_mcp_http_endpoint(request: Request):
     """Simplified HTTP endpoint for MCP communication."""
     logger.info("New simple HTTP MCP request received")
-    
+
     try:
         # Get request body
         body = await request.body()
-        
+
         # Use simple transport
         response_data = await simple_transport.send_request(body)
-        
+
         return Response(
             content=response_data,
             media_type="application/json",
@@ -220,7 +251,7 @@ async def simple_mcp_http_endpoint(request: Request):
                 "Access-Control-Allow-Headers": "Content-Type"
             }
         )
-        
+
     except Exception as e:
         logger.error(f"Simple HTTP MCP request error: {e}")
         return Response(

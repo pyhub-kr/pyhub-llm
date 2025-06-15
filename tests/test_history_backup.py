@@ -270,7 +270,7 @@ class TestSQLAlchemyHistoryBackup:
 
 # SQLAlchemy 설치 여부 확인
 try:
-    import sqlalchemy
+    import sqlalchemy  # noqa: F401
 
     HAS_SQLALCHEMY = True
 except ImportError:

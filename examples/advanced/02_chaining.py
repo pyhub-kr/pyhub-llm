@@ -12,6 +12,7 @@
 
 import asyncio
 import os
+import sys
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
@@ -212,8 +213,8 @@ def example_parallel_chaining():
 
     # 분석할 텍스트
     text = """
-    최근 인공지능 기술의 발전으로 많은 산업이 혁신적으로 변화하고 있습니다. 
-    특히 자연어 처리 분야에서 큰 발전이 있었고, 이는 고객 서비스, 콘텐츠 생성, 
+    최근 인공지능 기술의 발전으로 많은 산업이 혁신적으로 변화하고 있습니다.
+    특히 자연어 처리 분야에서 큰 발전이 있었고, 이는 고객 서비스, 콘텐츠 생성,
     번역 등 다양한 분야에 적용되고 있습니다. 하지만 동시에 일자리 대체, 
     개인정보 보호, 윤리적 문제 등 해결해야 할 과제들도 있습니다.
     """
@@ -427,7 +428,7 @@ def main():
     # API 키 확인
     if not os.getenv("OPENAI_API_KEY"):
         print("⚠️  OPENAI_API_KEY 환경 변수를 설정해주세요.")
-        return
+        sys.exit(1)
 
     print("🔗 체이닝 예제")
     print("=" * 50)
