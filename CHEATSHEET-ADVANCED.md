@@ -1032,12 +1032,14 @@ class CodeReviewer:
             best_practices: List[str] = Field(description="베스트 프랙티스")
             score: int = Field(description="전체 점수 (0-100)", ge=0, le=100)
         
+        # 백틱을 변수로 분리하여 마크다운 파싱 문제 방지
+        code_fence = "```"
         prompt = f"""
 다음 {language} 코드를 리뷰해주세요:
 
-```{language}
+{code_fence}{language}
 {code}
-```
+{code_fence}
 
 코드의 품질, 보안, 성능, 가독성 등을 종합적으로 평가해주세요.
 """
@@ -1047,12 +1049,14 @@ class CodeReviewer:
     
     def suggest_refactoring(self, code: str) -> str:
         """리팩토링 제안"""
+        # 백틱을 변수로 분리하여 마크다운 파싱 문제 방지
+        code_fence = "```"
         prompt = f"""
 다음 코드를 더 깔끔하고 효율적으로 리팩토링해주세요:
 
-```python
+{code_fence}python
 {code}
-```
+{code_fence}
 
 리팩토링된 코드와 함께 변경 사항을 설명해주세요.
 """
