@@ -215,7 +215,7 @@ asyncio.run(process_multiple_queries())
 from pyhub.llm import LLM
 
 async def main():
-    # 간편한 문자열 설정로 MCP 서버와 함께 LLM 생성
+    # 간편한 문자열 설정으로 MCP 서버와 함께 LLM 생성
     llm = await LLM.create_async(
         "gpt-4o-mini",
         mcp_servers="python calculator.py"  # 문자열로 간편 설정

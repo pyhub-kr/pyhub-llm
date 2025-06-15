@@ -158,7 +158,7 @@ http_config = McpConfig(
 )
 
 ws_config = McpConfig(
-    url="ws://localhost:8080/ws"  # websocket transport로 자동 감지
+    url="wss://localhost:8080/ws"  # websocket transport로 자동 감지
 )
 
 sse_config = McpConfig(
@@ -168,7 +168,7 @@ sse_config = McpConfig(
 # 2. 문자열로 간편 설정 - 팩토리 함수 사용
 config1 = create_mcp_config("python server.py")  # stdio
 config2 = create_mcp_config("http://localhost:8080")  # http
-config3 = create_mcp_config("ws://localhost:8080")  # websocket
+config3 = create_mcp_config("wss://localhost:8080")  # websocket
 
 # 3. 딕셔너리로 설정
 config4 = create_mcp_config({
@@ -1318,7 +1318,7 @@ print(f"신뢰도: {result['confidence']:.2%}")
 ### 공식 문서
 - [pyhub-llm GitHub 저장소](https://github.com/allieus/pyhub-llm)
 - [API 레퍼런스](https://pyhub-llm.readthedocs.io/)
-- [기본 사용법 CHEATSHEET](./CHEATSHEET.md)
+- [기본 사용법 CHEATSHEET](./CHEATSHEET-BASIC.md)
 
 ### 예제 코드
 - [GitHub Examples 폴더](https://github.com/allieus/pyhub-llm/tree/main/examples)
