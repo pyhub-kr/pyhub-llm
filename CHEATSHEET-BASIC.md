@@ -2,6 +2,8 @@
 
 pyhub-llm을 처음 사용하는 분들을 위한 기본 가이드입니다. 이 문서에서는 설치부터 기본적인 사용법, 대화 관리, 파일 처리 등 핵심 기능들을 다룹니다.
 
+> 💡 예제 실행 중 오류가 발생하면 me@pyhub.kr로 문의 부탁드립니다.
+
 ## 목차
 
 1. [설치](#설치)
@@ -44,6 +46,8 @@ pip install "pyhub-llm[all,mcp]"
 ```
 
 ## 기본 사용법
+
+💻 [실행 가능한 예제](examples/basic/01_hello_world.py)
 
 ### 환경변수 설정
 
@@ -137,6 +141,8 @@ print(reply.text)
 
 실시간으로 응답을 받아 처리합니다.
 
+💻 [실행 가능한 예제](examples/basic/02_streaming.py)
+
 ```python
 from pyhub.llm import LLM
 
@@ -162,6 +168,8 @@ def process_stream(llm, prompt):
 ```
 
 ## 대화 관리
+
+💻 [실행 가능한 예제](examples/basic/03_conversation.py)
 
 ### 대화 히스토리 유지
 
@@ -251,6 +259,8 @@ print(doctor.chat("두통이 자주 있어요"))  # 주의: 실제 의료 조언
 ```
 
 ## 파일 처리
+
+💻 [실행 가능한 예제](examples/basic/04_file_processing.py)
 
 ### 이미지 분석
 

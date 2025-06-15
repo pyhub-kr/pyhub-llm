@@ -66,3 +66,7 @@ CLAUDE.local.md
 CLAUDE.md
 .claude/settings.local.json
 
+*.sqlite3
+
+# TODO files
+TODO*

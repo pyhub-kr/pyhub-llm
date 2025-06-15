@@ -2,6 +2,8 @@
 
 이 문서는 pyhub-llm의 고급 기능들을 다룹니다. 임베딩, MCP 통합, 웹 프레임워크 통합, 체이닝, 에러 처리 등 복잡한 사용 사례와 패턴들을 포함합니다.
 
+> 💡 예제 실행 중 오류가 발생하면 me@pyhub.kr로 문의 부탁드립니다.
+
 ## 목차
 
 - [임베딩](#임베딩)
@@ -13,6 +15,8 @@
 - [추가 자료](#추가-자료)
 
 ## 임베딩
+
+💻 [실행 가능한 예제](examples/advanced/01_embeddings.py)
 
 ### 텍스트 임베딩 생성
 
@@ -114,6 +118,8 @@ for score, doc in results:
 ```
 
 ## MCP 통합
+
+💻 [실행 가능한 예제](examples/mcp_integration_example.py)
 
 ### 서버 이름 자동 감지
 
@@ -295,6 +301,8 @@ filtered_config = McpConfig(
 ```
 
 ## 웹 프레임워크 통합
+
+💻 [실행 가능한 예제](examples/advanced/03_web_frameworks/)
 
 ### FastAPI 통합
 
@@ -667,6 +675,8 @@ if uploaded_file is not None:
 
 ## 체이닝
 
+💻 [실행 가능한 예제](examples/advanced/02_chaining.py)
+
 ### 기본 체이닝
 
 ```python
@@ -779,6 +789,8 @@ for key, value in result.items():
 
 ## 에러 처리
 
+💻 [실행 가능한 예제](examples/advanced/04_advanced_error_handling.py)
+
 ### 기본 에러 처리
 
 ```python
@@ -872,7 +884,11 @@ result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout
 
 ## 실용적인 예제
 
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/)
+
 ### 챗봇 구현
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/chatbot.py)
 
 ```python
 class AdvancedChatBot:
@@ -939,6 +955,8 @@ class AdvancedChatBot:
 ```
 
 ### 문서 요약기
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/document_summarizer.py)
 
 ```python
 class DocumentSummarizer:
@@ -1007,6 +1025,8 @@ print(summary)
 ```
 
 ### 코드 리뷰어
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/code_reviewer.py)
 
 ```python
 class CodeReviewer:
@@ -1088,6 +1108,8 @@ print(f"\n리팩토링 제안:\n{refactored}")
 ```
 
 ### 번역기
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/translator.py)
 
 ```python
 class SmartTranslator:
@@ -1184,6 +1206,8 @@ for text in texts:
 ```
 
 ### Q&A 시스템
+
+💻 [실행 가능한 예제](examples/advanced/05_practical_examples/qa_system.py)
 
 ```python
 class QASystem:

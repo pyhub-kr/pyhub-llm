@@ -112,7 +112,7 @@ class ToolExecutor:
         if tool.is_async:
             # 이미 실행 중인 이벤트 루프가 있는지 확인
             try:
-                loop = asyncio.get_running_loop()
+                _ = asyncio.get_running_loop()
                 # 이미 async 컨텍스트에 있으면 에러
                 raise RuntimeError(
                     f"Cannot execute async tool '{tool.name}' synchronously from async context. "

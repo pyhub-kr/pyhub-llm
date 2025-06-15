@@ -66,7 +66,7 @@ class MCPResourceRegistry:
 
         # 비동기 cleanup 시작
         try:
-            loop = asyncio.get_running_loop()
+            _ = asyncio.get_running_loop()
             asyncio.create_task(self._async_cleanup_all())
         except RuntimeError:
             # 실행 중인 이벤트 루프가 없는 경우
