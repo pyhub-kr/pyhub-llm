@@ -8,6 +8,7 @@ __all__ = ["HistoryBackup", "InMemoryHistoryBackup"]
 # SQLAlchemy는 선택적 의존성
 try:
     from pyhub.llm.history.sqlalchemy_backup import SQLAlchemyHistoryBackup
+
     __all__.append("SQLAlchemyHistoryBackup")
 except ImportError:
     pass

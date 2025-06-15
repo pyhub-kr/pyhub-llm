@@ -3,10 +3,28 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, TYPE_CHECKING, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
+from typing import (
+    IO,
+    TYPE_CHECKING,
+    Any,
+    AsyncGenerator,
+    Generator,
+    List,
+    Optional,
+    Type,
+    Union,
+    cast,
+)
 
 from pyhub.llm.cache.base import BaseCache
 from pyhub.llm.settings import llm_settings
+
+if TYPE_CHECKING:
+    from pydantic import BaseModel
+
+    from pyhub.llm.history.base import HistoryBackup
+    from pyhub.llm.mcp.configs import McpConfig
+    from pyhub.llm.mcp.policy import MCPConnectionPolicy
 from pyhub.llm.types import (
     ChainReply,
     Embed,
@@ -15,7 +33,6 @@ from pyhub.llm.types import (
     LLMEmbeddingModelType,
     Message,
     Reply,
-    Usage,
 )
 from pyhub.llm.utils.files import IOType
 from pyhub.llm.utils.templates import (
@@ -79,7 +96,7 @@ class BaseLLM(abc.ABC):
         self.prompt = prompt
         self.output_key = output_key
         self.history_backup = history_backup
-        
+
         # 백업이 있으면 히스토리 복원, 없으면 initial_messages 사용
         if self.history_backup:
             try:
@@ -264,17 +281,14 @@ class BaseLLM(abc.ABC):
                 ai_message,
             ]
         )
-        
+
         # 백업이 있으면 백업 수행
         if self.history_backup:
             try:
                 # usage 정보를 위해 _last_usage 속성 확인
-                usage = getattr(self, '_last_usage', None)
+                usage = getattr(self, "_last_usage", None)
                 self.history_backup.save_exchange(
-                    user_msg=human_message,
-                    assistant_msg=ai_message,
-                    usage=usage,
-                    model=self.model
+                    user_msg=human_message, assistant_msg=ai_message, usage=usage, model=self.model
                 )
             except Exception as e:
                 # 백업 실패해도 계속 진행
@@ -885,6 +899,9 @@ class BaseLLM(abc.ABC):
         current_messages = [*self.history] if use_history else []
         human_prompt = self.get_human_prompt(input, context or {})
 
+        # 도구 호출 기록을 위한 리스트
+        tool_interactions = []
+        
         # 도구 호출 반복
         for call_count in range(max_tool_calls):
             try:
@@ -918,7 +935,7 @@ class BaseLLM(abc.ABC):
                         print(f"✅ [TRACE] Function Calling 완료 (총 {call_count + 1}회 호출)")
                     if use_history and call_count == 0:
                         human_message = Message(role="user", content=human_prompt, files=files)
-                        self._update_history(human_message, response.text)
+                        self._update_history(human_message, response.text, tool_interactions=tool_interactions if tool_interactions else None)
                     return response
 
                 # 도구 실행
@@ -937,6 +954,13 @@ class BaseLLM(abc.ABC):
                         if llm_settings.trace_function_calls:
                             print(f"   결과: {result}")
 
+                        # 도구 호출 기록
+                        tool_interactions.append({
+                            "tool": tool_call["name"],
+                            "arguments": tool_call["arguments"],
+                            "result": str(result)
+                        })
+
                         # 도구 결과를 메시지에 추가
                         current_messages.append(Message(role="assistant", content=f"[Tool Call: {tool_call['name']}]"))
                         current_messages.append(Message(role="user", content=f"[Tool Result: {result}]"))
@@ -946,6 +970,12 @@ class BaseLLM(abc.ABC):
                         if raise_errors:
                             raise e
                         error_msg = f"Tool execution error: {str(e)}"
+                        # 에러도 기록
+                        tool_interactions.append({
+                            "tool": tool_call["name"],
+                            "arguments": tool_call["arguments"],
+                            "error": str(e)
+                        })
                         current_messages.append(Message(role="user", content=f"[Tool Error: {error_msg}]"))
 
                 # 첫 번째 호출이면 히스토리에 추가
@@ -974,6 +1004,13 @@ class BaseLLM(abc.ABC):
                 messages=final_messages,
                 model=model,
             )
+            
+            # 최종 응답에 tool_interactions 추가
+            if use_history and tool_interactions:
+                # 첫 번째 사용자 메시지와 최종 응답을 히스토리에 추가
+                original_human_msg = Message(role="user", content=human_prompt, files=files)
+                self._update_history(original_human_msg, final_response.text, tool_interactions=tool_interactions)
+            
             return final_response
         except Exception as e:
             if raise_errors:
@@ -1002,6 +1039,9 @@ class BaseLLM(abc.ABC):
         current_messages = [*self.history] if use_history else []
         human_prompt = self.get_human_prompt(input, context or {})
 
+        # 도구 호출 기록을 위한 리스트
+        tool_interactions = []
+        
         # 도구 호출 반복
         for call_count in range(max_tool_calls):
             try:
@@ -1022,13 +1062,21 @@ class BaseLLM(abc.ABC):
                 if not tool_calls:
                     if use_history and call_count == 0:
                         human_message = Message(role="user", content=human_prompt, files=files)
-                        self._update_history(human_message, response.text)
+                        self._update_history(human_message, response.text, tool_interactions=tool_interactions if tool_interactions else None)
                     return response
 
                 # 도구 실행
                 for tool_call in tool_calls:
                     try:
                         result = await executor.execute_tool_async(tool_call["name"], tool_call["arguments"])
+                        
+                        # 도구 호출 기록
+                        tool_interactions.append({
+                            "tool": tool_call["name"],
+                            "arguments": tool_call["arguments"],
+                            "result": str(result)
+                        })
+                        
                         # 도구 결과를 메시지에 추가
                         current_messages.append(Message(role="assistant", content=f"[Tool Call: {tool_call['name']}]"))
                         current_messages.append(Message(role="user", content=f"[Tool Result: {result}]"))
@@ -1036,6 +1084,12 @@ class BaseLLM(abc.ABC):
                         if raise_errors:
                             raise e
                         error_msg = f"Tool execution error: {str(e)}"
+                        # 에러도 기록
+                        tool_interactions.append({
+                            "tool": tool_call["name"],
+                            "arguments": tool_call["arguments"],
+                            "error": str(e)
+                        })
                         current_messages.append(Message(role="user", content=f"[Tool Error: {error_msg}]"))
 
                 # 첫 번째 호출이면 히스토리에 추가
@@ -1064,6 +1118,13 @@ class BaseLLM(abc.ABC):
                 messages=final_messages,
                 model=model,
             )
+            
+            # 최종 응답에 tool_interactions 추가
+            if use_history and tool_interactions:
+                # 첫 번째 사용자 메시지와 최종 응답을 히스토리에 추가
+                original_human_msg = Message(role="user", content=human_prompt, files=files)
+                self._update_history(original_human_msg, final_response.text, tool_interactions=tool_interactions)
+            
             return final_response
         except Exception as e:
             if raise_errors:

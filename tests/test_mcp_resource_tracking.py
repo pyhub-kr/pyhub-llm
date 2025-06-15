@@ -174,6 +174,7 @@ class TestResourceTracking:
                     async def error_cleanup():
                         cleanup_results["error"] += 1
                         raise Exception(f"Cleanup error {idx}")
+
                     return error_cleanup
 
                 mock_instance.close_mcp = AsyncMock(side_effect=make_error_cleanup(i))
