@@ -3,7 +3,7 @@ import asyncio
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
+from typing import IO, TYPE_CHECKING, Any, AsyncGenerator, Generator, List, Optional, Type, Union, cast
 
 from pyhub.llm.cache.base import BaseCache
 from pyhub.llm.settings import llm_settings
@@ -15,6 +15,7 @@ from pyhub.llm.types import (
     LLMEmbeddingModelType,
     Message,
     Reply,
+    Usage,
 )
 from pyhub.llm.utils.files import IOType
 from pyhub.llm.utils.templates import (
@@ -24,6 +25,9 @@ from pyhub.llm.utils.templates import (
     async_to_sync,
     get_template,
 )
+
+if TYPE_CHECKING:
+    from pyhub.llm.history.base import HistoryBackup
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +69,7 @@ class BaseLLM(abc.ABC):
         cache: Optional[BaseCache] = None,
         mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpConfig"]], "McpConfig"]] = None,
         mcp_policy: Optional["MCPConnectionPolicy"] = None,
+        history_backup: Optional["HistoryBackup"] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -73,7 +78,18 @@ class BaseLLM(abc.ABC):
         self.system_prompt = system_prompt
         self.prompt = prompt
         self.output_key = output_key
-        self.history = initial_messages or []
+        self.history_backup = history_backup
+        
+        # 백업이 있으면 히스토리 복원, 없으면 initial_messages 사용
+        if self.history_backup:
+            try:
+                self.history = self.history_backup.load_history()
+            except Exception as e:
+                # 복원 실패 시 initial_messages 사용
+                logger.warning(f"Failed to load history from backup: {e}")
+                self.history = initial_messages or []
+        else:
+            self.history = initial_messages or []
         self.api_key = api_key
         self.cache = cache
 
@@ -233,16 +249,36 @@ class BaseLLM(abc.ABC):
         self,
         human_message: Message,
         ai_message: Union[str, Message],
+        tool_interactions: Optional[list[dict]] = None,
     ) -> None:
         if isinstance(ai_message, str):
-            ai_message = Message(role="assistant", content=ai_message)
+            ai_message = Message(role="assistant", content=ai_message, tool_interactions=tool_interactions)
+        elif tool_interactions and not ai_message.tool_interactions:
+            # tool_interactions가 제공되었지만 ai_message에 없는 경우
+            ai_message.tool_interactions = tool_interactions
 
+        # 메모리에 저장
         self.history.extend(
             [
                 human_message,
                 ai_message,
             ]
         )
+        
+        # 백업이 있으면 백업 수행
+        if self.history_backup:
+            try:
+                # usage 정보를 위해 _last_usage 속성 확인
+                usage = getattr(self, '_last_usage', None)
+                self.history_backup.save_exchange(
+                    user_msg=human_message,
+                    assistant_msg=ai_message,
+                    usage=usage,
+                    model=self.model
+                )
+            except Exception as e:
+                # 백업 실패해도 계속 진행
+                logger.warning(f"History backup failed: {e}")
 
     def get_output_key(self) -> str:
         return self.output_key
