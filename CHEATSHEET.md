@@ -80,7 +80,7 @@ export GOOGLE_API_KEY="..."
 | 구조화된 출력 | 중급 | [INTERMEDIATE - 구조화된 출력](./CHEATSHEET-INTERMEDIATE.md#구조화된-출력) |
 | 비동기 처리 | 중급 | [INTERMEDIATE - 비동기 처리](./CHEATSHEET-INTERMEDIATE.md#비동기-처리) |
 | 캐싱 | 중급 | [INTERMEDIATE - 캐싱](./CHEATSHEET-INTERMEDIATE.md#캐싱) |
-| 도구/함수 호출 | 중급 | [INTERMEDIATE - 도구함수 호출](./CHEATSHEET-INTERMEDIATE.md#도구함수-호출) |
+| 도구/함수 호출 | 중급 | [INTERMEDIATE - 도구/함수 호출](./CHEATSHEET-INTERMEDIATE.md#도구함수-호출) |
 | 템플릿 | 중급 | [INTERMEDIATE - 템플릿 활용](./CHEATSHEET-INTERMEDIATE.md#템플릿-활용) |
 | History Backup | 중급 | [INTERMEDIATE - History Backup](./CHEATSHEET-INTERMEDIATE.md#history-backup) |
 | MCP 통합 | 고급 | [ADVANCED - MCP 통합](./CHEATSHEET-ADVANCED.md#mcp-통합) |
