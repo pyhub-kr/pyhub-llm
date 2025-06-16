@@ -87,6 +87,7 @@ class BaseLLM(abc.ABC):
         mcp_servers: Optional[Union[str, dict, List[Union[dict, "McpConfig"]], "McpConfig"]] = None,
         mcp_policy: Optional["MCPConnectionPolicy"] = None,
         history_backup: Optional["HistoryBackup"] = None,
+        stateless: bool = False,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -96,6 +97,7 @@ class BaseLLM(abc.ABC):
         self.prompt = prompt
         self.output_key = output_key
         self.history_backup = history_backup
+        self.stateless = stateless
 
         # 백업이 있으면 히스토리 복원, 없으면 initial_messages 사용
         if self.history_backup:
@@ -174,6 +176,11 @@ class BaseLLM(abc.ABC):
 
     def __len__(self) -> int:
         return len(self.history)
+    
+    @property
+    def is_stateless(self) -> bool:
+        """현재 인스턴스가 stateless 모드인지 확인"""
+        return self.stateless
 
     def __or__(self, next_llm: Union["BaseLLM", "SequentialChain"]) -> "SequentialChain":
         if isinstance(next_llm, BaseLLM):
@@ -195,7 +202,9 @@ class BaseLLM(abc.ABC):
 
     def clear(self):
         """Clear the chat history"""
-        self.history = []
+        # stateless 모드에서는 이미 history가 비어있으므로 아무 동작 안 함
+        if not self.stateless:
+            self.history = []
 
     def _process_template(self, template: Union[str, Template], context: dict[str, Any]) -> Optional[str]:
         """템플릿 처리를 위한 공통 메서드"""
@@ -268,6 +277,10 @@ class BaseLLM(abc.ABC):
         ai_message: Union[str, Message],
         tool_interactions: Optional[list[dict]] = None,
     ) -> None:
+        # stateless 모드에서는 history를 업데이트하지 않음
+        if self.stateless:
+            return
+            
         if isinstance(ai_message, str):
             ai_message = Message(role="assistant", content=ai_message, tool_interactions=tool_interactions)
         elif tool_interactions and not ai_message.tool_interactions:
@@ -498,6 +511,11 @@ class BaseLLM(abc.ABC):
         raise_errors: bool = False,
     ):
         """동기 또는 비동기 응답을 생성하는 내부 메서드 (일반/스트리밍)"""
+        # stateless 모드에서는 use_history를 무시
+        if self.stateless and use_history:
+            logger.debug("stateless 모드에서는 use_history=True가 무시됩니다.")
+            use_history = False
+            
         current_messages = [*self.history] if use_history else []
         current_model: LLMChatModelType = cast(LLMChatModelType, model or self.model)
 
