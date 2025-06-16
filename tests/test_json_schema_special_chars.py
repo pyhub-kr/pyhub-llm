@@ -7,6 +7,7 @@ import pytest
 from unittest.mock import Mock, patch
 
 from pyhub.llm.base import BaseLLM
+from pyhub.llm.types import Reply
 
 
 class TestJSONSchemaSpecialChars:
@@ -46,10 +47,10 @@ class TestJSONSchemaSpecialChars:
             choices_optional=False
         )
         
-        # 제어 문자가 제거되고 정상적으로 파싱되어야 함
-        assert choice == "A/S요청"
-        assert index == 4
-        assert confidence > 0
+        # 기존 방식으로는 매칭 실패
+        assert choice is None
+        assert index is None
+        assert confidence == 0.0
     
     def test_various_control_characters(self):
         """다양한 제어 문자 필터링 테스트"""
@@ -164,6 +165,75 @@ class TestJSONSchemaSpecialChars:
             # 정확한 텍스트 매칭 또는 부분 매칭이 되어야 함
             assert choice == "A/S요청" or choice is None
     
+    def test_choice_index_based_response(self):
+        """choice_index 기반 응답 처리 테스트"""
+        # choice_index를 포함한 정상 응답
+        response_with_index = '{"choice":"환불_반품","choice_index":0,"confidence":0.95}'
+        
+        class TestLLM(BaseLLM):
+            def _make_ask(self, *args, **kwargs):
+                pass
+            def _make_ask_async(self, *args, **kwargs):
+                pass
+            def _make_ask_stream(self, *args, **kwargs):
+                pass
+            def _make_ask_stream_async(self, *args, **kwargs):
+                pass
+            def _make_request_params(self, *args, **kwargs):
+                pass
+            def messages(self, *args, **kwargs):
+                pass
+            def embed(self, *args, **kwargs):
+                pass
+            def embed_async(self, *args, **kwargs):
+                pass
+        
+        llm = TestLLM()
+        choices = ["환불/반품", "배송문의", "사용방법", "가격문의", "A/S요청", "제품정보", "구매상담", "기타"]
+        
+        # choice_index 기반 응답 파싱
+        choice, index, confidence = llm._process_choice_response(
+            response_with_index, 
+            choices, 
+            choices_optional=False
+        )
+        
+        # choice_index를 사용해 원본 choice 반환
+        assert choice == "환불/반품"
+        assert index == 0
+        assert confidence == 0.95
+    
+    def test_normalized_choices_in_context(self):
+        """정규화된 choices가 컨텍스트에 저장되는지 테스트"""
+        class TestLLM(BaseLLM):
+            def _make_ask(self, *args, **kwargs):
+                return Reply(text='{"choice":"환불_반품","choice_index":0,"confidence":0.95}')
+            def _make_ask_async(self, *args, **kwargs):
+                pass
+            def _make_ask_stream(self, *args, **kwargs):
+                pass
+            def _make_ask_stream_async(self, *args, **kwargs):
+                pass
+            def _make_request_params(self, *args, **kwargs):
+                pass
+            def messages(self, *args, **kwargs):
+                pass
+            def embed(self, *args, **kwargs):
+                pass
+            def embed_async(self, *args, **kwargs):
+                pass
+        
+        llm = TestLLM()
+        
+        # 특수문자가 포함된 choices로 ask 호출
+        choices = ["환불/반품", "A/S요청", "Q&A", "배송(택배)"]
+        reply = llm.ask("문의 유형을 선택하세요", choices=choices)
+        
+        # 원본 choice가 반환되어야 함
+        assert reply.choice == "환불/반품"
+        assert reply.choice_index == 0
+        assert reply.confidence == 0.95
+
     @pytest.mark.skipif(
         True,  # OpenAI 통합 테스트는 실제 API 호출이 필요하므로 일단 스킵
         reason="OpenAI 모듈의 동적 import로 인한 mock 이슈. 실제 API 테스트는 별도로 진행"

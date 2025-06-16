@@ -38,16 +38,25 @@ class OpenAIMixin:
         message_history = [dict(message) for message in messages]
         system_prompt = self.get_system_prompt(input_context)
 
-        if system_prompt:
-            # choices가 있으면 시스템 프롬프트에 지시사항 추가
-            if "choices" in input_context:
-                choices_instruction = (
-                    f"\n\nYou must select one option from the given choices: {', '.join(input_context['choices'])}. "
-                )
-                if input_context.get("allow_none"):
-                    choices_instruction += "If none of the options are suitable, you may select 'None of the above'."
-                system_prompt += choices_instruction
+        # choices가 있으면 시스템 프롬프트에 지시사항 추가
+        if "choices" in input_context:
+            # choices를 보여주고 인덱스로 선택하도록 지시
+            choices = input_context["choices"]
+            choices_list = "\n".join([f"{i}: {choice}" for i, choice in enumerate(choices)])
+            choices_instruction = (
+                f"You must select one option from the following choices by returning both the choice text and its zero-based index:\n{choices_list}\n"
+                f"Return your selection as JSON with 'choice' (exact text from options), 'choice_index' (the zero-based index), and 'confidence' (0.0-1.0)."
+            )
+            if input_context.get("allow_none"):
+                choices_instruction += "\nIf none of the options are suitable, you may select 'None of the above'."
+            
+            # system_prompt가 없으면 새로 생성
+            if system_prompt:
+                system_prompt += f"\n\n{choices_instruction}"
+            else:
+                system_prompt = choices_instruction
 
+        if system_prompt:
             # history에는 system prompt는 누적되지 않고, 매 요청 시마다 적용합니다.
             system_message = {"role": "system", "content": system_prompt}
             message_history.insert(0, system_message)
@@ -164,10 +173,17 @@ class OpenAIMixin:
                 "type": "json_schema",
                 "json_schema": {
                     "name": "choice_response",
+                    "strict": True,
                     "schema": {
                         "type": "object",
                         "properties": {
                             "choice": {"type": "string", "enum": input_context["choices"]},
+                            "choice_index": {
+                                "type": "integer",
+                                "minimum": 0,
+                                "maximum": len(input_context["choices"]) - 1,
+                                "description": "Zero-based index of the selected choice",
+                            },
                             "confidence": {
                                 "type": "number",
                                 "minimum": 0.0,
@@ -175,7 +191,7 @@ class OpenAIMixin:
                                 "description": "Confidence level in the selection",
                             },
                         },
-                        "required": ["choice"],
+                        "required": ["choice", "choice_index", "confidence"],
                         "additionalProperties": False,
                     },
                 },
@@ -196,6 +212,7 @@ class OpenAIMixin:
                 "type": "json_schema",
                 "json_schema": {
                     "name": schema.__name__,
+                    "strict": True,
                     "schema": input_context["schema_json"],
                 },
             }
