@@ -191,6 +191,39 @@ llm.clear()  # 대화 히스토리 초기화
 ```
 
 
+### Stateless 모드 (히스토리 없는 독립 처리)
+
+반복적인 독립 작업에서는 대화 히스토리가 불필요합니다. Stateless 모드를 사용하면 각 요청이 완전히 독립적으로 처리됩니다.
+
+```python
+from pyhub.llm import LLM
+
+# Stateless 모드로 생성 (히스토리 저장 안 함)
+classifier = LLM.create("gpt-4o-mini", stateless=True)
+
+# 대량의 독립적인 분류 작업
+texts = ["환불해주세요", "언제 배송되나요?", "제품이 고장났어요"]
+for text in texts:
+    reply = classifier.ask(
+        f"고객 문의 분류: {text}",
+        choices=["환불", "배송", "AS", "기타"]
+    )
+    print(f"{text} -> {reply.choice}")
+    # 각 요청이 독립적으로 처리되어 API 비용 절감
+```
+
+### 일반 모드 vs Stateless 모드 비교
+
+| 특징 | 일반 모드 | Stateless 모드 |
+|------|-----------|----------------|
+| 대화 히스토리 | 자동 저장 | 저장 안 함 |
+| 연속 대화 | 가능 | 불가능 |
+| 메모리 사용 | 누적됨 | 항상 최소 |
+| API 토큰 사용 | 누적됨 | 항상 최소 |
+| 사용 사례 | 챗봇, 대화형 AI | 분류, 추출, 번역 |
+| `use_history` | 동작함 | 무시됨 |
+| `clear()` | 히스토리 삭제 | 아무 동작 안 함 |
+
 ### 컨텍스트 윈도우 관리
 
 pyhub-llm은 내부적으로 컨텍스트 윈도우를 관리하지만, 필요에 따라 수동으로 제어할 수도 있습니다.
@@ -432,6 +465,144 @@ async def ask_with_timeout(llm, prompt: str, timeout: float = 30.0):
 # 사용
 llm = LLM.create("gpt-4o-mini")
 result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout=10))
+```
+
+## 실전 예제: Stateless 모드 활용
+
+### 고객 문의 분류 시스템
+
+```python
+from pyhub.llm import LLM
+from typing import List, Dict
+
+def classify_customer_inquiries(inquiries: List[str]) -> List[Dict[str, str]]:
+    """대량의 고객 문의를 분류"""
+    # Stateless 모드로 분류기 생성
+    classifier = LLM.create("gpt-4o-mini", stateless=True)
+    
+    categories = ["환불/반품", "배송문의", "제품문의", "AS요청", "기타"]
+    results = []
+    
+    for inquiry in inquiries:
+        reply = classifier.ask(
+            f"다음 고객 문의를 분류하세요: {inquiry}",
+            choices=categories
+        )
+        results.append({
+            "inquiry": inquiry,
+            "category": reply.choice,
+            "confidence": reply.confidence
+        })
+    
+    return results
+
+# 사용 예
+inquiries = [
+    "제품이 파손되어 도착했어요",
+    "주문한 지 일주일이 됐는데 아직 안 왔어요",
+    "이 제품 사용법을 모르겠어요",
+    "환불 처리는 얼마나 걸리나요?"
+]
+
+results = classify_customer_inquiries(inquiries)
+for r in results:
+    print(f"{r['inquiry'][:20]}... -> {r['category']} ({r['confidence']:.2f})")
+```
+
+### 대량 텍스트 감정 분석
+
+```python
+from pyhub.llm import LLM
+from pydantic import BaseModel
+from concurrent.futures import ThreadPoolExecutor
+import time
+
+class SentimentResult(BaseModel):
+    sentiment: str  # positive, negative, neutral
+    confidence: float
+    keywords: List[str]
+
+def analyze_sentiment_batch(texts: List[str], batch_size: int = 10):
+    """대량의 텍스트 감정 분석 (병렬 처리)"""
+    # Stateless 모드로 여러 인스턴스 생성
+    analyzers = [
+        LLM.create("gpt-4o-mini", stateless=True) 
+        for _ in range(batch_size)
+    ]
+    
+    def analyze_single(analyzer_text_pair):
+        analyzer, text = analyzer_text_pair
+        reply = analyzer.ask(
+            f"Analyze sentiment of: {text}",
+            schema=SentimentResult
+        )
+        return {
+            "text": text,
+            "result": reply.structured_data
+        }
+    
+    # 병렬 처리
+    with ThreadPoolExecutor(max_workers=batch_size) as executor:
+        # 각 텍스트를 분석기에 할당
+        pairs = [(analyzers[i % batch_size], text) for i, text in enumerate(texts)]
+        results = list(executor.map(analyze_single, pairs))
+    
+    return results
+
+# 사용 예
+reviews = [
+    "This product is amazing! Best purchase ever.",
+    "Terrible experience, would not recommend.",
+    "It's okay, nothing special.",
+    # ... 수백 개의 리뷰
+]
+
+start = time.time()
+results = analyze_sentiment_batch(reviews[:50], batch_size=5)
+print(f"Analyzed {len(results)} reviews in {time.time() - start:.2f}s")
+```
+
+### 문서 요약 배치 처리
+
+```python
+from pyhub.llm import LLM
+from pathlib import Path
+import json
+
+def summarize_documents(doc_folder: str, output_file: str):
+    """폴더 내 모든 문서를 요약"""
+    # Stateless 모드 - 각 문서가 독립적으로 처리됨
+    summarizer = LLM.create("gpt-4o-mini", stateless=True)
+    
+    summaries = {}
+    doc_path = Path(doc_folder)
+    
+    for file_path in doc_path.glob("*.txt"):
+        with open(file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 각 문서를 독립적으로 요약
+        reply = summarizer.ask(
+            f"다음 문서를 3줄로 요약하세요:\n\n{content[:2000]}"
+        )
+        
+        summaries[file_path.name] = {
+            "summary": reply.text,
+            "file_size": len(content),
+            "processed_at": time.strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        print(f"✓ {file_path.name} 처리 완료")
+    
+    # 결과 저장
+    with open(output_file, 'w', encoding='utf-8') as f:
+        json.dump(summaries, f, ensure_ascii=False, indent=2)
+    
+    return summaries
+
+# 사용 예
+summaries = summarize_documents("./documents", "./summaries.json")
+print(f"총 {len(summaries)}개 문서 요약 완료")
 ```
 
 ## 다음 단계

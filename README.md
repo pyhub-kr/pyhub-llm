@@ -380,6 +380,48 @@ pyhub-llm ask "이 코드를 리뷰해주세요" --file main.py
 > 🔧 더 많은 CLI 옵션과 사용법은 [초급 가이드](./CHEATSHEET-BASIC.md)를 참고하세요.
 
 
+## 고급 기능
+
+### Stateless 모드
+
+반복적인 독립 작업(분류, 정보 추출 등)을 수행할 때 불필요한 대화 히스토리 누적을 방지하는 모드입니다.
+
+```python
+from pyhub.llm import LLM
+
+# Stateless 모드로 LLM 생성
+classifier = LLM.create("gpt-4o-mini", stateless=True)
+
+# 각 요청이 독립적으로 처리되며 히스토리가 저장되지 않음
+for text in customer_queries:
+    reply = classifier.ask(
+        f"고객 문의 의도 분류: {text}",
+        choices=["환불", "배송", "문의", "불만"]
+    )
+    print(f"{text} -> {reply.choice}")
+    # 히스토리가 누적되지 않아 API 비용 절감
+```
+
+**Stateless 모드의 특징:**
+- 대화 히스토리를 전혀 저장하지 않음
+- `use_history=True`를 지정해도 무시됨
+- `clear()` 메서드가 아무 동작도 하지 않음
+- 반복 작업에서 메모리 사용량과 API 비용 절감
+
+**일반 모드와의 비교:**
+```python
+# 일반 모드 (히스토리 누적)
+normal_llm = LLM.create("gpt-4o-mini")
+normal_llm.ask("분류1", choices=["A", "B"])  # 2개 메시지 저장
+normal_llm.ask("분류2", choices=["C", "D"])  # 4개 메시지 저장 (이전 대화 포함)
+
+# Stateless 모드 (히스토리 없음)
+stateless_llm = LLM.create("gpt-4o-mini", stateless=True)
+stateless_llm.ask("분류1", choices=["A", "B"])  # 0개 메시지
+stateless_llm.ask("분류2", choices=["C", "D"])  # 0개 메시지 (독립 처리)
+```
+
+
 ## 개발
 
 ### 테스트 실행

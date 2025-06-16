@@ -11,6 +11,8 @@
 - [웹 프레임워크 통합](#웹-프레임워크-통합)
 - [체이닝](#체이닝)
 - [에러 처리](#에러-처리)
+- [성능 최적화](#성능-최적화)
+- [아키텍처 패턴](#아키텍처-패턴)
 - [실용적인 예제](#실용적인-예제)
 - [추가 자료](#추가-자료)
 
@@ -880,6 +882,320 @@ async def ask_with_timeout(llm, prompt: str, timeout: float = 30.0):
 # 사용
 llm = LLM.create("gpt-4o-mini")
 result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout=10))
+```
+
+## 성능 최적화
+
+### Stateless 모드를 통한 메모리/API 비용 절감
+
+반복적인 독립 작업에서 Stateless 모드를 사용하면 메모리 사용량과 API 비용을 크게 절감할 수 있습니다.
+
+```python
+from pyhub.llm import LLM
+import time
+import psutil
+import os
+
+def compare_memory_usage():
+    """일반 모드 vs Stateless 모드 메모리 사용량 비교"""
+    process = psutil.Process(os.getpid())
+    
+    # 일반 모드 (히스토리 누적)
+    normal_llm = LLM.create("gpt-4o-mini")
+    start_memory = process.memory_info().rss / 1024 / 1024  # MB
+    
+    for i in range(100):
+        normal_llm.ask(f"텍스트 {i} 분류", choices=["A", "B", "C"])
+    
+    normal_memory = process.memory_info().rss / 1024 / 1024
+    print(f"일반 모드 메모리 증가: {normal_memory - start_memory:.2f} MB")
+    print(f"히스토리 크기: {len(normal_llm.history)} 메시지")
+    
+    # Stateless 모드 (히스토리 없음)
+    stateless_llm = LLM.create("gpt-4o-mini", stateless=True)
+    start_memory = process.memory_info().rss / 1024 / 1024
+    
+    for i in range(100):
+        stateless_llm.ask(f"텍스트 {i} 분류", choices=["A", "B", "C"])
+    
+    stateless_memory = process.memory_info().rss / 1024 / 1024
+    print(f"Stateless 모드 메모리 증가: {stateless_memory - start_memory:.2f} MB")
+    print(f"히스토리 크기: {len(stateless_llm.history)} 메시지")
+```
+
+### API 토큰 사용량 비교
+
+```python
+def estimate_token_usage(num_requests: int):
+    """토큰 사용량 추정"""
+    # 각 요청이 약 50 토큰이라고 가정
+    tokens_per_request = 50
+    
+    # 일반 모드: 히스토리가 누적되어 토큰 사용량 증가
+    normal_tokens = 0
+    for i in range(num_requests):
+        # 이전 대화 내역 + 새 요청
+        history_tokens = i * tokens_per_request * 2  # 질문 + 답변
+        normal_tokens += history_tokens + tokens_per_request
+    
+    # Stateless 모드: 항상 일정한 토큰 사용
+    stateless_tokens = num_requests * tokens_per_request
+    
+    print(f"요청 {num_requests}개 처리 시:")
+    print(f"일반 모드: {normal_tokens:,} 토큰")
+    print(f"Stateless 모드: {stateless_tokens:,} 토큰")
+    print(f"절감률: {(1 - stateless_tokens/normal_tokens) * 100:.1f}%")
+    
+    # 비용 계산 (GPT-4o-mini 기준)
+    cost_per_1k_tokens = 0.15 / 1000  # $0.15 per 1M tokens
+    normal_cost = normal_tokens * cost_per_1k_tokens
+    stateless_cost = stateless_tokens * cost_per_1k_tokens
+    
+    print(f"\n예상 비용:")
+    print(f"일반 모드: ${normal_cost:.4f}")
+    print(f"Stateless 모드: ${stateless_cost:.4f}")
+    print(f"절감액: ${normal_cost - stateless_cost:.4f}")
+
+# 사용 예
+estimate_token_usage(100)
+```
+
+### 병렬 처리 최적화
+
+```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import List, Tuple
+import asyncio
+
+class ParallelProcessor:
+    """Stateless LLM을 활용한 병렬 처리기"""
+    
+    def __init__(self, model: str = "gpt-4o-mini", max_workers: int = 5):
+        self.model = model
+        self.max_workers = max_workers
+        # 각 워커용 Stateless LLM 인스턴스
+        self.llms = [
+            LLM.create(model, stateless=True) 
+            for _ in range(max_workers)
+        ]
+    
+    def process_batch(self, 
+                     items: List[str], 
+                     task_template: str,
+                     **kwargs) -> List[Tuple[str, Reply]]:
+        """배치 처리"""
+        results = []
+        
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            # 각 아이템을 워커에 할당
+            futures = {}
+            for i, item in enumerate(items):
+                llm = self.llms[i % self.max_workers]
+                future = executor.submit(
+                    llm.ask, 
+                    task_template.format(item=item),
+                    **kwargs
+                )
+                futures[future] = item
+            
+            # 결과 수집
+            for future in as_completed(futures):
+                item = futures[future]
+                try:
+                    reply = future.result()
+                    results.append((item, reply))
+                except Exception as e:
+                    print(f"Error processing {item}: {e}")
+        
+        return results
+
+# 사용 예
+processor = ParallelProcessor(max_workers=10)
+
+# 대량 분류 작업
+items = ["텍스트1", "텍스트2", "텍스트3"] * 100
+results = processor.process_batch(
+    items,
+    "다음 텍스트의 감정을 분석하세요: {item}",
+    choices=["긍정", "부정", "중립"]
+)
+
+print(f"처리 완료: {len(results)}건")
+```
+
+## 아키텍처 패턴
+
+### Stateless LLM을 활용한 마이크로서비스
+
+```python
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import List, Optional
+import asyncio
+
+app = FastAPI()
+
+# 각 서비스용 Stateless LLM 인스턴스
+classifiers = {
+    "sentiment": LLM.create("gpt-4o-mini", stateless=True),
+    "intent": LLM.create("gpt-4o-mini", stateless=True),
+    "category": LLM.create("gpt-4o-mini", stateless=True),
+}
+
+class AnalysisRequest(BaseModel):
+    text: str
+    services: List[str] = ["sentiment", "intent", "category"]
+
+class AnalysisResponse(BaseModel):
+    text: str
+    sentiment: Optional[str] = None
+    intent: Optional[str] = None
+    category: Optional[str] = None
+
+@app.post("/analyze", response_model=AnalysisResponse)
+async def analyze_text(request: AnalysisRequest):
+    """텍스트 멀티 분석 API"""
+    results = {"text": request.text}
+    
+    # 각 서비스를 병렬로 실행
+    tasks = []
+    
+    if "sentiment" in request.services:
+        tasks.append(("sentiment", classifiers["sentiment"].ask_async(
+            f"감정 분석: {request.text}",
+            choices=["긍정", "부정", "중립"]
+        )))
+    
+    if "intent" in request.services:
+        tasks.append(("intent", classifiers["intent"].ask_async(
+            f"의도 분류: {request.text}",
+            choices=["질문", "요청", "불만", "정보"]
+        )))
+    
+    if "category" in request.services:
+        tasks.append(("category", classifiers["category"].ask_async(
+            f"카테고리 분류: {request.text}",
+            choices=["기술", "일반", "긴급", "기타"]
+        )))
+    
+    # 모든 분석 완료 대기
+    for service_name, task in tasks:
+        try:
+            reply = await task
+            results[service_name] = reply.choice
+        except Exception as e:
+            print(f"Error in {service_name}: {e}")
+    
+    return AnalysisResponse(**results)
+
+# 서버 실행: uvicorn main:app --reload
+```
+
+### 이벤트 기반 처리 시스템
+
+```python
+from typing import Dict, Any, Callable
+import asyncio
+from dataclasses import dataclass
+from datetime import datetime
+
+@dataclass
+class Event:
+    id: str
+    type: str
+    data: Dict[str, Any]
+    timestamp: datetime = None
+    
+    def __post_init__(self):
+        if self.timestamp is None:
+            self.timestamp = datetime.now()
+
+class EventProcessor:
+    """Stateless LLM 기반 이벤트 처리기"""
+    
+    def __init__(self):
+        self.handlers: Dict[str, Callable] = {}
+        self.llms: Dict[str, LLM] = {}
+    
+    def register_handler(self, event_type: str, model: str = "gpt-4o-mini"):
+        """이벤트 타입별 핸들러 등록"""
+        def decorator(func):
+            self.handlers[event_type] = func
+            # 각 핸들러용 Stateless LLM 생성
+            self.llms[event_type] = LLM.create(model, stateless=True)
+            return func
+        return decorator
+    
+    async def process_event(self, event: Event):
+        """이벤트 처리"""
+        handler = self.handlers.get(event.type)
+        if not handler:
+            print(f"No handler for event type: {event.type}")
+            return
+        
+        llm = self.llms[event.type]
+        return await handler(event, llm)
+
+# 사용 예
+processor = EventProcessor()
+
+@processor.register_handler("customer_feedback")
+async def handle_feedback(event: Event, llm: LLM):
+    """고객 피드백 처리"""
+    feedback = event.data.get("message", "")
+    
+    # 감정 분석
+    sentiment = await llm.ask_async(
+        f"고객 피드백 감정 분석: {feedback}",
+        choices=["매우 긍정", "긍정", "중립", "부정", "매우 부정"]
+    )
+    
+    # 우선순위 결정
+    priority = await llm.ask_async(
+        f"피드백 우선순위: {feedback}",
+        choices=["긴급", "높음", "보통", "낮음"]
+    )
+    
+    return {
+        "event_id": event.id,
+        "sentiment": sentiment.choice,
+        "priority": priority.choice,
+        "processed_at": datetime.now()
+    }
+
+@processor.register_handler("support_ticket")
+async def handle_ticket(event: Event, llm: LLM):
+    """지원 티켓 처리"""
+    ticket = event.data.get("content", "")
+    
+    # 카테고리 분류
+    category = await llm.ask_async(
+        f"지원 요청 분류: {ticket}",
+        choices=["기술지원", "결제문의", "계정문제", "기타"]
+    )
+    
+    return {
+        "event_id": event.id,
+        "category": category.choice,
+        "auto_response": f"{category.choice} 팀으로 전달되었습니다."
+    }
+
+# 이벤트 처리 실행
+async def main():
+    events = [
+        Event("1", "customer_feedback", {"message": "정말 훌륭한 서비스입니다!"}),
+        Event("2", "support_ticket", {"content": "비밀번호를 잊어버렸어요"}),
+        Event("3", "customer_feedback", {"message": "배송이 너무 늦어요"}),
+    ]
+    
+    # 모든 이벤트 병렬 처리
+    tasks = [processor.process_event(event) for event in events]
+    results = await asyncio.gather(*tasks)
+    
+    for result in results:
+        print(result)
+
+# asyncio.run(main())
 ```
 
 ## 실용적인 예제
