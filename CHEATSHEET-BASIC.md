@@ -187,7 +187,7 @@ print(llm.ask("파이썬부터 시작하면 좋을까요?").text)
 print(llm.ask("그럼 첫 번째로 뭘 배워야 할까요?").text)
 
 # 대화 초기화가 필요한 경우
-llm.reset_messages()  # 대화 히스토리 초기화
+llm.clear()  # 대화 히스토리 초기화
 ```
 
 수동으로 대화 히스토리를 관리하고 싶은 경우:
@@ -226,9 +226,9 @@ for i in range(20):
     print(f"답변 {i}: {reply.text[:50]}...")
 
 # 수동으로 메시지 수 제한하기
-if len(llm.messages_list) > 10:
+if len(llm.history) > 10:
     # 최근 10개 메시지만 유지
-    llm.messages_list = llm.messages_list[-10:]
+    llm.history = llm.history[-10:]
 ```
 
 ### 페르소나 기반 대화
