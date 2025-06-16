@@ -173,89 +173,95 @@ def process_stream(llm, prompt):
 
 ### 대화 히스토리 유지
 
+pyhub-llm은 내부적으로 대화 히스토리를 자동 관리합니다. 별도의 히스토리 관리 없이도 연속적인 대화가 가능합니다.
+
+```python
+from pyhub.llm import LLM
+
+# LLM 인스턴스 생성
+llm = LLM.create("gpt-4o-mini")
+
+# 자동으로 대화 컨텍스트가 유지됨
+print(llm.ask("안녕하세요! 저는 프로그래밍을 배우고 싶어요.").text)
+print(llm.ask("파이썬부터 시작하면 좋을까요?").text)
+print(llm.ask("그럼 첫 번째로 뭘 배워야 할까요?").text)
+
+# 대화 초기화가 필요한 경우
+llm.reset_messages()  # 대화 히스토리 초기화
+```
+
+수동으로 대화 히스토리를 관리하고 싶은 경우:
+
 ```python
 from pyhub.llm import LLM
 from pyhub.llm.types import Message
 
-class ChatBot:
-    def __init__(self, model="gpt-4o-mini"):
-        self.llm = LLM.create(model)
-        self.history = []
-    
-    def chat(self, user_input: str) -> str:
-        # 사용자 메시지 추가
-        self.history.append(Message(role="user", content=user_input))
-        
-        # LLM에게 전체 히스토리 전달
-        reply = self.llm.messages(self.history)
-        
-        # 응답을 히스토리에 추가
-        self.history.append(Message(role="assistant", content=reply.text))
-        
-        return reply.text
-    
-    def reset(self):
-        """대화 초기화"""
-        self.history = []
-    
-    def save_history(self, filename: str):
-        """대화 내역 저장"""
-        import json
-        with open(filename, 'w', encoding='utf-8') as f:
-            json.dump([msg.dict() for msg in self.history], f, ensure_ascii=False, indent=2)
+# 명시적인 메시지 리스트 전달
+llm = LLM.create("gpt-4o-mini")
 
-# 사용 예
-bot = ChatBot()
-print(bot.chat("안녕하세요! 저는 프로그래밍을 배우고 싶어요."))
-print(bot.chat("파이썬부터 시작하면 좋을까요?"))
-print(bot.chat("그럼 첫 번째로 뭘 배워야 할까요?"))
+messages = [
+    Message(role="system", content="당신은 친절한 교육자입니다."),
+    Message(role="user", content="파이썬을 배우고 싶어요."),
+    Message(role="assistant", content="좋은 선택입니다! 파이썬은 배우기 쉽고 강력한 언어입니다."),
+    Message(role="user", content="어디서부터 시작해야 할까요?")
+]
+
+reply = llm.messages(messages)
+print(reply.text)
 ```
 
 ### 컨텍스트 윈도우 관리
 
+pyhub-llm은 내부적으로 컨텍스트 윈도우를 관리하지만, 필요에 따라 수동으로 제어할 수도 있습니다.
+
 ```python
-class ContextManagedChat:
-    def __init__(self, model="gpt-4o-mini", max_messages=10):
-        self.llm = LLM.create(model)
-        self.history = []
-        self.max_messages = max_messages
-    
-    def chat(self, user_input: str) -> str:
-        # 컨텍스트 윈도우 크기 제한
-        if len(self.history) >= self.max_messages * 2:
-            # 시스템 메시지는 유지하고 오래된 대화 제거
-            self.history = self.history[-self.max_messages * 2:]
-        
-        self.history.append(Message(role="user", content=user_input))
-        reply = self.llm.messages(self.history)
-        self.history.append(Message(role="assistant", content=reply.text))
-        
-        return reply.text
+from pyhub.llm import LLM
+
+# 자동 컨텍스트 관리 (기본값)
+llm = LLM.create("gpt-4o-mini")
+
+# 긴 대화 진행 - LLM이 자동으로 컨텍스트 관리
+for i in range(20):
+    reply = llm.ask(f"질문 {i}: 이전 대화를 기억하나요?")
+    print(f"답변 {i}: {reply.text[:50]}...")
+
+# 수동으로 메시지 수 제한하기
+if len(llm.messages_list) > 10:
+    # 최근 10개 메시지만 유지
+    llm.messages_list = llm.messages_list[-10:]
 ```
 
 ### 페르소나 기반 대화
 
+시스템 프롬프트를 설정하여 다양한 페르소나로 대화할 수 있습니다.
+
 ```python
-class PersonaChat:
-    def __init__(self, persona: str, model="gpt-4o-mini"):
-        self.llm = LLM.create(
-            model,
-            system_prompt=persona
-        )
-        self.history = []
-    
-    def chat(self, message: str) -> str:
-        reply = self.llm.ask(message)
-        return reply.text
+from pyhub.llm import LLM
 
-# 다양한 페르소나
-teacher = PersonaChat("당신은 친절하고 인내심 있는 프로그래밍 교사입니다.")
-chef = PersonaChat("당신은 미슐랭 3스타 셰프입니다. 요리에 대한 열정이 넘칩니다.")
-doctor = PersonaChat("당신은 의학 전문가입니다. 정확하고 신중하게 답변합니다.")
+# 다양한 페르소나 설정
+teacher = LLM.create(
+    "gpt-4o-mini",
+    system_prompt="당신은 친절하고 인내심 있는 프로그래밍 교사입니다."
+)
 
-print(teacher.chat("재귀함수가 뭔가요?"))
-print(chef.chat("파스타 면을 삶는 최적의 시간은?"))
-print(doctor.chat("두통이 자주 있어요"))  # 주의: 실제 의료 조언이 아님
+chef = LLM.create(
+    "gpt-4o-mini",
+    system_prompt="당신은 미슐랭 3스타 셰프입니다. 요리에 대한 열정이 넘칩니다."
+)
+
+doctor = LLM.create(
+    "gpt-4o-mini",
+    system_prompt="당신은 의학 전문가입니다. 정확하고 신중하게 답변합니다."
+)
+
+# 각 페르소나와 대화 (컨텍스트 자동 유지)
+print(teacher.ask("재귀함수가 뭔가요?").text)
+print(teacher.ask("예제를 보여주세요.").text)  # 이전 대화 기억
+
+print(chef.ask("파스타 면을 삶는 최적의 시간은?").text)
+print(chef.ask("소금은 언제 넣나요?").text)  # 파스타 관련 대화 계속
+
+print(doctor.ask("두통이 자주 있어요").text)  # 주의: 실제 의료 조언이 아님
 ```
 
 ## 파일 처리
