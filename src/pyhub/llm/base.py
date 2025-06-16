@@ -256,7 +256,7 @@ class BaseLLM(abc.ABC):
                 # 아니면 dict의 내용을 읽기 쉬운 형태로 변환
                 formatted_parts = []
                 for key, value in context.items():
-                    if key not in ["choices", "choices_formatted", "choices_optional", "original_choices"]:
+                    if key not in ["choices", "choices_formatted", "choices_optional"]:
                         formatted_parts.append(f"{key}: {value}")
                 return "\n".join(formatted_parts) if formatted_parts else ""
 
@@ -306,15 +306,57 @@ class BaseLLM(abc.ABC):
         Returns:
             (choice, index, confidence) 튜플
         """
+        import re
+
         # JSON 응답 파싱 시도 (OpenAI, Google 등)
         try:
             import json
 
-            data = json.loads(text)
-            if isinstance(data, dict) and "choice" in data:
-                choice = data["choice"]
-                if choice in choices:
-                    return choice, choices.index(choice), data.get("confidence", 1.0)
+            # 먼저 원본 텍스트로 파싱 시도 (strict=False로 제어 문자 허용)
+            try:
+                data = json.loads(text, strict=False)
+            except json.JSONDecodeError:
+                # 파싱 실패 시 제어 문자 제거 후 재시도
+                # 제어 문자만 제거
+                text_cleaned = re.sub(r"[\x00-\x1f\x7f]", "", text)
+                data = json.loads(text_cleaned)
+
+            if isinstance(data, dict):
+                # choice_index가 있으면 인덱스를 직접 사용
+                if "choice_index" in data and isinstance(data["choice_index"], int):
+                    index = data["choice_index"]
+                    if 0 <= index < len(choices):
+                        return choices[index], index, data.get("confidence", 1.0)
+                    else:
+                        logger.warning(f"Invalid choice_index {index} for {len(choices)} choices")
+                
+                # choice_index가 없으면 기존 방식 사용
+                if "choice" in data:
+                    choice = data["choice"]
+                    # choice 값에서 제어 문자 제거
+                    # 예: "\u001cA/S\u001d요청" → "A/S요청"
+                    choice = re.sub(r"[\x00-\x1f\x7f]", "", choice)
+                    
+                    # 디버깅용 로그
+                    logger.debug(f"Original choice: {repr(data['choice'])}")
+                    logger.debug(f"Cleaned choice: {repr(choice)}")
+                    logger.debug(f"Available choices: {choices}")
+
+                    # choices에서 정확한 매칭 찾기
+                    if choice in choices:
+                        return choice, choices.index(choice), data.get("confidence", 1.0)
+
+                    # 부분 매칭 시도 (제어 문자로 인해 잘린 경우)
+                    for i, candidate in enumerate(choices):
+                        # 양방향 부분 매칭 확인
+                        if candidate.startswith(choice) or choice in candidate:
+                            logger.debug(f"Partial match found: '{choice}' -> '{candidate}'")
+                            return candidate, i, data.get("confidence", 0.8)
+                        # 반대 방향도 확인 (choice가 candidate보다 긴 경우)
+                        if choice.startswith(candidate):
+                            logger.debug(f"Reverse partial match found: '{choice}' -> '{candidate}'")
+                            return candidate, i, data.get("confidence", 0.7)
+
         except (json.JSONDecodeError, KeyError, TypeError):
             pass
 
@@ -481,10 +523,9 @@ class BaseLLM(abc.ABC):
                 internal_choices.append("None of the above")
 
             # choices 관련 컨텍스트 추가
-            input_context["choices"] = internal_choices
+            input_context["choices"] = internal_choices  # 원본 그대로 전달
             input_context["choices_formatted"] = "\n".join([f"{i+1}. {c}" for i, c in enumerate(internal_choices)])
             input_context["choices_optional"] = choices_optional
-            input_context["original_choices"] = choices
 
         # schema 처리
         if schema:
@@ -513,7 +554,7 @@ class BaseLLM(abc.ABC):
                     if choices and text_list:
                         full_text = "".join(text_list)
                         choice, index, confidence = self._process_choice_response(
-                            full_text, input_context["original_choices"], choices_optional
+                            full_text, input_context["choices"], choices_optional
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
@@ -549,7 +590,7 @@ class BaseLLM(abc.ABC):
                     if choices and text_list:
                         full_text = "".join(text_list)
                         choice, index, confidence = self._process_choice_response(
-                            full_text, input_context["original_choices"], choices_optional
+                            full_text, input_context["choices"], choices_optional
                         )
                         # 마지막에 choice 정보를 포함한 Reply 전송
                         yield Reply(text="", choice=choice, choice_index=index, confidence=confidence)
@@ -590,7 +631,7 @@ class BaseLLM(abc.ABC):
                     # choices가 있으면 처리
                     if choices:
                         choice, index, confidence = self._process_choice_response(
-                            ask.text, input_context["original_choices"], choices_optional
+                            ask.text, input_context["choices"], choices_optional
                         )
                         ask.choice = choice
                         ask.choice_index = index
@@ -622,7 +663,7 @@ class BaseLLM(abc.ABC):
                     # choices가 있으면 처리
                     if choices:
                         choice, index, confidence = self._process_choice_response(
-                            ask.text, input_context["original_choices"], choices_optional
+                            ask.text, input_context["choices"], choices_optional
                         )
                         ask.choice = choice
                         ask.choice_index = index

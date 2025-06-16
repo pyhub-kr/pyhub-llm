@@ -488,6 +488,40 @@ if len(llm) > 10:
     llm.clear()
 ```
 
+## 알려진 이슈
+
+### OpenAI JSON Schema 구조화된 출력의 토큰 생성 이슈 (v0.8.0에서 개선)
+
+OpenAI의 JSON Schema 구조화된 출력 모드(strict=true)에서 간헐적으로 무한 개행 문자나 제어 문자가 생성되는 문제가 보고되었습니다. 이는 GPT-4o-2024-08-06 모델에서 발견된 알려진 문제입니다.
+
+**증상:**
+```python
+# 무한 개행 문자 생성
+{"choice": "\n\n\n\n\n..."}  # max_tokens까지 계속
+
+# 제어 문자 포함
+{"choice": "\u001cA/S\u001d0\u001d\u001d..."}
+```
+
+**v0.8.0+ 개선사항:**
+- `strict: true` 설정으로 스키마 준수 강화
+- `choice_index` 필드를 통한 안정적인 선택
+- 시스템 프롬프트 자동 생성 (choices 사용 시)
+
+```python
+# 시스템 프롬프트 없이도 작동
+llm = OpenAILLM()
+reply = llm.ask("분류해주세요", choices=["환불/반품", "A/S요청"])
+print(reply.choice)  # "환불/반품" 또는 "A/S요청"
+print(reply.choice_index)  # 0 또는 1
+```
+
+**이전 버전 해결 방법:**
+1. 특수문자를 제거하거나 대체: `"A/S요청"` → `"AS요청"`
+2. 버전 0.7.1-0.7.x에서는 제어 문자가 부분적으로 필터링됩니다
+
+자세한 내용은 [Issue #22](https://github.com/pyhub-kr/pyhub-llm/issues/22)를 참조하세요.
+
 ## 링크
 
 - [문서](https://pyhub-llm.readthedocs.io)

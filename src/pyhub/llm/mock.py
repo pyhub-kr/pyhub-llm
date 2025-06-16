@@ -281,7 +281,7 @@ class MockLLM(BaseLLM):
         if "choices" in input_context and input_context["choices"]:
             # Return just the first choice (not the full list)
             # This simulates the LLM picking the first option
-            response_text = input_context["original_choices"][0]
+            response_text = input_context["choices"][0]
         elif self._custom_response:
             # Use custom response if provided
             response_text = self._custom_response
