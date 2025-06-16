@@ -190,25 +190,6 @@ print(llm.ask("그럼 첫 번째로 뭘 배워야 할까요?").text)
 llm.clear()  # 대화 히스토리 초기화
 ```
 
-수동으로 대화 히스토리를 관리하고 싶은 경우:
-
-```python
-from pyhub.llm import LLM
-from pyhub.llm.types import Message
-
-# 명시적인 메시지 리스트 전달
-llm = LLM.create("gpt-4o-mini")
-
-messages = [
-    Message(role="system", content="당신은 친절한 교육자입니다."),
-    Message(role="user", content="파이썬을 배우고 싶어요."),
-    Message(role="assistant", content="좋은 선택입니다! 파이썬은 배우기 쉽고 강력한 언어입니다."),
-    Message(role="user", content="어디서부터 시작해야 할까요?")
-]
-
-reply = llm.messages(messages)
-print(reply.text)
-```
 
 ### 컨텍스트 윈도우 관리
 
