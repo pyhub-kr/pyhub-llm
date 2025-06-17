@@ -537,7 +537,10 @@ class BaseLLM(abc.ABC):
 
         # include_raw_response 처리
         if include_raw_response is None:
-            include_raw_response = self.include_raw_response
+            if self.include_raw_response is not None:
+                include_raw_response = self.include_raw_response
+            else:
+                include_raw_response = False
         input_context["include_raw_response"] = include_raw_response
 
         # choices 처리

@@ -272,7 +272,24 @@ class OpenAIMixin:
         # raw_response 포함 여부 확인
         raw_response = None
         if input_context.get("include_raw_response", False):
-            raw_response = response.model_dump()
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
 
         return Reply(
             text=response.choices[0].message.content,
@@ -330,7 +347,24 @@ class OpenAIMixin:
         # raw_response 포함 여부 확인
         raw_response = None
         if input_context.get("include_raw_response", False):
-            raw_response = response.model_dump()
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
 
         return Reply(
             text=response.choices[0].message.content,
@@ -1007,7 +1041,24 @@ class OpenAIMixin:
         # raw_response 포함 여부 확인
         raw_response = None
         if self.include_raw_response:
-            raw_response = response.model_dump()
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
 
         # Build ImageReply
         return ImageReply(
@@ -1137,7 +1188,24 @@ class OpenAIMixin:
         # raw_response 포함 여부 확인
         raw_response = None
         if self.include_raw_response:
-            raw_response = response.model_dump()
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
 
         # Build ImageReply
         return ImageReply(
