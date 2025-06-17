@@ -177,6 +177,7 @@ class TestStreamingDisplay:
 class TestJupyterSupport:
     """Test Jupyter notebook support."""
 
+    @pytest.mark.skipif(not pytest.importorskip("IPython", reason="IPython not installed"), reason="IPython not available")
     @patch('pyhub.llm.display._is_jupyter', return_value=True)
     @patch('IPython.display.display')
     @patch('IPython.display.Markdown')
@@ -192,6 +193,7 @@ class TestJupyterSupport:
         mock_display.assert_called_once()
         assert result == "# Jupyter Test"
 
+    @pytest.mark.skipif(not pytest.importorskip("IPython", reason="IPython not installed"), reason="IPython not available")
     @patch('pyhub.llm.display._is_jupyter', return_value=True)
     @patch('IPython.display.display')
     @patch('IPython.display.Markdown')
