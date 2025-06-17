@@ -542,13 +542,16 @@ class ImageReply:
                 return new_filepath
             counter += 1
 
-    def _prepare_filepath(self, path: Optional[Union[str, Path]], overwrite: bool, create_dirs: bool) -> Path:
-        """Prepare the filepath for saving."""
+    def _prepare_filepath(self, path: Optional[Union[str, Path]], overwrite: bool, create_dirs: bool) -> Optional[Path]:
+        """Prepare the filepath for saving. Returns None if path is a file-like object."""
         if path is None:
             # Save to current directory
             save_dir = Path.cwd()
             filename = self._extract_filename_from_url()
             filepath = self._get_unique_filepath(save_dir, filename)
+        elif hasattr(path, 'write') or hasattr(path, 'awrite'):
+            # File-like object, return None to indicate special handling needed
+            return None
         else:
             path = Path(path)
 
@@ -577,20 +580,21 @@ class ImageReply:
         return filepath
 
     def save(
-        self, path: Optional[Union[str, Path]] = None, *, overwrite: bool = False, create_dirs: bool = True
-    ) -> Path:
-        """Save image to local file.
+        self, path: Optional[Union[str, Path, "IO[bytes]"]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Optional[Path]:
+        """Save image to local file or file-like object.
 
         Args:
-            path: Save path (optional)
+            path: Save path or file-like object (optional)
                 - None: Save to current directory with auto filename
                 - Directory path: Save to directory with auto filename
                 - File path: Save with specified filename
+                - File-like object: Write directly to object
             overwrite: Whether to overwrite existing file
             create_dirs: Whether to create directories automatically
 
         Returns:
-            Path: Path to saved file
+            Path: Path to saved file, or None if saved to file-like object
 
         Raises:
             ValueError: No image data available
@@ -599,6 +603,27 @@ class ImageReply:
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
+        
+        # Check if this is a file-like object
+        if hasattr(path, 'write'):
+            # Handle file-like object directly
+            # Get image data
+            if self.url:
+                import httpx
+
+                response = httpx.get(self.url)
+                response.raise_for_status()
+                image_data = response.content
+            else:  # base64_data
+                import base64
+
+                image_data = base64.b64decode(self.base64_data)
+            
+            # Write to file-like object
+            path.write(image_data)
+            return path
+        
+        # Handle regular file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 
         # Get image data
@@ -635,20 +660,62 @@ class ImageReply:
         return filepath
 
     async def save_async(
-        self, path: Optional[Union[str, Path]] = None, *, overwrite: bool = False, create_dirs: bool = True
-    ) -> Path:
-        """Asynchronously save image to local file.
+        self, path: Optional[Union[str, Path, "IO[bytes]"]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Optional[Path]:
+        """Asynchronously save image to local file or file-like object.
 
         Args:
-            path: Save path (optional)
+            path: Save path or file-like object (optional)
             overwrite: Whether to overwrite existing file
             create_dirs: Whether to create directories automatically
 
         Returns:
-            Path: Path to saved file
+            Path: Path to saved file, or None if saved to file-like object
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
+        
+        # Check if this is a file-like object with async write
+        if hasattr(path, 'awrite'):
+            # Handle async file-like object
+            # Get image data asynchronously
+            if self.url:
+                import httpx
+
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(self.url)
+                    response.raise_for_status()
+                    image_data = response.content
+            else:  # base64_data
+                import base64
+
+                image_data = base64.b64decode(self.base64_data)
+            
+            # Write to async file-like object
+            await path.awrite(image_data)
+            return path
+        
+        # Check if this is a regular file-like object
+        elif hasattr(path, 'write'):
+            # Handle sync file-like object
+            # Get image data asynchronously
+            if self.url:
+                import httpx
+
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(self.url)
+                    response.raise_for_status()
+                    image_data = response.content
+            else:  # base64_data
+                import base64
+
+                image_data = base64.b64decode(self.base64_data)
+            
+            # Write to sync file-like object
+            path.write(image_data)
+            return path
+        
+        # Handle regular file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 
         # Get image data asynchronously
