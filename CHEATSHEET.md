@@ -59,6 +59,17 @@ print(reply.text)
 # 스트리밍
 for chunk in llm.ask("긴 답변을 주세요", stream=True):
     print(chunk.text, end="", flush=True)
+
+# 편리한 출력 (NEW!)
+from pyhub.llm import display
+
+# 마크다운 렌더링과 함께 스트리밍
+response = llm.ask("코드 예시를 보여주세요", stream=True)
+display(response)  # 자동 마크다운 렌더링
+
+# Response 객체의 print() 메서드
+reply = llm.ask("안녕하세요")
+reply.print(markdown=True)
 ```
 
 ### 환경변수
@@ -75,6 +86,7 @@ export GOOGLE_API_KEY="..."
 | 설치 및 환경 설정 | 초급 | [BASIC - 설치](./CHEATSHEET-BASIC.md#설치) |
 | 기본 사용법 | 초급 | [BASIC - 기본 사용법](./CHEATSHEET-BASIC.md#기본-사용법) |
 | 스트리밍 | 초급 | [BASIC - 스트리밍](./CHEATSHEET-BASIC.md#스트리밍) |
+| 출력 포맷팅 | 초급 | [BASIC - 출력 포맷팅](./CHEATSHEET-BASIC.md#출력-포맷팅) |
 | 대화 관리 | 초급 | [BASIC - 대화 관리](./CHEATSHEET-BASIC.md#대화-관리) |
 | 파일 처리 | 초급 | [BASIC - 파일 처리](./CHEATSHEET-BASIC.md#파일-처리) |
 | 구조화된 출력 | 중급 | [INTERMEDIATE - 구조화된 출력](./CHEATSHEET-INTERMEDIATE.md#구조화된-출력) |
