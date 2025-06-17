@@ -10,6 +10,7 @@ from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
     EmbedList,
+    ImageReply,
     Message,
     OpenAIChatModelType,
     OpenAIEmbeddingModelType,
@@ -910,6 +911,222 @@ class OpenAIMixin:
         if isinstance(input, str):
             return Embed(response.data[0].embedding, usage=usage)
         return EmbedList([Embed(v.embedding) for v in response.data], usage=usage)
+    
+    def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> ImageReply:
+        """Generate images using DALL-E models."""
+        from pyhub.llm.constants import (
+            IMAGE_GENERATION_DEFAULTS,
+            IMAGE_GENERATION_SIZES,
+            IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_STYLES,
+        )
+        
+        # Check if current model supports image generation
+        if not self.model.startswith(("dall-e-")):
+            raise ValueError(
+                f"Model '{self.model}' does not support image generation. "
+                f"Use 'dall-e-3' or 'dall-e-2' instead."
+            )
+        
+        # Get defaults for the model
+        model_defaults = IMAGE_GENERATION_DEFAULTS.get(self.model, {})
+        size = size or model_defaults.get("size", "1024x1024")
+        quality = quality or model_defaults.get("quality", "standard")
+        style = style or model_defaults.get("style")
+        
+        # Validate size
+        valid_sizes = IMAGE_GENERATION_SIZES.get(self.model, [])
+        if valid_sizes and size not in valid_sizes:
+            raise ValueError(
+                f"Invalid size '{size}' for model '{self.model}'. "
+                f"Valid sizes are: {', '.join(valid_sizes)}"
+            )
+        
+        # Validate quality
+        valid_qualities = IMAGE_GENERATION_QUALITIES.get(self.model, [])
+        if valid_qualities and quality not in valid_qualities:
+            raise ValueError(
+                f"Invalid quality '{quality}' for model '{self.model}'. "
+                f"Valid qualities are: {', '.join(valid_qualities)}"
+            )
+        
+        # Validate style (only for models that support it)
+        valid_styles = IMAGE_GENERATION_STYLES.get(self.model, [])
+        if style and valid_styles and style not in valid_styles:
+            raise ValueError(
+                f"Invalid style '{style}' for model '{self.model}'. "
+                f"Valid styles are: {', '.join(valid_styles)}"
+            )
+        
+        # Create client
+        sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        
+        # Build request parameters
+        request_params = {
+            "model": self.model,
+            "prompt": prompt,
+            "size": size,
+            "quality": quality,
+            "n": n,
+            "response_format": response_format,
+        }
+        
+        # Add style only if supported and provided
+        if style and valid_styles:
+            request_params["style"] = style
+        
+        # Make API call
+        response = sync_client.images.generate(**request_params)
+        
+        # Extract first image data
+        image_data = response.data[0]
+        
+        # Build ImageReply
+        return ImageReply(
+            url=image_data.url if response_format == "url" else None,
+            base64_data=image_data.b64_json if response_format == "b64_json" else None,
+            revised_prompt=getattr(image_data, "revised_prompt", None),
+            size=size,
+            model=self.model,
+            usage=None  # OpenAI image generation doesn't provide usage info
+        )
+    
+    def supports(self, capability: str) -> bool:
+        """Check if the current model supports a specific capability."""
+        if capability == "image_generation":
+            return self.model.startswith(("dall-e-"))
+        return super().supports(capability)
+    
+    def get_supported_image_sizes(self) -> list[str]:
+        """Get the list of supported image sizes for the current model."""
+        from pyhub.llm.constants import IMAGE_GENERATION_SIZES
+        
+        if self.model.startswith(("dall-e-")):
+            return IMAGE_GENERATION_SIZES.get(self.model, [])
+        return []
+    
+    @property
+    def capabilities(self) -> dict[str, Any]:
+        """Get the capabilities of the current model."""
+        from pyhub.llm.constants import (
+            IMAGE_GENERATION_SIZES,
+            IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_STYLES,
+        )
+        
+        caps = {}
+        
+        # Image generation capabilities
+        if self.model.startswith(("dall-e-")):
+            caps["image_generation"] = {
+                "supported": True,
+                "sizes": IMAGE_GENERATION_SIZES.get(self.model, []),
+                "qualities": IMAGE_GENERATION_QUALITIES.get(self.model, []),
+                "styles": IMAGE_GENERATION_STYLES.get(self.model, []),
+            }
+        else:
+            caps["image_generation"] = {"supported": False}
+        
+        return caps
+    
+    async def generate_image_async(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> ImageReply:
+        """Asynchronously generate images using DALL-E models."""
+        from pyhub.llm.constants import (
+            IMAGE_GENERATION_DEFAULTS,
+            IMAGE_GENERATION_SIZES,
+            IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_STYLES,
+        )
+        
+        # Check if current model supports image generation
+        if not self.model.startswith(("dall-e-")):
+            raise ValueError(
+                f"Model '{self.model}' does not support image generation. "
+                f"Use 'dall-e-3' or 'dall-e-2' instead."
+            )
+        
+        # Get defaults for the model
+        model_defaults = IMAGE_GENERATION_DEFAULTS.get(self.model, {})
+        size = size or model_defaults.get("size", "1024x1024")
+        quality = quality or model_defaults.get("quality", "standard")
+        style = style or model_defaults.get("style")
+        
+        # Validate size
+        valid_sizes = IMAGE_GENERATION_SIZES.get(self.model, [])
+        if valid_sizes and size not in valid_sizes:
+            raise ValueError(
+                f"Invalid size '{size}' for model '{self.model}'. "
+                f"Valid sizes are: {', '.join(valid_sizes)}"
+            )
+        
+        # Validate quality
+        valid_qualities = IMAGE_GENERATION_QUALITIES.get(self.model, [])
+        if valid_qualities and quality not in valid_qualities:
+            raise ValueError(
+                f"Invalid quality '{quality}' for model '{self.model}'. "
+                f"Valid qualities are: {', '.join(valid_qualities)}"
+            )
+        
+        # Validate style (only for models that support it)
+        valid_styles = IMAGE_GENERATION_STYLES.get(self.model, [])
+        if style and valid_styles and style not in valid_styles:
+            raise ValueError(
+                f"Invalid style '{style}' for model '{self.model}'. "
+                f"Valid styles are: {', '.join(valid_styles)}"
+            )
+        
+        # Create async client
+        async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
+        
+        # Build request parameters
+        request_params = {
+            "model": self.model,
+            "prompt": prompt,
+            "size": size,
+            "quality": quality,
+            "n": n,
+            "response_format": response_format,
+        }
+        
+        # Add style only if supported and provided
+        if style and valid_styles:
+            request_params["style"] = style
+        
+        # Make API call
+        response = await async_client.images.generate(**request_params)
+        
+        # Extract first image data
+        image_data = response.data[0]
+        
+        # Build ImageReply
+        return ImageReply(
+            url=image_data.url if response_format == "url" else None,
+            base64_data=image_data.b64_json if response_format == "b64_json" else None,
+            revised_prompt=getattr(image_data, "revised_prompt", None),
+            size=size,
+            model=self.model,
+            usage=None  # OpenAI image generation doesn't provide usage info
+        )
 
 
 class OpenAILLM(OpenAIMixin, BaseLLM):

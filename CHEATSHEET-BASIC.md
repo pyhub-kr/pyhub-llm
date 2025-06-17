@@ -220,6 +220,103 @@ pip install rich
 
 Rich가 설치되지 않은 경우, 일반 텍스트로 출력됩니다.
 
+## 이미지 생성
+
+💻 [실행 가능한 예제](examples/basic/05_image_generation.py)
+
+### 기본 이미지 생성
+
+OpenAI의 DALL-E 모델을 사용하여 텍스트로부터 이미지를 생성할 수 있습니다.
+
+```python
+from pyhub.llm import OpenAILLM
+
+# DALL-E 3 모델로 LLM 생성
+llm = OpenAILLM(model="dall-e-3")
+
+# 이미지 생성
+reply = llm.generate_image("A beautiful sunset over mountains")
+
+# 생성된 이미지 URL 확인
+print(reply.url)
+print(f"크기: {reply.size}")  # 1024x1024 (기본값)
+```
+
+### 이미지 저장
+
+생성된 이미지를 다양한 방법으로 저장할 수 있습니다.
+
+```python
+# 1. 자동 파일명으로 현재 디렉토리에 저장
+path = reply.save()
+print(f"저장됨: {path}")
+
+# 2. 특정 파일명으로 저장
+path = reply.save("my_sunset.png")
+
+# 3. 특정 디렉토리에 저장 (자동 파일명)
+path = reply.save("outputs/")  # outputs/image_123456.png
+
+# 4. Jupyter에서 이미지 표시
+reply.display()
+```
+
+### 고급 옵션
+
+```python
+# 고품질, 세로 형식 이미지 생성
+reply = llm.generate_image(
+    "A professional portrait photo",
+    size="1024x1792",    # 세로 형식
+    quality="hd",        # 고품질
+    style="natural"      # 자연스러운 스타일 (vivid도 가능)
+)
+
+# 지원되는 크기 확인
+sizes = llm.get_supported_image_sizes()
+print(f"지원 크기: {sizes}")
+# ['1024x1024', '1024x1792', '1792x1024']
+```
+
+### 이미지 변환 (Pillow 필요)
+
+```python
+# PIL 이미지로 변환
+try:
+    img = reply.to_pil()
+    
+    # 썸네일 생성
+    img.thumbnail((256, 256))
+    img.save("thumbnail.png")
+    
+    # 흑백 변환
+    gray_img = img.convert('L')
+    gray_img.save("grayscale.png")
+    
+except ImportError:
+    print("Pillow가 필요합니다: pip install 'pyhub-llm[image]'")
+```
+
+### 모델별 지원 여부 확인
+
+```python
+# OpenAI 모델들
+gpt_llm = OpenAILLM(model="gpt-4o")
+dalle_llm = OpenAILLM(model="dall-e-3")
+
+print(gpt_llm.supports("image_generation"))    # False
+print(dalle_llm.supports("image_generation"))  # True
+
+# 다른 프로바이더들은 현재 이미지 생성 미지원
+claude = AnthropicLLM(model="claude-3-opus")
+print(claude.supports("image_generation"))     # False
+```
+
+> **팁**: 
+> - DALL-E 3는 프롬프트를 자동으로 개선합니다. `reply.revised_prompt`로 확인할 수 있습니다.
+> - 이미지 생성은 일반 텍스트 생성보다 비용이 높으니 주의하세요.
+> - 이미지 저장 시 인터넷 연결이 필요합니다 (URL에서 다운로드).
+
 ## 대화 관리
 
 💻 [실행 가능한 예제](examples/basic/03_conversation.py)

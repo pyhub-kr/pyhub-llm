@@ -29,3 +29,9 @@ class ValidationError(LLMError):
     """Raised when validation fails"""
 
     pass
+
+
+class ModelNotSupportedError(LLMError):
+    """Raised when a model doesn't support the requested operation"""
+
+    pass

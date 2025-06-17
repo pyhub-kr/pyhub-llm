@@ -106,6 +106,12 @@ pip install "pyhub-llm[google]"
 
 # Ollama 사용시 (로컬 실행)
 pip install "pyhub-llm[ollama]"
+
+# 이미지 기능 사용시 (Pillow 포함)
+pip install "pyhub-llm[image]"
+
+# 모든 기능 설치
+pip install "pyhub-llm[all]"
 ```
 
 ```python
@@ -285,7 +291,47 @@ response.print(markdown=True)
 response.print(markdown=False)
 ```
 
-### 3. 파일 처리 (이미지 및 PDF)
+### 3. 이미지 생성 (NEW! 🎨)
+
+```python
+from pyhub.llm import OpenAILLM
+
+# DALL-E 3로 이미지 생성
+llm = OpenAILLM(model="dall-e-3")
+reply = llm.generate_image(
+    "A beautiful sunset over mountains",
+    size="1024x1792",  # 세로 형식
+    quality="hd"       # 고품질
+)
+
+# 이미지 저장
+path = reply.save("sunset.png")  # 또는 reply.save() 로 자동 파일명
+print(f"Saved to: {path}")
+
+# 이미지 표시 (Jupyter)
+reply.display()
+
+# PIL로 변환 (Pillow 필요)
+img = reply.to_pil()
+img.thumbnail((512, 512))
+img.save("thumbnail.png")
+
+# 비동기 처리
+import asyncio
+
+async def generate_multiple():
+    tasks = [
+        llm.generate_image_async(f"Image {i}") 
+        for i in range(3)
+    ]
+    images = await asyncio.gather(*tasks)
+    
+    # 병렬 저장
+    save_tasks = [img.save_async(f"img_{i}.png") for i, img in enumerate(images)]
+    await asyncio.gather(*save_tasks)
+```
+
+### 4. 파일 처리 (이미지 및 PDF)
 
 ```python
 # 이미지 설명
@@ -295,7 +341,7 @@ reply = llm.ask("이 이미지를 설명해주세요", files=["photo.jpg"])
 reply = llm.ask("이 문서를 요약해주세요", files=["document.pdf"])
 ```
 
-### 4. 도구/함수 호출
+### 5. 도구/함수 호출
 
 ```python
 # 간단한 함수를 도구로 사용

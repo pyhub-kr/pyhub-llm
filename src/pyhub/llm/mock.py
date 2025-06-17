@@ -7,7 +7,7 @@ from typing import IO, Any, AsyncGenerator, Generator, List, Optional, Type, Uni
 from pydantic import BaseModel
 
 from .base import BaseLLM
-from .types import Embed, EmbedList, LLMChatModelType, Message, Reply, Usage
+from .types import Embed, EmbedList, ImageReply, LLMChatModelType, Message, Reply, Usage
 
 
 class MockLLM(BaseLLM):
@@ -342,3 +342,49 @@ class MockLLM(BaseLLM):
         for word in response_text.split():
             yield Reply(text=word + " ", usage=Usage(input=0, output=0))
             await asyncio.sleep(0.001)
+
+    def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs,
+    ) -> ImageReply:
+        """Generate a mock image."""
+        self.call_count += 1
+        
+        # Mock image generation - return a fake URL
+        return ImageReply(
+            url="https://mock-image.example.com/generated.png",
+            size=size or "1024x1024",
+            model=self.model,
+            revised_prompt=f"Mock revised: {prompt}",
+            usage=Usage(input=20, output=0)
+        )
+    
+    async def generate_image_async(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs,
+    ) -> ImageReply:
+        """Generate a mock image asynchronously."""
+        await asyncio.sleep(0.01)
+        return self.generate_image(
+            prompt=prompt,
+            size=size,
+            quality=quality,
+            style=style,
+            n=n,
+            response_format=response_format,
+            **kwargs
+        )

@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 from pyhub.llm.types import (
     ChainReply,
     Embed,
+    ImageReply,
     EmbedList,
     LLMChatModelType,
     LLMEmbeddingModelType,
@@ -1245,6 +1246,101 @@ class BaseLLM(abc.ABC):
         model: Optional[LLMEmbeddingModelType] = None,
     ) -> Union[Embed, EmbedList]:
         pass
+
+    @abc.abstractmethod
+    def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Generate images from text prompts.
+        
+        Args:
+            prompt: The text prompt to generate images from
+            size: Image size (e.g., "1024x1024", "1024x1792", "1792x1024")
+            quality: Image quality ("standard" or "hd")
+            style: Image style ("vivid" or "natural")
+            n: Number of images to generate
+            response_format: Format of the response ("url" or "base64")
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            ImageReply: Generated image response
+            
+        Raises:
+            NotImplementedError: If the provider doesn't support image generation
+            ValueError: If the model doesn't support image generation or invalid parameters
+        """
+        pass
+
+    @abc.abstractmethod
+    async def generate_image_async(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Asynchronously generate images from text prompts.
+        
+        Args:
+            prompt: The text prompt to generate images from
+            size: Image size (e.g., "1024x1024", "1024x1792", "1792x1024")
+            quality: Image quality ("standard" or "hd")
+            style: Image style ("vivid" or "natural")
+            n: Number of images to generate
+            response_format: Format of the response ("url" or "base64")
+            **kwargs: Additional provider-specific parameters
+            
+        Returns:
+            ImageReply: Generated image response
+            
+        Raises:
+            NotImplementedError: If the provider doesn't support image generation
+            ValueError: If the model doesn't support image generation or invalid parameters
+        """
+        pass
+
+    def supports(self, capability: str) -> bool:
+        """Check if the current model supports a specific capability.
+        
+        Args:
+            capability: The capability to check (e.g., "image_generation")
+            
+        Returns:
+            bool: True if the capability is supported
+        """
+        # Default implementation - subclasses should override
+        return False
+
+    def get_supported_image_sizes(self) -> list[str]:
+        """Get the list of supported image sizes for the current model.
+        
+        Returns:
+            list[str]: List of supported sizes, empty if image generation not supported
+        """
+        # Default implementation - subclasses should override
+        return []
+
+    @property
+    def capabilities(self) -> dict[str, Any]:
+        """Get the capabilities of the current model.
+        
+        Returns:
+            dict: Dictionary of capabilities and their details
+        """
+        # Default implementation - subclasses should override
+        return {}
 
     #
     # MCP (Model Context Protocol) integration

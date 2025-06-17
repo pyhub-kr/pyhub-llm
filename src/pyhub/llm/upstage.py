@@ -150,3 +150,45 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
                 raise e
             logger.error(f"Error occurred during streaming API call: {str(e)}")
             return GroundednessCheck(is_grounded=None, usage=None)
+
+    def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Generate images from text prompts.
+        
+        Raises:
+            NotImplementedError: Upstage does not support image generation
+        """
+        raise NotImplementedError(
+            "Upstage does not support image generation. "
+            "Please use a provider that supports image generation, such as OpenAI with DALL-E models."
+        )
+
+    async def generate_image_async(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Asynchronously generate images from text prompts.
+        
+        Raises:
+            NotImplementedError: Upstage does not support image generation
+        """
+        raise NotImplementedError(
+            "Upstage does not support image generation. "
+            "Please use a provider that supports image generation, such as OpenAI with DALL-E models."
+        )
