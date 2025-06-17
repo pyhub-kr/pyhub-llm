@@ -1,7 +1,10 @@
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import IO, Any, Literal, TypeAlias, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, IO, Any, Literal, TypeAlias, Union
+
+if TYPE_CHECKING:
+    import PIL.Image
 
 from pydantic import BaseModel
 from typing_extensions import Optional
@@ -320,6 +323,8 @@ class Reply:
     # 구조화된 출력 관련
     structured_data: Optional[BaseModel] = None  # 파싱된 Pydantic 모델 인스턴스
     validation_errors: Optional[list[str]] = None  # 스키마 검증 실패 시 에러 메시지
+    # API 원본 응답 데이터
+    raw_response: Optional[dict[str, Any]] = None  # API의 원본 응답 (디버깅/고급 기능용)
 
     def __str__(self) -> str:
         # choice가 있으면 choice를 반환, 없으면 text 반환
@@ -439,6 +444,8 @@ class ImageReply:
     size: str = "1024x1024"
     model: str = ""
     usage: Optional[Usage] = None
+    # API 원본 응답 데이터
+    raw_response: Optional[dict[str, Any]] = None  # API의 원본 응답 (디버깅/고급 기능용)
 
     def __str__(self) -> str:
         """String representation of the image reply."""
@@ -495,8 +502,8 @@ class ImageReply:
     def _extract_filename_from_url(self) -> str:
         """Extract filename from URL or generate one."""
         if self.url:
-            from urllib.parse import urlparse, unquote
             import re
+            from urllib.parse import unquote, urlparse
 
             parsed = urlparse(self.url)
             # Extract filename from URL path
@@ -570,22 +577,20 @@ class ImageReply:
         return filepath
 
     def save(
-        self, path: Optional[Union[str, Path, Any]] = None, *, overwrite: bool = False, create_dirs: bool = True
-    ) -> Union[Path, Any]:
-        """Save image to local file or file-like object.
+        self, path: Optional[Union[str, Path]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Path:
+        """Save image to local file.
 
         Args:
             path: Save path (optional)
                 - None: Save to current directory with auto filename
                 - Directory path: Save to directory with auto filename
                 - File path: Save with specified filename
-                - File-like object: Object with write() method (e.g., BytesIO)
-            overwrite: Whether to overwrite existing file (ignored for file-like objects)
-            create_dirs: Whether to create directories automatically (ignored for file-like objects)
+            overwrite: Whether to overwrite existing file
+            create_dirs: Whether to create directories automatically
 
         Returns:
-            Path: Path to saved file (for file paths)
-            Any: The same file-like object that was passed in (for file-like objects)
+            Path: Path to saved file
 
         Raises:
             ValueError: No image data available
@@ -594,26 +599,6 @@ class ImageReply:
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-
-        # Check if path is a file-like object
-        if path is not None and hasattr(path, "write"):
-            # Get image data
-            if self.url:
-                import httpx
-
-                response = httpx.get(self.url)
-                response.raise_for_status()
-                image_data = response.content
-            else:  # base64_data
-                import base64
-
-                image_data = base64.b64decode(self.base64_data)
-
-            # Write to file-like object
-            path.write(image_data)
-            return path
-
-        # Otherwise, handle as file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 
         # Get image data
@@ -630,8 +615,9 @@ class ImageReply:
 
         # Check if we can detect format with Pillow
         try:
-            from PIL import Image
             import io
+
+            from PIL import Image
 
             img = Image.open(io.BytesIO(image_data))
             format = img.format.lower() if img.format else "png"
@@ -649,55 +635,20 @@ class ImageReply:
         return filepath
 
     async def save_async(
-        self, path: Optional[Union[str, Path, Any]] = None, *, overwrite: bool = False, create_dirs: bool = True
-    ) -> Union[Path, Any]:
-        """Asynchronously save image to local file or file-like object.
+        self, path: Optional[Union[str, Path]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Path:
+        """Asynchronously save image to local file.
 
         Args:
             path: Save path (optional)
-                - None: Save to current directory with auto filename
-                - Directory path: Save to directory with auto filename
-                - File path: Save with specified filename
-                - File-like object: Object with write() or awrite() method
-            overwrite: Whether to overwrite existing file (ignored for file-like objects)
-            create_dirs: Whether to create directories automatically (ignored for file-like objects)
+            overwrite: Whether to overwrite existing file
+            create_dirs: Whether to create directories automatically
 
         Returns:
-            Path: Path to saved file (for file paths)
-            Any: The same file-like object that was passed in (for file-like objects)
+            Path: Path to saved file
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-
-        # Check if path is a file-like object
-        if path is not None and (hasattr(path, "write") or hasattr(path, "awrite")):
-            # Get image data asynchronously
-            if self.url:
-                import httpx
-
-                async with httpx.AsyncClient() as client:
-                    response = await client.get(self.url)
-                    response.raise_for_status()
-                    image_data = response.content
-            else:  # base64_data
-                import base64
-
-                image_data = base64.b64decode(self.base64_data)
-
-            # Write to file-like object
-            if hasattr(path, "awrite"):
-                # Async file-like object
-                await path.awrite(image_data)
-            else:
-                # Sync file-like object - run in executor
-                import asyncio
-
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, path.write, image_data)
-
-            return path
-
-        # Otherwise, handle as file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 
         # Get image data asynchronously
@@ -715,9 +666,10 @@ class ImageReply:
 
         # Check format with Pillow if available
         try:
-            from PIL import Image
-            import io
             import asyncio
+            import io
+
+            from PIL import Image
 
             loop = asyncio.get_running_loop()
             img = await loop.run_in_executor(None, lambda: Image.open(io.BytesIO(image_data)))
@@ -746,7 +698,7 @@ class ImageReply:
 
         return filepath
 
-    def to_pil(self) -> "PILImage":
+    def to_pil(self) -> "PIL.Image.Image":
         """Convert to PIL Image object.
 
         Returns:
@@ -757,8 +709,9 @@ class ImageReply:
             ValueError: No image data available
         """
         try:
-            from PIL import Image
             import io
+
+            from PIL import Image
         except ImportError:
             raise ImportError(
                 "Pillow library is required for this feature. "
@@ -780,7 +733,7 @@ class ImageReply:
 
         return Image.open(io.BytesIO(image_data))
 
-    async def to_pil_async(self) -> "PILImage":
+    async def to_pil_async(self) -> "PIL.Image.Image":
         """Asynchronously convert to PIL Image object.
 
         Returns:
@@ -791,8 +744,9 @@ class ImageReply:
             ValueError: No image data available
         """
         try:
-            from PIL import Image
             import io
+
+            from PIL import Image
         except ImportError:
             raise ImportError(
                 "Pillow library is required for this feature. "

@@ -25,11 +25,12 @@ if TYPE_CHECKING:
     from pyhub.llm.history.base import HistoryBackup
     from pyhub.llm.mcp.configs import McpConfig
     from pyhub.llm.mcp.policy import MCPConnectionPolicy
+
 from pyhub.llm.types import (
     ChainReply,
     Embed,
-    ImageReply,
     EmbedList,
+    ImageReply,
     LLMChatModelType,
     LLMEmbeddingModelType,
     Message,
@@ -89,6 +90,7 @@ class BaseLLM(abc.ABC):
         mcp_policy: Optional["MCPConnectionPolicy"] = None,
         history_backup: Optional["HistoryBackup"] = None,
         stateless: bool = False,
+        include_raw_response: bool = False,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -99,6 +101,7 @@ class BaseLLM(abc.ABC):
         self.output_key = output_key
         self.history_backup = history_backup
         self.stateless = stateless
+        self.include_raw_response = include_raw_response
 
         # 백업이 있으면 히스토리 복원, 없으면 initial_messages 사용
         if self.history_backup:
@@ -177,7 +180,7 @@ class BaseLLM(abc.ABC):
 
     def __len__(self) -> int:
         return len(self.history)
-    
+
     @property
     def is_stateless(self) -> bool:
         """현재 인스턴스가 stateless 모드인지 확인"""
@@ -281,7 +284,7 @@ class BaseLLM(abc.ABC):
         # stateless 모드에서는 history를 업데이트하지 않음
         if self.stateless:
             return
-            
+
         if isinstance(ai_message, str):
             ai_message = Message(role="assistant", content=ai_message, tool_interactions=tool_interactions)
         elif tool_interactions and not ai_message.tool_interactions:
@@ -343,14 +346,14 @@ class BaseLLM(abc.ABC):
                         return choices[index], index, data.get("confidence", 1.0)
                     else:
                         logger.warning(f"Invalid choice_index {index} for {len(choices)} choices")
-                
+
                 # choice_index가 없으면 기존 방식 사용
                 if "choice" in data:
                     choice = data["choice"]
                     # choice 값에서 제어 문자 제거
                     # 예: "\u001cA/S\u001d요청" → "A/S요청"
                     choice = re.sub(r"[\x00-\x1f\x7f]", "", choice)
-                    
+
                     # 디버깅용 로그
                     logger.debug(f"Original choice: {repr(data['choice'])}")
                     logger.debug(f"Cleaned choice: {repr(choice)}")
@@ -510,13 +513,14 @@ class BaseLLM(abc.ABC):
         stream: bool = False,
         use_history: bool = True,
         raise_errors: bool = False,
+        include_raw_response: Optional[bool] = None,
     ):
         """동기 또는 비동기 응답을 생성하는 내부 메서드 (일반/스트리밍)"""
         # stateless 모드에서는 use_history를 무시
         if self.stateless and use_history:
             logger.debug("stateless 모드에서는 use_history=True가 무시됩니다.")
             use_history = False
-            
+
         current_messages = [*self.history] if use_history else []
         current_model: LLMChatModelType = cast(LLMChatModelType, model or self.model)
 
@@ -530,6 +534,11 @@ class BaseLLM(abc.ABC):
 
         # cache 객체가 있으면 캐시 사용
         input_context["enable_cache"] = self.cache is not None
+
+        # include_raw_response 처리
+        if include_raw_response is None:
+            include_raw_response = self.include_raw_response
+        input_context["include_raw_response"] = include_raw_response
 
         # choices 처리
         if choices:
@@ -735,6 +744,7 @@ class BaseLLM(abc.ABC):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        include_raw_response: Optional[bool] = None,
     ) -> Union[Reply, Generator[Reply, None, None]]:
         # schema와 choices는 동시에 사용할 수 없음
         if schema and choices:
@@ -773,6 +783,7 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
+                include_raw_response=include_raw_response,
             )
 
     async def ask_async(
@@ -791,6 +802,7 @@ class BaseLLM(abc.ABC):
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        include_raw_response: Optional[bool] = None,
     ) -> Union[Reply, AsyncGenerator[Reply, None]]:
         # schema와 choices는 동시에 사용할 수 없음
         if schema and choices:
@@ -829,6 +841,7 @@ class BaseLLM(abc.ABC):
                 stream=stream,
                 use_history=use_history,
                 raise_errors=raise_errors,
+                include_raw_response=include_raw_response,
             )
 
         if stream:
@@ -1257,10 +1270,10 @@ class BaseLLM(abc.ABC):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Generate images from text prompts.
-        
+
         Args:
             prompt: The text prompt to generate images from
             size: Image size (e.g., "1024x1024", "1024x1792", "1792x1024")
@@ -1269,10 +1282,10 @@ class BaseLLM(abc.ABC):
             n: Number of images to generate
             response_format: Format of the response ("url" or "base64")
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             ImageReply: Generated image response
-            
+
         Raises:
             NotImplementedError: If the provider doesn't support image generation
             ValueError: If the model doesn't support image generation or invalid parameters
@@ -1289,10 +1302,10 @@ class BaseLLM(abc.ABC):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Asynchronously generate images from text prompts.
-        
+
         Args:
             prompt: The text prompt to generate images from
             size: Image size (e.g., "1024x1024", "1024x1792", "1792x1024")
@@ -1301,10 +1314,10 @@ class BaseLLM(abc.ABC):
             n: Number of images to generate
             response_format: Format of the response ("url" or "base64")
             **kwargs: Additional provider-specific parameters
-            
+
         Returns:
             ImageReply: Generated image response
-            
+
         Raises:
             NotImplementedError: If the provider doesn't support image generation
             ValueError: If the model doesn't support image generation or invalid parameters
@@ -1313,10 +1326,10 @@ class BaseLLM(abc.ABC):
 
     def supports(self, capability: str) -> bool:
         """Check if the current model supports a specific capability.
-        
+
         Args:
             capability: The capability to check (e.g., "image_generation")
-            
+
         Returns:
             bool: True if the capability is supported
         """
@@ -1325,7 +1338,7 @@ class BaseLLM(abc.ABC):
 
     def get_supported_image_sizes(self) -> list[str]:
         """Get the list of supported image sizes for the current model.
-        
+
         Returns:
             list[str]: List of supported sizes, empty if image generation not supported
         """
@@ -1335,7 +1348,7 @@ class BaseLLM(abc.ABC):
     @property
     def capabilities(self) -> dict[str, Any]:
         """Get the capabilities of the current model.
-        
+
         Returns:
             dict: Dictionary of capabilities and their details
         """
