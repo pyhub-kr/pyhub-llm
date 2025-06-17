@@ -64,10 +64,16 @@ dev = [
     "mypy>=1.0.0",
 ]
 docs = [
-    "mkdocs",
-    "mkdocs-material",
+    "mkdocs>=1.5.0",
+    "mkdocs-material>=9.5.0",
     "mkdocs-glightbox",
-    "pymdown-extensions",
+    "mkdocstrings[python]>=0.24.0",
+    "mkdocs-autorefs>=0.5.0",
+    "mkdocs-literate-nav>=0.6.0",
+    "mkdocs-section-index>=0.3.0",
+    "mkdocs-git-revision-date-localized-plugin>=1.2.0",
+    "mkdocs-minify-plugin>=0.7.0",
+    "pymdown-extensions>=10.0",
 ]
 build = ["setuptools", "wheel", "build", "twine"]
 

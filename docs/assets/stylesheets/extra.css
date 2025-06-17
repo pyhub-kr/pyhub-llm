@@ -1,0 +1,164 @@
+/* 한글 폰트 import */
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap');
+
+/* 루트 변수 설정 */
+:root {
+  --md-text-font: "Noto Sans KR", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --md-code-font: "JetBrains Mono", SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+}
+
+/* 한글 가독성 향상 */
+.md-typeset {
+  font-size: 1rem;
+  line-height: 1.8;
+  letter-spacing: -0.01em;
+}
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h3 {
+  font-weight: 500;
+  letter-spacing: -0.01em;
+}
+
+/* 코드 블록 스타일 개선 */
+.md-typeset code {
+  font-size: 0.85em;
+  padding: 0.2em 0.4em;
+  background-color: var(--md-code-bg-color);
+  border-radius: 0.2rem;
+}
+
+.md-typeset pre > code {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  padding: 1em;
+}
+
+/* 테이블 스타일 개선 */
+.md-typeset table {
+  font-size: 0.875rem;
+}
+
+.md-typeset table th {
+  font-weight: 600;
+  background-color: var(--md-default-bg-color--light);
+}
+
+/* Admonition 스타일 */
+.md-typeset .admonition {
+  font-size: 0.875rem;
+}
+
+.md-typeset .admonition-title {
+  font-weight: 600;
+}
+
+/* 네비게이션 한글 스타일 */
+.md-nav__item {
+  font-size: 0.875rem;
+}
+
+.md-nav__link {
+  letter-spacing: -0.01em;
+}
+
+/* TOC 스타일 */
+.md-nav--secondary .md-nav__item {
+  font-size: 0.8125rem;
+}
+
+/* 검색 결과 스타일 */
+.md-search-result__article {
+  font-size: 0.875rem;
+}
+
+.md-search-result__teaser {
+  line-height: 1.6;
+}
+
+/* 탭 스타일 */
+.md-typeset .tabbed-set > label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* 다크 모드 조정 */
+[data-md-color-scheme="slate"] {
+  --md-typeset-a-color: #7c9ef3;
+}
+
+[data-md-color-scheme="slate"] .md-typeset code {
+  background-color: rgba(255, 255, 255, 0.05);
+}
+
+/* 모바일 반응형 */
+@media screen and (max-width: 768px) {
+  .md-typeset {
+    font-size: 0.9375rem;
+  }
+  
+  .md-typeset h1 {
+    font-size: 1.75rem;
+  }
+  
+  .md-typeset h2 {
+    font-size: 1.375rem;
+  }
+}
+
+/* API 문서 스타일 */
+.doc-class, .doc-function {
+  margin-bottom: 2rem;
+}
+
+.doc-signature {
+  font-family: var(--md-code-font);
+  background-color: var(--md-code-bg-color);
+  padding: 0.5rem 1rem;
+  border-radius: 0.25rem;
+  margin-bottom: 1rem;
+}
+
+/* 예제 코드 강조 */
+.example {
+  border-left: 4px solid var(--md-primary-fg-color);
+  padding-left: 1rem;
+  margin: 1rem 0;
+}
+
+/* 링크 호버 효과 */
+.md-content a:hover {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* 코드 복사 버튼 위치 조정 */
+.md-clipboard {
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
+/* 프린트 스타일 */
+@media print {
+  .md-sidebar,
+  .md-header,
+  .md-footer,
+  .md-content__button {
+    display: none;
+  }
+  
+  .md-content {
+    margin: 0;
+    padding: 0;
+  }
+}
