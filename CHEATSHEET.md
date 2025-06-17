@@ -87,6 +87,7 @@ export GOOGLE_API_KEY="..."
 | 기본 사용법 | 초급 | [BASIC - 기본 사용법](./CHEATSHEET-BASIC.md#기본-사용법) |
 | 스트리밍 | 초급 | [BASIC - 스트리밍](./CHEATSHEET-BASIC.md#스트리밍) |
 | 출력 포맷팅 | 초급 | [BASIC - 출력 포맷팅](./CHEATSHEET-BASIC.md#출력-포맷팅) |
+| 이미지 생성 | 초급 | [BASIC - 이미지 생성](./CHEATSHEET-BASIC.md#이미지-생성) |
 | 대화 관리 | 초급 | [BASIC - 대화 관리](./CHEATSHEET-BASIC.md#대화-관리) |
 | 파일 처리 | 초급 | [BASIC - 파일 처리](./CHEATSHEET-BASIC.md#파일-처리) |
 | 구조화된 출력 | 중급 | [INTERMEDIATE - 구조화된 출력](./CHEATSHEET-INTERMEDIATE.md#구조화된-출력) |

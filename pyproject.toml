@@ -46,6 +46,10 @@ ollama = ["ollama>=0.5.0", "PyMuPDF"]
 upstage = ["openai>=1.84.0"]
 pdf = ["PyMuPDF>=1.23.0"]
 mcp = ["mcp", "fastmcp", "uvicorn", "pyyaml>=6.0.0"]
+image = [
+    "Pillow>=10.0.0",
+    "aiofiles>=23.0.0",
+]
 all = [
     "pyhub-llm[openai]",
     "pyhub-llm[anthropic]",
@@ -54,6 +58,7 @@ all = [
     "pyhub-llm[upstage]",
     "pyhub-llm[pdf]",
     "pyhub-llm[mcp]",
+    "pyhub-llm[image]",
 ]
 dev = [
     "pytest>=7.0.0",

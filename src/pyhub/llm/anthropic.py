@@ -473,6 +473,48 @@ class AnthropicLLM(BaseLLM):
     ) -> Union[Embed, EmbedList]:
         raise NotImplementedError("Anthropic does not support embeddings")
 
+    def generate_image(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Generate images from text prompts.
+        
+        Raises:
+            NotImplementedError: Anthropic does not support image generation
+        """
+        raise NotImplementedError(
+            "Anthropic does not support image generation. "
+            "Please use a provider that supports image generation, such as OpenAI with DALL-E models."
+        )
+
+    async def generate_image_async(
+        self,
+        prompt: str,
+        *,
+        size: Optional[str] = None,
+        quality: Optional[str] = None,
+        style: Optional[str] = None,
+        n: int = 1,
+        response_format: str = "url",
+        **kwargs
+    ) -> "ImageReply":
+        """Asynchronously generate images from text prompts.
+        
+        Raises:
+            NotImplementedError: Anthropic does not support image generation
+        """
+        raise NotImplementedError(
+            "Anthropic does not support image generation. "
+            "Please use a provider that supports image generation, such as OpenAI with DALL-E models."
+        )
+
     def _convert_tools_for_provider(self, tools):
         """Anthropic Tool Use 형식으로 도구 변환"""
         from .tools import ProviderToolConverter

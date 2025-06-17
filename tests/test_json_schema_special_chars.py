@@ -36,6 +36,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         choices = ["환불/반품", "배송문의", "사용방법", "가격문의", "A/S요청", "제품정보", "구매상담", "기타"]
@@ -78,6 +82,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         choices = ["환불/반품", "배송문의", "사용방법", "가격문의", "A/S요청", "제품정보", "구매상담", "기타"]
@@ -115,6 +123,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         
@@ -156,6 +168,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         choices = ["환불/반품", "배송문의", "사용방법", "가격문의", "A/S요청", "제품정보", "구매상담", "기타"]
@@ -187,6 +203,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         choices = ["환불/반품", "배송문의", "사용방법", "가격문의", "A/S요청", "제품정보", "구매상담", "기타"]
@@ -222,6 +242,10 @@ class TestJSONSchemaSpecialChars:
                 pass
             def embed_async(self, *args, **kwargs):
                 pass
+            def generate_image(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
+            def generate_image_async(self, *args, **kwargs):
+                raise NotImplementedError("Test LLM does not support image generation")
         
         llm = TestLLM()
         

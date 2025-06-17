@@ -95,7 +95,7 @@ class TestDisplay:
         
         # Verify markdown was used
         mock_console.assert_called_once()
-        mock_markdown.assert_called_once_with("# Hello\n**world**", code_theme="monokai", style=None)
+        mock_markdown.assert_called_once_with("# Hello\n**world**", code_theme="monokai", style="none")
         console_instance.print.assert_called_once()
         assert result == "# Hello\n**world**"
 
