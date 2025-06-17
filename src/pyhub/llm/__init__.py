@@ -3,6 +3,7 @@ from typing import TYPE_CHECKING, Union, cast
 
 # Always import these as they don't have external dependencies
 from pyhub.llm.base import BaseLLM, SequentialChain
+from pyhub.llm.display import display, print_stream
 from pyhub.llm.mock import MockLLM
 from pyhub.llm.types import (
     AnthropicChatModelType,
@@ -248,6 +249,8 @@ __all__ = [
     "LLM",
     "BaseLLM",
     "SequentialChain",
+    "display",
+    "print_stream",
     "AnthropicLLM",
     "GoogleLLM",
     "MockLLM",

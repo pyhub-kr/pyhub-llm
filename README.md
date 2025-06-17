@@ -268,7 +268,24 @@ for chunk in llm.ask("긴 이야기를 들려주세요", stream=True):
     print(chunk.text, end="", flush=True)
 ```
 
-### 2. 파일 처리 (이미지 및 PDF)
+### 2. 출력 포맷팅 (NEW! 🎨)
+
+```python
+from pyhub.llm import LLM, display
+
+# 마크다운 렌더링과 함께 스트리밍
+response = llm.ask("파이썬 함수 작성법을 알려주세요", stream=True)
+display(response)  # 자동으로 마크다운 렌더링!
+
+# 또는 Response 객체의 print() 메서드 사용
+response = llm.ask("안녕하세요")
+response.print(markdown=True)
+
+# 일반 텍스트로 출력
+response.print(markdown=False)
+```
+
+### 3. 파일 처리 (이미지 및 PDF)
 
 ```python
 # 이미지 설명
@@ -278,7 +295,7 @@ reply = llm.ask("이 이미지를 설명해주세요", files=["photo.jpg"])
 reply = llm.ask("이 문서를 요약해주세요", files=["document.pdf"])
 ```
 
-### 3. 도구/함수 호출
+### 4. 도구/함수 호출
 
 ```python
 # 간단한 함수를 도구로 사용
@@ -299,7 +316,7 @@ reply = llm.ask("서울 날씨 알려줘", tools=[get_weather])
 > - 에러 처리 및 재시도
 > - 대화 히스토리 백업 및 복원
 
-### 4. 대화 히스토리 백업
+### 5. 대화 히스토리 백업
 
 ```python
 from pyhub.llm import LLM

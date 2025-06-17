@@ -334,6 +334,19 @@ class Reply:
     def has_structured_data(self) -> bool:
         """구조화된 데이터가 있는지 확인"""
         return self.structured_data is not None
+    
+    def print(self, markdown: bool = True, **kwargs) -> str:
+        """Print the response with optional markdown rendering.
+        
+        Args:
+            markdown: Whether to render as markdown
+            **kwargs: Additional arguments passed to display()
+            
+        Returns:
+            str: The text content
+        """
+        from pyhub.llm.display import display
+        return display(self, markdown=markdown, **kwargs)
 
 
 @dataclass
@@ -360,6 +373,19 @@ class ChainReply:
 
     def __getitem__(self, key) -> Any:
         return self.values.get(key)
+    
+    def print(self, markdown: bool = True, **kwargs) -> str:
+        """Print the response with optional markdown rendering.
+        
+        Args:
+            markdown: Whether to render as markdown
+            **kwargs: Additional arguments passed to display()
+            
+        Returns:
+            str: The text content
+        """
+        from pyhub.llm.display import display
+        return display(self, markdown=markdown, **kwargs)
 
 
 @dataclass
