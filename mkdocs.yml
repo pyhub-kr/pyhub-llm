@@ -1,0 +1,219 @@
+site_name: pyhub-llm
+site_description: 여러 LLM 프로바이더를 통합하는 Python 라이브러리
+site_author: PyHub Team
+site_url: https://pyhub-kr.github.io/pyhub-llm/
+repo_name: pyhub-kr/pyhub-llm
+repo_url: https://github.com/pyhub-kr/pyhub-llm
+edit_uri: edit/main/docs/
+copyright: Copyright &copy; 2024 PyHub Team
+
+# 테마 설정
+theme:
+  name: material
+  language: ko
+  custom_dir: docs/overrides
+  
+  # 색상 설정
+  palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: 시스템 설정 사용
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: 다크 모드로 전환
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: 라이트 모드로 전환
+  
+  # 폰트 설정
+  font:
+    text: Noto Sans KR
+    code: JetBrains Mono
+  
+  # 기능 설정
+  features:
+    # 네비게이션
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.prune
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    
+    # TOC
+    - toc.follow
+    - toc.integrate
+    
+    # 검색
+    - search.suggest
+    - search.highlight
+    - search.share
+    
+    # 헤더
+    - header.autohide
+    
+    # 콘텐츠
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
+    - content.action.edit
+    - content.action.view
+    
+  # 아이콘
+  icon:
+    logo: material/robot-happy
+    repo: fontawesome/brands/github
+
+# 플러그인
+plugins:
+  - search:
+      lang: 
+        - en
+        - ko
+      separator: '[\s\-\.]+'
+  - autorefs
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - section-index
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [src]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_root_full_path: false
+            show_object_full_path: false
+            show_category_heading: true
+            show_if_no_docstring: false
+            show_signature: true
+            show_signature_annotations: true
+            separate_signature: true
+            line_length: 80
+            merge_init_into_class: true
+            docstring_style: google
+            docstring_section_style: table
+  - git-revision-date-localized:
+      enable_creation_date: true
+      type: timeago
+      timezone: Asia/Seoul
+      locale: ko
+  - minify:
+      minify_html: true
+      minify_js: true
+      minify_css: true
+      htmlmin_opts:
+        remove_comments: true
+  - glightbox:
+      touchNavigation: true
+      loop: false
+      effect: fade
+      width: 100%
+      height: auto
+      zoomable: true
+      draggable: true
+
+# 마크다운 확장
+markdown_extensions:
+  # Python Markdown
+  - abbr
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+      permalink_title: 이 섹션으로 링크
+      toc_depth: 3
+  
+  # Python Markdown Extensions
+  - pymdownx.arithmatex:
+      generic: true
+  - pymdownx.betterem:
+      smart_enable: all
+  - pymdownx.caret
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.snippets:
+      auto_append:
+        - includes/abbreviations.md
+
+# 추가 CSS
+extra_css:
+  - assets/stylesheets/extra.css
+
+# 추가 JavaScript  
+extra_javascript:
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js
+
+# 소셜 링크
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/pyhub-kr
+    - icon: fontawesome/solid/envelope
+      link: mailto:me@pyhub.kr
+  
+  # 버전 선택기 (추후 활성화)
+  # version:
+  #   provider: mike
+
+# 네비게이션 (literate-nav 사용 시 SUMMARY.md로 대체됨)
+nav:
+  - 홈: index.md
+  - 시작하기:
+    - getting-started/index.md
+    - 설치: getting-started/installation.md
+    - 빠른 시작: getting-started/quickstart.md
+  - 가이드:
+    - guides/index.md
+    - 기본 사용법: guides/basic-usage.md
+    - 대화 관리: guides/conversation.md
+    - 프로바이더: guides/providers.md
+    - 구조화된 출력: guides/structured-output.md
+    - 고급 기능: guides/advanced.md
+  - API 레퍼런스:
+    - api-reference/index.md
+    - LLM 클래스: api-reference/llm.md
+    - 타입 정의: api-reference/types.md
+  - 예제:
+    - examples/index.md
