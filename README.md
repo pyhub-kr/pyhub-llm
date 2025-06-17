@@ -308,6 +308,12 @@ reply = llm.generate_image(
 path = reply.save("sunset.png")  # 또는 reply.save() 로 자동 파일명
 print(f"Saved to: {path}")
 
+# BytesIO에 저장 (NEW!)
+from io import BytesIO
+buffer = BytesIO()
+reply.save(buffer)
+buffer.seek(0)  # 읽기 위해 처음으로
+
 # 이미지 표시 (Jupyter)
 reply.display()
 

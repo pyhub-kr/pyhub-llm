@@ -257,7 +257,18 @@ path = reply.save("my_sunset.png")
 # 3. 특정 디렉토리에 저장 (자동 파일명)
 path = reply.save("outputs/")  # outputs/image_123456.png
 
-# 4. Jupyter에서 이미지 표시
+# 4. BytesIO나 file-like 객체에 저장 (NEW!)
+from io import BytesIO
+buffer = BytesIO()
+reply.save(buffer)  # buffer를 반환
+buffer.seek(0)      # 읽기 위해 처음으로 이동
+
+# Django 예시
+from django.http import HttpResponse
+response = HttpResponse(content_type='image/png')
+reply.save(response)  # response에 직접 쓰기
+
+# 5. Jupyter에서 이미지 표시
 reply.display()
 ```
 
