@@ -1,10 +1,13 @@
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import IO, Any, Literal, TypeAlias, Union
+from typing import IO, Any, Literal, TypeAlias, Union, TYPE_CHECKING
 
 from pydantic import BaseModel
 from typing_extensions import Optional
+
+if TYPE_CHECKING:
+    from PIL import Image as PILImage
 
 from pyhub.llm.exceptions import ValidationError
 from pyhub.llm.utils.enums import TextChoices
@@ -334,18 +337,19 @@ class Reply:
     def has_structured_data(self) -> bool:
         """구조화된 데이터가 있는지 확인"""
         return self.structured_data is not None
-    
+
     def print(self, markdown: bool = True, **kwargs) -> str:
         """Print the response with optional markdown rendering.
-        
+
         Args:
             markdown: Whether to render as markdown
             **kwargs: Additional arguments passed to display()
-            
+
         Returns:
             str: The text content
         """
         from pyhub.llm.display import display
+
         return display(self, markdown=markdown, **kwargs)
 
 
@@ -373,18 +377,19 @@ class ChainReply:
 
     def __getitem__(self, key) -> Any:
         return self.values.get(key)
-    
+
     def print(self, markdown: bool = True, **kwargs) -> str:
         """Print the response with optional markdown rendering.
-        
+
         Args:
             markdown: Whether to render as markdown
             **kwargs: Additional arguments passed to display()
-            
+
         Returns:
             str: The text content
         """
         from pyhub.llm.display import display
+
         return display(self, markdown=markdown, **kwargs)
 
 
@@ -427,13 +432,14 @@ class EmbedList:
 @dataclass
 class ImageReply:
     """Response from image generation."""
+
     url: Optional[str] = None
     base64_data: Optional[str] = None
     revised_prompt: Optional[str] = None
     size: str = "1024x1024"
     model: str = ""
     usage: Optional[Usage] = None
-    
+
     def __str__(self) -> str:
         """String representation of the image reply."""
         if self.url:
@@ -442,24 +448,24 @@ class ImageReply:
             return f"Image (base64): {self.size}"
         else:
             return "Image (no data)"
-    
+
     @property
     def width(self) -> int:
         """Image width in pixels."""
-        return int(self.size.split('x')[0])
-    
+        return int(self.size.split("x")[0])
+
     @property
     def height(self) -> int:
         """Image height in pixels."""
-        return int(self.size.split('x')[1])
-    
+        return int(self.size.split("x")[1])
+
     def print(self, markdown: bool = True, **kwargs) -> str:
         """Print the image reply with optional formatting.
-        
+
         Args:
             markdown: Whether to render as markdown
             **kwargs: Additional arguments
-            
+
         Returns:
             str: The string representation
         """
@@ -470,34 +476,36 @@ class ImageReply:
             text += f"\nUsage: {self.usage}"
         print(text)
         return text
-    
+
     def display(self) -> None:
         """Display image in Jupyter notebook or print URL."""
         try:
             from IPython.display import Image, display
+
             if self.url:
                 display(Image(url=self.url))
             elif self.base64_data:
                 import base64
+
                 display(Image(data=base64.b64decode(self.base64_data)))
         except ImportError:
             # Not in Jupyter environment
             print(str(self))
-    
+
     def _extract_filename_from_url(self) -> str:
         """Extract filename from URL or generate one."""
         if self.url:
             from urllib.parse import urlparse, unquote
             import re
-            
+
             parsed = urlparse(self.url)
             # Extract filename from URL path
-            filename = unquote(parsed.path.split('/')[-1])
-            
+            filename = unquote(parsed.path.split("/")[-1])
+
             # If no filename or no extension, generate one
-            if not filename or '.' not in filename:
+            if not filename or "." not in filename:
                 # Try to extract ID from URL pattern
-                match = re.search(r'/([a-zA-Z0-9_-]+)(?:\?|$)', self.url)
+                match = re.search(r"/([a-zA-Z0-9_-]+)(?:\?|$)", self.url)
                 if match:
                     filename = f"{match.group(1)}.png"
                 else:
@@ -505,20 +513,20 @@ class ImageReply:
         else:
             # For base64 data
             filename = f"image_{hash(self.base64_data[:100] if self.base64_data else '') % 1000000}.png"
-        
+
         return filename
-    
+
     def _get_unique_filepath(self, directory: Path, filename: str) -> Path:
         """Get unique filepath to avoid overwrites."""
         filepath = directory / filename
-        
+
         if not filepath.exists():
             return filepath
-        
+
         # Split filename and extension
         stem = filepath.stem
         suffix = filepath.suffix
-        
+
         # Add number to create unique filename
         counter = 1
         while True:
@@ -526,13 +534,8 @@ class ImageReply:
             if not new_filepath.exists():
                 return new_filepath
             counter += 1
-    
-    def _prepare_filepath(
-        self, 
-        path: Optional[Union[str, Path]], 
-        overwrite: bool, 
-        create_dirs: bool
-    ) -> Path:
+
+    def _prepare_filepath(self, path: Optional[Union[str, Path]], overwrite: bool, create_dirs: bool) -> Path:
         """Prepare the filepath for saving."""
         if path is None:
             # Save to current directory
@@ -541,53 +544,49 @@ class ImageReply:
             filepath = self._get_unique_filepath(save_dir, filename)
         else:
             path = Path(path)
-            
+
             if path.is_dir() or (not path.exists() and not path.suffix):
                 # Directory specified
                 save_dir = path
                 filename = self._extract_filename_from_url()
-                
+
                 # Create directory if needed
                 if create_dirs and not save_dir.exists():
                     save_dir.mkdir(parents=True, exist_ok=True)
-                    
+
                 filepath = self._get_unique_filepath(save_dir, filename)
             else:
                 # File path specified
                 filepath = path
-                
+
                 # Create parent directory if needed
                 if create_dirs and not filepath.parent.exists():
                     filepath.parent.mkdir(parents=True, exist_ok=True)
-                
+
                 # Check overwrite
                 if filepath.exists() and not overwrite:
-                    raise FileExistsError(
-                        f"File already exists: {filepath}. Use overwrite=True to replace."
-                    )
-        
+                    raise FileExistsError(f"File already exists: {filepath}. Use overwrite=True to replace.")
+
         return filepath
-    
+
     def save(
-        self, 
-        path: Optional[Union[str, Path]] = None, 
-        *, 
-        overwrite: bool = False,
-        create_dirs: bool = True
-    ) -> Path:
-        """Save image to local file.
-        
+        self, path: Optional[Union[str, Path, Any]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Union[Path, Any]:
+        """Save image to local file or file-like object.
+
         Args:
             path: Save path (optional)
                 - None: Save to current directory with auto filename
                 - Directory path: Save to directory with auto filename
                 - File path: Save with specified filename
-            overwrite: Whether to overwrite existing file
-            create_dirs: Whether to create directories automatically
-            
+                - File-like object: Object with write() method (e.g., BytesIO)
+            overwrite: Whether to overwrite existing file (ignored for file-like objects)
+            create_dirs: Whether to create directories automatically (ignored for file-like objects)
+
         Returns:
-            Path: Path to saved file
-            
+            Path: Path to saved file (for file paths)
+            Any: The same file-like object that was passed in (for file-like objects)
+
         Raises:
             ValueError: No image data available
             FileExistsError: File exists and overwrite=False
@@ -595,112 +594,164 @@ class ImageReply:
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-        
+
+        # Check if path is a file-like object
+        if path is not None and hasattr(path, "write"):
+            # Get image data
+            if self.url:
+                import httpx
+
+                response = httpx.get(self.url)
+                response.raise_for_status()
+                image_data = response.content
+            else:  # base64_data
+                import base64
+
+                image_data = base64.b64decode(self.base64_data)
+
+            # Write to file-like object
+            path.write(image_data)
+            return path
+
+        # Otherwise, handle as file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
-        
+
         # Get image data
         if self.url:
             import httpx
+
             response = httpx.get(self.url)
             response.raise_for_status()
             image_data = response.content
         else:  # base64_data
             import base64
+
             image_data = base64.b64decode(self.base64_data)
-        
+
         # Check if we can detect format with Pillow
         try:
             from PIL import Image
             import io
-            
+
             img = Image.open(io.BytesIO(image_data))
-            format = img.format.lower() if img.format else 'png'
-            
+            format = img.format.lower() if img.format else "png"
+
             # Add extension if missing
             if not filepath.suffix:
-                filepath = filepath.with_suffix(f'.{format}')
+                filepath = filepath.with_suffix(f".{format}")
         except ImportError:
             # Pillow not available, use default extension if missing
             if not filepath.suffix:
-                filepath = filepath.with_suffix('.png')
-        
+                filepath = filepath.with_suffix(".png")
+
         # Save file
         filepath.write_bytes(image_data)
         return filepath
-    
+
     async def save_async(
-        self, 
-        path: Optional[Union[str, Path]] = None, 
-        *, 
-        overwrite: bool = False,
-        create_dirs: bool = True
-    ) -> Path:
-        """Asynchronously save image to local file.
-        
+        self, path: Optional[Union[str, Path, Any]] = None, *, overwrite: bool = False, create_dirs: bool = True
+    ) -> Union[Path, Any]:
+        """Asynchronously save image to local file or file-like object.
+
         Args:
             path: Save path (optional)
-            overwrite: Whether to overwrite existing file
-            create_dirs: Whether to create directories automatically
-            
+                - None: Save to current directory with auto filename
+                - Directory path: Save to directory with auto filename
+                - File path: Save with specified filename
+                - File-like object: Object with write() or awrite() method
+            overwrite: Whether to overwrite existing file (ignored for file-like objects)
+            create_dirs: Whether to create directories automatically (ignored for file-like objects)
+
         Returns:
-            Path: Path to saved file
+            Path: Path to saved file (for file paths)
+            Any: The same file-like object that was passed in (for file-like objects)
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-        
+
+        # Check if path is a file-like object
+        if path is not None and (hasattr(path, "write") or hasattr(path, "awrite")):
+            # Get image data asynchronously
+            if self.url:
+                import httpx
+
+                async with httpx.AsyncClient() as client:
+                    response = await client.get(self.url)
+                    response.raise_for_status()
+                    image_data = response.content
+            else:  # base64_data
+                import base64
+
+                image_data = base64.b64decode(self.base64_data)
+
+            # Write to file-like object
+            if hasattr(path, "awrite"):
+                # Async file-like object
+                await path.awrite(image_data)
+            else:
+                # Sync file-like object - run in executor
+                import asyncio
+
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, path.write, image_data)
+
+            return path
+
+        # Otherwise, handle as file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
-        
+
         # Get image data asynchronously
         if self.url:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.url)
                 response.raise_for_status()
                 image_data = response.content
         else:  # base64_data
             import base64
+
             image_data = base64.b64decode(self.base64_data)
-        
+
         # Check format with Pillow if available
         try:
             from PIL import Image
             import io
             import asyncio
-            
-            loop = asyncio.get_event_loop()
-            img = await loop.run_in_executor(
-                None, 
-                lambda: Image.open(io.BytesIO(image_data))
-            )
-            format = img.format.lower() if img.format else 'png'
-            
+
+            loop = asyncio.get_running_loop()
+            img = await loop.run_in_executor(None, lambda: Image.open(io.BytesIO(image_data)))
+            format = img.format.lower() if img.format else "png"
+
             # Add extension if missing
             if not filepath.suffix:
-                filepath = filepath.with_suffix(f'.{format}')
+                filepath = filepath.with_suffix(f".{format}")
         except ImportError:
             # Pillow not available
             if not filepath.suffix:
-                filepath = filepath.with_suffix('.png')
-        
+                filepath = filepath.with_suffix(".png")
+
         # Save file asynchronously
         try:
             import aiofiles
-            async with aiofiles.open(filepath, 'wb') as f:
+
+            async with aiofiles.open(filepath, "wb") as f:
                 await f.write(image_data)
         except ImportError:
             # Fallback to sync write if aiofiles not available
             import asyncio
-            loop = asyncio.get_event_loop()
+
+            loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, filepath.write_bytes, image_data)
-        
+
         return filepath
-    
-    def to_pil(self) -> "PIL.Image.Image":
+
+    def to_pil(self) -> "PILImage":
         """Convert to PIL Image object.
-        
+
         Returns:
             PIL.Image.Image: PIL image object
-            
+
         Raises:
             ImportError: Pillow not installed
             ValueError: No image data available
@@ -713,26 +764,28 @@ class ImageReply:
                 "Pillow library is required for this feature. "
                 "Install it with: pip install 'pyhub-llm[image]' or pip install Pillow"
             )
-        
+
         if self.url:
             import httpx
+
             response = httpx.get(self.url)
             response.raise_for_status()
             image_data = response.content
         elif self.base64_data:
             import base64
+
             image_data = base64.b64decode(self.base64_data)
         else:
             raise ValueError("No image data available")
-            
+
         return Image.open(io.BytesIO(image_data))
-    
-    async def to_pil_async(self) -> "PIL.Image.Image":
+
+    async def to_pil_async(self) -> "PILImage":
         """Asynchronously convert to PIL Image object.
-        
+
         Returns:
             PIL.Image.Image: PIL image object
-            
+
         Raises:
             ImportError: Pillow not installed
             ValueError: No image data available
@@ -745,27 +798,27 @@ class ImageReply:
                 "Pillow library is required for this feature. "
                 "Install it with: pip install 'pyhub-llm[image]' or pip install Pillow"
             )
-        
+
         # Download image data asynchronously
         if self.url:
             import httpx
+
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.url)
                 response.raise_for_status()
                 image_data = response.content
         elif self.base64_data:
             import base64
+
             image_data = base64.b64decode(self.base64_data)
         else:
             raise ValueError("No image data available")
-        
+
         # PIL operations in thread pool
         import asyncio
-        loop = asyncio.get_event_loop()
-        return await loop.run_in_executor(
-            None, 
-            lambda: Image.open(io.BytesIO(image_data))
-        )
+
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, lambda: Image.open(io.BytesIO(image_data)))
 
 
 class LanguageEnum(TextChoices):
