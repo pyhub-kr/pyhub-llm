@@ -19,7 +19,7 @@ except ImportError:
 def display(
     response: Union[Reply, ChainReply, Generator[str, None, None], Any],
     markdown: bool = True,
-    style: Optional[str] = None,
+    style: Optional[str] = "none",
     code_theme: str = "monokai",
     console: Optional[Any] = None,
     **kwargs
@@ -113,7 +113,11 @@ def _display_stream_markdown(
     text = ""
     with Live(console=console, refresh_per_second=10, **kwargs) as live:
         for chunk in generator:
-            text += chunk
+            # Handle both string chunks and Reply objects
+            if hasattr(chunk, 'text'):
+                text += chunk.text
+            else:
+                text += chunk
             md = Markdown(text, code_theme=code_theme, style=style)
             live.update(md)
     
@@ -124,8 +128,13 @@ def _display_stream_plain(generator: Generator[str, None, None]) -> str:
     """Display streaming text as plain text."""
     text = ""
     for chunk in generator:
-        print(chunk, end="", flush=True)
-        text += chunk
+        # Handle both string chunks and Reply objects
+        if hasattr(chunk, 'text'):
+            print(chunk.text, end="", flush=True)
+            text += chunk.text
+        else:
+            print(chunk, end="", flush=True)
+            text += chunk
     print()  # Final newline
     return text
 
