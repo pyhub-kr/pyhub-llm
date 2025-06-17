@@ -15,19 +15,20 @@ pyhub-llm을 처음 사용하는 분들을 위한 기본 가이드입니다. 이
    - [Ollama (로컬)](#ollama-로컬)
    - [Upstage](#upstage)
 3. [스트리밍](#스트리밍)
-4. [대화 관리](#대화-관리)
+4. [출력 포맷팅](#출력-포맷팅)
+5. [대화 관리](#대화-관리)
    - [대화 히스토리 유지](#대화-히스토리-유지)
    - [컨텍스트 윈도우 관리](#컨텍스트-윈도우-관리)
    - [페르소나 기반 대화](#페르소나-기반-대화)
-5. [파일 처리](#파일-처리)
+6. [파일 처리](#파일-처리)
    - [이미지 분석](#이미지-분석)
    - [PDF 문서 처리](#pdf-문서-처리)
    - [이미지 생성 프롬프트](#이미지-생성-프롬프트)
-6. [에러 처리](#에러-처리)
+7. [에러 처리](#에러-처리)
    - [기본 에러 처리](#기본-에러-처리)
    - [폴백 처리](#폴백-처리)
    - [타임아웃 처리](#타임아웃-처리)
-7. [다음 단계](#다음-단계)
+8. [다음 단계](#다음-단계)
 
 ## 설치
 
@@ -166,6 +167,58 @@ def process_stream(llm, prompt):
             print(".", end="", flush=True)
     return full_text
 ```
+
+## 출력 포맷팅
+
+편리한 출력 기능으로 마크다운 렌더링을 지원합니다.
+
+### display() 함수 사용
+
+```python
+from pyhub.llm import LLM, display
+
+llm = LLM.create("gpt-4o-mini")
+
+# 스트리밍과 함께 마크다운 렌더링
+response = llm.ask("파이썬 함수 예제를 보여주세요", stream=True)
+display(response)  # 자동으로 마크다운 렌더링!
+
+# 일반 응답도 마크다운 렌더링
+reply = llm.ask("# 제목\n\n**굵은 글씨**로 작성")
+display(reply)
+
+# 일반 텍스트로 출력
+display(reply, markdown=False)
+```
+
+### Response.print() 메서드
+
+```python
+# 모든 Response 객체에 print() 메서드 제공
+reply = llm.ask("마크다운 표 예제")
+
+# 마크다운 렌더링
+reply.print()  # 기본값: markdown=True
+
+# 일반 텍스트
+reply.print(markdown=False)
+
+# 스트만도 동일하게 사용 가능
+response = llm.ask("코드 예제", stream=True)
+response.print()  # 스트리밍하면서 마크다운 렌더링
+```
+
+### Rich 라이브러리 설치
+
+마크다운 렌더링을 위해서는 Rich 라이브러리가 필요합니다:
+
+```bash
+pip install "pyhub-llm[rich]"
+# 또는
+pip install rich
+```
+
+Rich가 설치되지 않은 경우, 일반 텍스트로 출력됩니다.
 
 ## 대화 관리
 

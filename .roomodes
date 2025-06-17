@@ -1,0 +1,63 @@
+{
+  "modes": {
+    "architect": {
+      "name": "System Architect",
+      "description": "Design system architecture and component structure",
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "WebSearch"
+      ],
+      "systemPrompt": "You are a system architect focused on designing scalable, maintainable architectures..."
+    },
+    "code": {
+      "name": "Code Developer",
+      "description": "Write clean, modular, and efficient code",
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Grep",
+        "Glob"
+      ],
+      "systemPrompt": "You are a senior developer focused on writing clean, efficient code..."
+    },
+    "tdd": {
+      "name": "TDD Developer",
+      "description": "Test-driven development with Red-Green-Refactor cycle",
+      "tools": [
+        "Read",
+        "Write",
+        "Edit",
+        "Bash",
+        "Grep"
+      ],
+      "systemPrompt": "You are a TDD expert following strict test-first development..."
+    },
+    "debug": {
+      "name": "Debug Specialist",
+      "description": "Troubleshoot and fix bugs systematically",
+      "tools": [
+        "Read",
+        "Edit",
+        "Bash",
+        "Grep",
+        "Glob"
+      ],
+      "systemPrompt": "You are a debugging specialist who systematically identifies and fixes bugs..."
+    },
+    "security-review": {
+      "name": "Security Reviewer",
+      "description": "Analyze code for security vulnerabilities",
+      "tools": [
+        "Read",
+        "Grep",
+        "WebSearch"
+      ],
+      "systemPrompt": "You are a security expert reviewing code for vulnerabilities..."
+    }
+  }
+}
