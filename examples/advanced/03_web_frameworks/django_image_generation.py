@@ -27,12 +27,12 @@ class GeneratedImage(models.Model):
     prompt = models.TextField(help_text="사용자가 입력한 원본 프롬프트")
     revised_prompt = models.TextField(blank=True, help_text="DALL-E가 개선한 프롬프트")
     image = models.ImageField(upload_to='generated/%Y/%m/%d/')
-    image_url = models.URLField(blank=True, help_text="OpenAI에서 제공한 원본 URL")
+    image_url = models.URLField(blank=True, null=True, help_text="OpenAI에서 제공한 원본 URL")
     size = models.CharField(max_length=20, default='1024x1024')
     quality = models.CharField(max_length=20, default='standard')
     style = models.CharField(max_length=20, default='natural')
     created_at = models.DateTimeField(auto_now_add=True)
-    metadata = models.JSONField(default=dict, blank=True)
+    metadata = models.JSONField(default=dict, blank=True, null=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -245,6 +245,7 @@ class ImageVariationView(View):
             with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
                 for chunk in uploaded_file.chunks():
                     tmp.write(chunk)
+                tmp.flush()  # 파일 시스템에 내용이 기록되도록 보장
                 tmp_path = tmp.name
             
             # GPT-4V로 이미지 분석
@@ -479,8 +480,10 @@ class CachedImageGenerationView(View):
         data = json.loads(request.body)
         prompt = data.get('prompt', '')
         
-        # 프롬프트 기반 캐시 키 생성
-        cache_key = f"image_gen:{hash(prompt)}"
+        # 프롬프트 기반 캐시 키 생성 (안정적인 해시 사용)
+        import hashlib
+        prompt_hash = hashlib.sha256(prompt.encode()).hexdigest()[:16]
+        cache_key = f"image_gen:{prompt_hash}"
         cached_url = cache.get(cache_key)
         
         if cached_url:

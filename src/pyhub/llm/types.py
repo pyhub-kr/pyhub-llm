@@ -821,6 +821,10 @@ class ImageReply:
             >>> room.image_file = reply.to_django_file('sunset.png')
             >>> room.save()
         """
+        # Check if image data is available
+        if not self.url and not self.base64_data:
+            raise ValueError("No image data available to convert to Django file")
+
         try:
             from django.core.files.base import ContentFile
         except ImportError:
