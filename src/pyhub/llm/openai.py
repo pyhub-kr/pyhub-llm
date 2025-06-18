@@ -280,7 +280,7 @@ class OpenAIMixin:
                         raw_response = raw
                     else:
                         # dict가 아닌 경우 변환 시도
-                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                        raw_response = dict(raw) if hasattr(raw, "__iter__") else {"response": str(raw)}
                 except Exception:
                     raw_response = {"error": "Failed to serialize response"}
             else:
@@ -355,7 +355,7 @@ class OpenAIMixin:
                         raw_response = raw
                     else:
                         # dict가 아닌 경우 변환 시도
-                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                        raw_response = dict(raw) if hasattr(raw, "__iter__") else {"response": str(raw)}
                 except Exception:
                     raw_response = {"error": "Failed to serialize response"}
             else:
@@ -1049,7 +1049,7 @@ class OpenAIMixin:
                         raw_response = raw
                     else:
                         # dict가 아닌 경우 변환 시도
-                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                        raw_response = dict(raw) if hasattr(raw, "__iter__") else {"response": str(raw)}
                 except Exception:
                     raw_response = {"error": "Failed to serialize response"}
             else:
@@ -1196,7 +1196,7 @@ class OpenAIMixin:
                         raw_response = raw
                     else:
                         # dict가 아닌 경우 변환 시도
-                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                        raw_response = dict(raw) if hasattr(raw, "__iter__") else {"response": str(raw)}
                 except Exception:
                     raw_response = {"error": "Failed to serialize response"}
             else:

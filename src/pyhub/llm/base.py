@@ -8,6 +8,7 @@ from typing import (
     TYPE_CHECKING,
     Any,
     AsyncGenerator,
+    Callable,
     Generator,
     List,
     Optional,
@@ -1769,6 +1770,126 @@ class BaseLLM(abc.ABC):
             "Analyze this image and provide: 1) Main objects and subjects 2) Dominant colors and visual style 3) Setting or context 4) Any visible text 5) Overall mood or atmosphere",
             **kwargs,
         )
+
+    #
+    # Retry and Fallback
+    #
+
+    def with_retry(
+        self,
+        max_retries: int = 3,
+        initial_delay: float = 1.0,
+        max_delay: float = 60.0,
+        backoff_multiplier: float = 2.0,
+        backoff_strategy: Optional[str] = None,
+        jitter: bool = True,
+        retry_on: Optional[List[Union[Type[Exception], str]]] = None,
+        retry_condition: Optional[Callable[[Exception], bool]] = None,
+        stop_on: Optional[List[Union[Type[Exception], str]]] = None,
+        on_retry: Optional[Callable[[Exception, int, float], None]] = None,
+        on_failure: Optional[Callable[[Exception, int], None]] = None,
+    ) -> "BaseLLM":
+        """Apply retry logic to this LLM instance.
+
+        Args:
+            max_retries: Maximum number of retry attempts
+            initial_delay: Initial delay between retries in seconds
+            max_delay: Maximum delay between retries
+            backoff_multiplier: Multiplier for exponential backoff
+            backoff_strategy: One of "exponential", "linear", "fixed", "jitter"
+            jitter: Whether to add jitter to delays
+            retry_on: List of exceptions or error messages to retry on
+            retry_condition: Custom function to determine if an error should be retried
+            stop_on: List of exceptions or error messages to not retry on
+            on_retry: Callback called on each retry with (error, attempt, delay)
+            on_failure: Callback called when all retries fail
+
+        Returns:
+            RetryWrapper: A wrapped LLM instance with retry functionality
+
+        Examples:
+            # Basic retry with exponential backoff
+            llm = OpenAILLM(model="gpt-4o-mini").with_retry(max_retries=3)
+
+            # Custom retry configuration
+            llm = OpenAILLM(model="gpt-4o-mini").with_retry(
+                max_retries=5,
+                initial_delay=0.5,
+                backoff_strategy="jitter",
+                retry_on=[ConnectionError, "rate limit"],
+                on_retry=lambda e, attempt, delay: print(f"Retry {attempt} after {delay}s: {e}")
+            )
+        """
+        from .retry import BackoffStrategy, RetryConfig, RetryWrapper
+
+        # Convert backoff_strategy string to enum if provided
+        if backoff_strategy:
+            strategy = BackoffStrategy(backoff_strategy)
+        else:
+            strategy = BackoffStrategy.EXPONENTIAL
+
+        config = RetryConfig(
+            max_retries=max_retries,
+            initial_delay=initial_delay,
+            max_delay=max_delay,
+            backoff_multiplier=backoff_multiplier,
+            backoff_strategy=strategy,
+            jitter=jitter,
+            retry_on=retry_on,
+            retry_condition=retry_condition,
+            stop_on=stop_on,
+            on_retry=on_retry,
+            on_failure=on_failure,
+        )
+
+        return RetryWrapper(self, config)
+
+    def with_fallbacks(
+        self,
+        fallback_llms: List["BaseLLM"],
+        fallback_condition: Optional[Callable[[Exception], bool]] = None,
+        on_fallback: Optional[Callable[[Exception, "BaseLLM"], None]] = None,
+    ) -> "BaseLLM":
+        """Apply fallback logic to this LLM instance.
+
+        Args:
+            fallback_llms: List of LLM instances to use as fallbacks
+            fallback_condition: Custom function to determine if an error should trigger fallback
+            on_fallback: Callback called when switching to a fallback LLM
+
+        Returns:
+            FallbackWrapper: A wrapped LLM instance with fallback functionality
+
+        Examples:
+            # Simple fallback chain
+            primary = OpenAILLM(model="gpt-4o")
+            backup1 = OpenAILLM(model="gpt-4o-mini")
+            backup2 = AnthropicLLM(model="claude-3-sonnet")
+
+            llm = primary.with_fallbacks([backup1, backup2])
+
+            # Conditional fallback
+            def should_fallback(error):
+                return "context length" in str(error).lower()
+
+            llm = primary.with_fallbacks(
+                [backup1],
+                fallback_condition=should_fallback,
+                on_fallback=lambda e, llm: print(f"Switching to {llm.model}: {e}")
+            )
+
+            # Combine retry and fallback
+            llm = primary.with_retry(max_retries=2).with_fallbacks([backup1, backup2])
+        """
+        from .retry import FallbackConfig, FallbackWrapper
+
+        config = FallbackConfig(
+            fallback_llms=fallback_llms,
+            fallback_condition=fallback_condition,
+            on_fallback=on_fallback,
+        )
+
+        return FallbackWrapper(self, config)
 
 
 class SequentialChain:

@@ -71,7 +71,7 @@ class TestMCPIntegration:
         llm = LLM.create("gpt-4o-mini", mcp_servers=mock_mcp_server_config)
 
         # Mock MCP client and tools
-        mock_client = AsyncMock()
+        _mock_client = AsyncMock()
         mock_tools = [
             MagicMock(name="add", description="두 숫자를 더합니다"),
             MagicMock(name="subtract", description="두 숫자를 뺍니다"),

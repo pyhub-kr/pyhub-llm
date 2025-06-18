@@ -225,7 +225,7 @@ class TestFileCache:
         cache_dir = tmp_path / "new_cache"
         assert not cache_dir.exists()
 
-        cache = FileCache(str(cache_dir))
+        _cache = FileCache(str(cache_dir))
         assert cache_dir.exists()
 
     def test_set_and_get(self, file_cache):

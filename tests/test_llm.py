@@ -67,7 +67,7 @@ class TestLLMCore:
         assert len(llm.history) == 0
 
         # Add messages through ask method (which updates history)
-        response = llm.ask("Hello", save_history=True)
+        _response = llm.ask("Hello", save_history=True)
         assert len(llm.history) == 2  # User message + assistant response
         assert llm.history[0].role == "user"
         assert llm.history[0].content == "Hello"
@@ -75,7 +75,7 @@ class TestLLMCore:
         assert llm.history[1].content == "Mock response: Hello"
 
         # Ask another question
-        response2 = llm.ask("How are you?", save_history=True)
+        _response2 = llm.ask("How are you?", save_history=True)
         assert len(llm.history) == 4  # 2 more messages added
         assert llm.history[2].content == "How are you?"
         assert llm.history[3].content == "Mock response: How are you?"
@@ -177,7 +177,7 @@ class TestLLMChaining:
         llm1 = MockLLM(model="mock-model-1", prompt="{input}", output_key="step1")
         llm2 = MockLLM(model="mock-model-2", prompt="{step1}", output_key="step2")
 
-        chain = SequentialChain(llm1, llm2)
+        _chain = SequentialChain(llm1, llm2)
 
         # This would need to be implemented in SequentialChain
         # response = await chain.ask_async({"input": "Initial question"})

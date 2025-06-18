@@ -99,10 +99,10 @@ def describe(
         raise typer.Exit(1)
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    # init(debug=True, log_level=log_level)  # Not needed
+        _log_level = logging.INFO
+    # init(debug=True, log_level=_log_level)  # Not needed
 
     # Set up prompts based on prompt_type
     if prompt_type is None:

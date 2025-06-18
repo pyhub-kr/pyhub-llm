@@ -180,10 +180,10 @@ def ask(
     #     console.print(f"# System prompt\n\n{system_prompt}\n\n----\n\n", style="blue")
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.WARNING  # Only show warnings and errors when not verbose
-    # init(debug=is_verbose, log_level=log_level)
+        _log_level = logging.WARNING  # Only show warnings and errors when not verbose
+    # init(debug=is_verbose, log_level=_log_level)
 
     # 템플릿 로드
     if template_name:

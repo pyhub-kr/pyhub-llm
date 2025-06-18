@@ -66,10 +66,10 @@ def fill_jsonl(
         raise typer.Exit(1)
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    # init(debug=True, log_level=log_level)
+        _log_level = logging.INFO
+    # init(debug=True, log_level=_log_level)
 
     # Create cache if requested
     cache = None
@@ -163,10 +163,10 @@ def text(
         raise typer.Exit()
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    # init(debug=True, log_level=log_level)
+        _log_level = logging.INFO
+    # init(debug=True, log_level=_log_level)
 
     # Create cache if requested
     cache = None
@@ -263,10 +263,10 @@ def similarity(
         raise typer.Exit(1)
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    # init(debug=True, log_level=log_level)
+        _log_level = logging.INFO
+    # init(debug=True, log_level=_log_level)
 
     # 벡터 준비
     import numpy as np
@@ -403,10 +403,10 @@ def batch(
         raise typer.Exit(1)
 
     if is_verbose:
-        log_level = logging.DEBUG
+        _log_level = logging.DEBUG
     else:
-        log_level = logging.INFO
-    # init(debug=True, log_level=log_level)
+        _log_level = logging.INFO
+    # init(debug=True, log_level=_log_level)
 
     # LLM 생성
     # Create cache if requested

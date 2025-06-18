@@ -66,7 +66,7 @@ class TestOpenAILLM:
 
         llm = OpenAILLM(api_key="test-key")
         # Temperature and max_tokens are set during initialization
-        reply = llm.ask("Question")
+        _reply = llm.ask("Question")
 
         # Just verify SyncOpenAI was called
         mock_openai_class.assert_called()

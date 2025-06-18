@@ -295,7 +295,7 @@ class TestTemplateEngine:
         mock_env = Mock()
         mock_env_class.return_value = mock_env
 
-        engine = TemplateEngine()
+        _engine = TemplateEngine()
 
         # Verify Environment was created with autoescape
         mock_env_class.assert_called_once()

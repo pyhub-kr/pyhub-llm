@@ -54,7 +54,7 @@ class TestSignalHandling:
         registry._instances[instance_id] = weakref.ref(mock_instance)
 
         # 시그널 핸들러 호출
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit") as _mock_exit:
             with patch.object(registry, "_async_cleanup_all", new_callable=AsyncMock) as mock_cleanup:
                 # 시그널 핸들러 직접 호출
                 registry._signal_handler(signal.SIGINT, None)
@@ -84,7 +84,7 @@ class TestSignalHandling:
         assert llm_id in registry._instances
 
         # 시그널 시뮬레이션
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit") as _mock_exit:
             # 시그널 핸들러 호출
             registry._signal_handler(signal.SIGINT, None)
 
@@ -119,7 +119,7 @@ class TestSignalHandling:
             assert id(llm) in registry._instances
 
         # 시그널 핸들러 호출
-        with patch("sys.exit") as mock_exit:
+        with patch("sys.exit") as _mock_exit:
             registry._signal_handler(signal.SIGINT, None)
 
             # 비동기 cleanup 대기

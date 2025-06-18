@@ -356,16 +356,16 @@ class MockLLM(BaseLLM):
     ) -> ImageReply:
         """Generate a mock image."""
         self.call_count += 1
-        
+
         # Mock image generation - return a fake URL
         return ImageReply(
             url="https://mock-image.example.com/generated.png",
             size=size or "1024x1024",
             model=self.model,
             revised_prompt=f"Mock revised: {prompt}",
-            usage=Usage(input=20, output=0)
+            usage=Usage(input=20, output=0),
         )
-    
+
     async def generate_image_async(
         self,
         prompt: str,
@@ -380,11 +380,5 @@ class MockLLM(BaseLLM):
         """Generate a mock image asynchronously."""
         await asyncio.sleep(0.01)
         return self.generate_image(
-            prompt=prompt,
-            size=size,
-            quality=quality,
-            style=style,
-            n=n,
-            response_format=response_format,
-            **kwargs
+            prompt=prompt, size=size, quality=quality, style=style, n=n, response_format=response_format, **kwargs
         )

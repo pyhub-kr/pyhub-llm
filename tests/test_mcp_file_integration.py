@@ -1,6 +1,7 @@
 import json
 import tempfile
 from pathlib import Path
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
@@ -176,7 +177,3 @@ mcpServers:
             assert llm.mcp_servers[0].filter_tools == "add,subtract,multiply"  # 문자열로 유지됨
         finally:
             Path(temp_path).unlink()
-
-
-# Import mocking을 위한 추가
-from unittest.mock import AsyncMock, patch

@@ -195,7 +195,7 @@ class TestChainIntegration:
         llm1 = MockLLM(model="async-1", prompt="{input}")
         llm2 = MockLLM(model="async-2", prompt="{text}")
 
-        chain = llm1 | llm2
+        _chain = llm1 | llm2
 
         # This would need to be implemented in SequentialChain
         # result = await chain.ask_async({"input": "Async start"})

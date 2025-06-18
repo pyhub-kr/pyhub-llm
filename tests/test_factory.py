@@ -83,7 +83,7 @@ class TestLLMFactory:
             mock_instance = Mock(spec=BaseLLM)
             mock_openai_class.return_value = mock_instance
 
-            result = LLM.create("gpt-4o", cache=memory_cache)
+            _result = LLM.create("gpt-4o", cache=memory_cache)
 
             # Check that cache was passed to the constructor
             mock_openai_class.assert_called_once()
@@ -98,7 +98,7 @@ class TestLLMFactory:
             mock_openai_class.return_value = mock_instance
 
             # Create with custom parameters
-            result = LLM.create("gpt-4o", temperature=0.5, max_tokens=1000, system_prompt="You are helpful.")
+            _result = LLM.create("gpt-4o", temperature=0.5, max_tokens=1000, system_prompt="You are helpful.")
 
             # Verify parameters were passed
             call_kwargs = mock_openai_class.call_args[1]

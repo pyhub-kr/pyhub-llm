@@ -6,6 +6,7 @@ from pyhub.llm.openai import OpenAIMixin
 from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     GroundednessCheck,
+    ImageReply,
     Message,
     UpstageChatModelType,
     UpstageEmbeddingModelType,
@@ -160,10 +161,10 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Upstage does not support image generation
         """
@@ -181,10 +182,10 @@ class UpstageLLM(OpenAIMixin, BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Asynchronously generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Upstage does not support image generation
         """
