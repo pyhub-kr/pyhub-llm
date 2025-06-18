@@ -538,6 +538,289 @@ class Command(BaseCommand):
                 f"총 토큰 사용량: {stats['total_tokens']}"
             )
         )
+
+# 이미지 생성 뷰 (views.py)
+from django.http import HttpResponse
+from pyhub.llm import OpenAILLM
+from io import BytesIO
+import uuid
+
+class ImageGenerationView(View):
+    """AI 이미지 생성 뷰"""
+    
+    @method_decorator(csrf_exempt)
+    def dispatch(self, *args, **kwargs):
+        return super().dispatch(*args, **kwargs)
+    
+    def post(self, request):
+        """텍스트로부터 이미지 생성"""
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        size = data.get('size', '1024x1024')
+        quality = data.get('quality', 'standard')
+        
+        if not prompt:
+            return JsonResponse({'error': '프롬프트가 필요합니다.'}, status=400)
+        
+        try:
+            # DALL-E 3 모델로 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            reply = dalle.generate_image(
+                prompt,
+                size=size,
+                quality=quality,
+                style="natural"
+            )
+            
+            # 방법 1: URL 반환
+            return JsonResponse({
+                'url': reply.url,
+                'revised_prompt': reply.revised_prompt,
+                'size': reply.size
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+class ImageDownloadView(View):
+    """생성된 이미지 다운로드"""
+    
+    def post(self, request):
+        """이미지를 생성하고 직접 반환"""
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        
+        try:
+            # 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            reply = dalle.generate_image(prompt)
+            
+            # HttpResponse에 직접 저장
+            response = HttpResponse(content_type='image/png')
+            response['Content-Disposition'] = f'attachment; filename="generated_{uuid.uuid4().hex[:8]}.png"'
+            
+            # ImageReply.save()가 HttpResponse를 직접 지원
+            reply.save(response)
+            
+            return response
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+# 이미지 생성 후 DB 저장 (models.py 추가)
+class GeneratedImage(models.Model):
+    """생성된 이미지 모델"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    prompt = models.TextField()
+    revised_prompt = models.TextField(blank=True)
+    image = models.ImageField(upload_to='generated/%Y/%m/%d/')
+    size = models.CharField(max_length=20)
+    created_at = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        ordering = ['-created_at']
+
+class ImageGenerationWithSaveView(View):
+    """이미지 생성 후 DB 저장"""
+    
+    def post(self, request):
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        
+        try:
+            # 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            reply = dalle.generate_image(prompt, quality="hd")
+            
+            # BytesIO에 저장
+            buffer = BytesIO()
+            reply.save(buffer)
+            buffer.seek(0)
+            
+            # Django 이미지 필드에 저장
+            from django.core.files.base import ContentFile
+            
+            generated = GeneratedImage.objects.create(
+                user=request.user if request.user.is_authenticated else None,
+                prompt=prompt,
+                revised_prompt=reply.revised_prompt or prompt,
+                size=reply.size
+            )
+            
+            # 이미지 파일 저장
+            generated.image.save(
+                f'dalle_{uuid.uuid4().hex[:8]}.png',
+                ContentFile(buffer.getvalue()),
+                save=True
+            )
+            
+            return JsonResponse({
+                'id': generated.id,
+                'url': generated.image.url,
+                'prompt': generated.prompt,
+                'revised_prompt': generated.revised_prompt,
+                'created_at': generated.created_at.isoformat()
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+# 비동기 이미지 생성 (Django 4.1+)
+from django.views.generic import View
+import asyncio
+
+class AsyncImageGenerationView(View):
+    """비동기 이미지 생성"""
+    
+    async def post(self, request):
+        data = json.loads(request.body)
+        prompts = data.get('prompts', [])
+        
+        if not prompts:
+            return JsonResponse({'error': '프롬프트 목록이 필요합니다.'}, status=400)
+        
+        try:
+            dalle = OpenAILLM(model="dall-e-3")
+            
+            # 여러 이미지 동시 생성
+            tasks = [dalle.generate_image_async(prompt) for prompt in prompts]
+            images = await asyncio.gather(*tasks)
+            
+            # 결과 수집
+            results = []
+            for i, reply in enumerate(images):
+                # BytesIO에 저장
+                buffer = BytesIO()
+                await reply.save_async(buffer)
+                buffer.seek(0)
+                
+                # Base64 인코딩
+                import base64
+                image_data = base64.b64encode(buffer.getvalue()).decode()
+                
+                results.append({
+                    'prompt': prompts[i],
+                    'data': f'data:image/png;base64,{image_data}',
+                    'size': reply.size
+                })
+            
+            return JsonResponse({'images': results})
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+# 이미지 변형 및 분석 뷰
+class ImageAnalysisAndGenerationView(View):
+    """업로드된 이미지를 분석하고 유사한 이미지 생성"""
+    
+    def post(self, request):
+        uploaded_file = request.FILES.get('image')
+        
+        if not uploaded_file:
+            return JsonResponse({'error': '이미지가 필요합니다.'}, status=400)
+        
+        try:
+            # 1. 업로드된 이미지 분석
+            analyzer = LLM.create("gpt-4o-mini")
+            
+            # 임시 파일로 저장
+            import tempfile
+            with tempfile.NamedTemporaryFile(delete=False, suffix=uploaded_file.name) as tmp:
+                for chunk in uploaded_file.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+            
+            # 이미지 분석하여 생성 프롬프트 만들기
+            from pydantic import BaseModel, Field
+            
+            class ImagePrompt(BaseModel):
+                detailed_prompt: str = Field(description="DALL-E 3를 위한 상세한 프롬프트")
+                style: str = Field(description="이미지 스타일")
+                main_elements: list[str] = Field(description="주요 요소들")
+            
+            analysis = analyzer.ask(
+                "이 이미지를 분석하고 유사한 이미지를 생성하기 위한 DALL-E 프롬프트를 만들어주세요",
+                files=[tmp_path],
+                schema=ImagePrompt
+            )
+            
+            prompt_data = analysis.structured_data
+            
+            # 2. 분석 결과로 새 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            new_image = dalle.generate_image(
+                prompt_data.detailed_prompt,
+                quality="hd"
+            )
+            
+            # 3. 결과 반환
+            return JsonResponse({
+                'analysis': {
+                    'prompt': prompt_data.detailed_prompt,
+                    'style': prompt_data.style,
+                    'elements': prompt_data.main_elements
+                },
+                'generated_image': {
+                    'url': new_image.url,
+                    'size': new_image.size
+                }
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+        finally:
+            # 임시 파일 정리
+            import os
+            if 'tmp_path' in locals():
+                os.unlink(tmp_path)
+
+# urls.py 설정 예시
+from django.urls import path
+from .views import (
+    ImageGenerationView, 
+    ImageDownloadView, 
+    ImageGenerationWithSaveView,
+    AsyncImageGenerationView,
+    ImageAnalysisAndGenerationView
+)
+
+urlpatterns = [
+    path('api/generate-image/', ImageGenerationView.as_view(), name='generate-image'),
+    path('api/download-image/', ImageDownloadView.as_view(), name='download-image'),
+    path('api/save-image/', ImageGenerationWithSaveView.as_view(), name='save-image'),
+    path('api/batch-generate/', AsyncImageGenerationView.as_view(), name='batch-generate'),
+    path('api/analyze-and-generate/', ImageAnalysisAndGenerationView.as_view(), name='analyze-generate'),
+]
+
+# Django 템플릿에서 사용 예시
+"""
+<!-- image_generator.html -->
+<form id="imageForm">
+    <textarea name="prompt" placeholder="이미지 설명을 입력하세요"></textarea>
+    <button type="submit">이미지 생성</button>
+</form>
+
+<div id="result"></div>
+
+<script>
+document.getElementById('imageForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const prompt = e.target.prompt.value;
+    
+    const response = await fetch('/api/generate-image/', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({prompt})
+    });
+    
+    const data = await response.json();
+    if (data.url) {
+        document.getElementById('result').innerHTML = 
+            `<img src="${data.url}" alt="Generated image">`;
+    }
+});
+</script>
+"""
 ```
 
 ### Streamlit 통합

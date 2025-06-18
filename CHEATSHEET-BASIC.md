@@ -267,6 +267,7 @@ buffer.seek(0)      # 읽기 위해 처음으로 이동
 from django.http import HttpResponse
 response = HttpResponse(content_type='image/png')
 reply.save(response)  # response에 직접 쓰기
+return response  # 클라이언트에게 이미지 전송
 
 # 5. Jupyter에서 이미지 표시
 reply.display()
@@ -323,10 +324,79 @@ claude = AnthropicLLM(model="claude-3-opus")
 print(claude.supports("image_generation"))     # False
 ```
 
+### Django에서 이미지 생성 활용
+
+Django 웹 애플리케이션에서 ImageReply를 활용하는 간단한 예제입니다:
+
+```python
+# views.py
+from django.http import HttpResponse, JsonResponse
+from django.views import View
+from pyhub.llm import OpenAILLM
+import json
+
+class GenerateImageView(View):
+    """이미지 생성 API 뷰"""
+    
+    def post(self, request):
+        # 요청 데이터 파싱
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        
+        if not prompt:
+            return JsonResponse({'error': '프롬프트가 필요합니다.'}, status=400)
+        
+        try:
+            # DALL-E 3로 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            reply = dalle.generate_image(prompt)
+            
+            # 옵션 1: 이미지 URL 반환 (클라이언트가 URL로 접근)
+            return JsonResponse({
+                'url': reply.url,
+                'prompt': reply.revised_prompt or prompt
+            })
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+class DownloadImageView(View):
+    """이미지 다운로드 뷰"""
+    
+    def post(self, request):
+        data = json.loads(request.body)
+        prompt = data.get('prompt', '')
+        
+        try:
+            # 이미지 생성
+            dalle = OpenAILLM(model="dall-e-3")
+            reply = dalle.generate_image(prompt)
+            
+            # 옵션 2: 이미지 파일 직접 반환
+            response = HttpResponse(content_type='image/png')
+            response['Content-Disposition'] = 'attachment; filename="generated.png"'
+            reply.save(response)
+            
+            return response
+            
+        except Exception as e:
+            return JsonResponse({'error': str(e)}, status=500)
+
+# urls.py
+from django.urls import path
+from .views import GenerateImageView, DownloadImageView
+
+urlpatterns = [
+    path('api/generate/', GenerateImageView.as_view()),
+    path('api/download/', DownloadImageView.as_view()),
+]
+```
+
 > **팁**: 
 > - DALL-E 3는 프롬프트를 자동으로 개선합니다. `reply.revised_prompt`로 확인할 수 있습니다.
 > - 이미지 생성은 일반 텍스트 생성보다 비용이 높으니 주의하세요.
 > - 이미지 저장 시 인터넷 연결이 필요합니다 (URL에서 다운로드).
+> - Django에서는 `ImageField`와 함께 사용하려면 `BytesIO`와 `ContentFile`을 활용하세요.
 
 ## 대화 관리
 

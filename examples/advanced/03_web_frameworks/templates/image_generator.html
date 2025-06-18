@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 이미지 생성기 - pyhub-llm Django 예제</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .generator-form {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            resize: vertical;
+            min-height: 100px;
+            font-size: 16px;
+        }
+        
+        select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+        }
+        
+        .form-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+        }
+        
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        button:hover {
+            background-color: #0056b3;
+        }
+        
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+        
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .result {
+            background: white;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+        
+        .result img {
+            max-width: 100%;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .image-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 15px;
+        }
+        
+        .image-info p {
+            margin: 5px 0;
+            color: #666;
+        }
+        
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 30px;
+        }
+        
+        .gallery-item {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: transform 0.3s;
+        }
+        
+        .gallery-item:hover {
+            transform: translateY(-5px);
+        }
+        
+        .gallery-item img {
+            width: 100%;
+            height: 300px;
+            object-fit: cover;
+        }
+        
+        .gallery-item-info {
+            padding: 15px;
+        }
+        
+        .gallery-item-info p {
+            color: #666;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid #ddd;
+        }
+        
+        .tab {
+            padding: 10px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.3s;
+        }
+        
+        .tab.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎨 AI 이미지 생성기</h1>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('generate')">이미지 생성</div>
+            <div class="tab" onclick="switchTab('variation')">이미지 변형</div>
+            <div class="tab" onclick="switchTab('batch')">일괄 생성</div>
+        </div>
+        
+        <!-- 이미지 생성 탭 -->
+        <div id="generate-tab" class="tab-content active">
+            <div class="generator-form">
+                <form id="generate-form">
+                    <div class="form-group">
+                        <label for="prompt">프롬프트 (이미지 설명)</label>
+                        <textarea id="prompt" name="prompt" placeholder="예: 화창한 날 공원에서 피크닉을 즐기는 가족" required></textarea>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="size">크기</label>
+                            <select id="size" name="size">
+                                <option value="1024x1024">정사각형 (1024x1024)</option>
+                                <option value="1024x1792">세로형 (1024x1792)</option>
+                                <option value="1792x1024">가로형 (1792x1024)</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="quality">품질</label>
+                            <select id="quality" name="quality">
+                                <option value="standard">표준</option>
+                                <option value="hd">고화질</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="style">스타일</label>
+                            <select id="style" name="style">
+                                <option value="natural">자연스러운</option>
+                                <option value="vivid">선명한</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <button type="submit">이미지 생성</button>
+                </form>
+                
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>이미지를 생성하고 있습니다...</p>
+                </div>
+                
+                <div class="error"></div>
+            </div>
+            
+            <div class="result">
+                <h2>생성된 이미지</h2>
+                <img id="generated-image" src="" alt="생성된 이미지">
+                <div class="image-info">
+                    <p><strong>원본 프롬프트:</strong> <span id="original-prompt"></span></p>
+                    <p><strong>개선된 프롬프트:</strong> <span id="revised-prompt"></span></p>
+                    <p><strong>크기:</strong> <span id="image-size"></span></p>
+                </div>
+                <button onclick="downloadImage()">이미지 다운로드</button>
+                {% if user.is_authenticated %}
+                <button onclick="saveToGallery()">갤러리에 저장</button>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- 이미지 변형 탭 -->
+        <div id="variation-tab" class="tab-content">
+            <div class="generator-form">
+                <form id="variation-form">
+                    <div class="form-group">
+                        <label for="upload-image">이미지 업로드</label>
+                        <input type="file" id="upload-image" accept="image/*" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="variation-type">변형 타입</label>
+                        <select id="variation-type" name="type">
+                            <option value="similar">유사한 이미지</option>
+                            <option value="style_transfer">스타일 변환</option>
+                            <option value="enhance">품질 향상</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit">이미지 변형</button>
+                </form>
+                
+                <div id="variation-result" style="display: none;">
+                    <h3>변형 결과</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <h4>원본</h4>
+                            <img id="original-image" style="width: 100%;">
+                        </div>
+                        <div>
+                            <h4>변형</h4>
+                            <img id="varied-image" style="width: 100%;">
+                        </div>
+                    </div>
+                    <div id="variation-analysis" class="image-info" style="margin-top: 20px;"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 일괄 생성 탭 -->
+        <div id="batch-tab" class="tab-content">
+            <div class="generator-form">
+                <form id="batch-form">
+                    <div class="form-group">
+                        <label>프롬프트 목록 (한 줄에 하나씩, 최대 5개)</label>
+                        <textarea id="batch-prompts" rows="5" placeholder="귀여운 고양이
+아름다운 일몰
+미래 도시
+추상 미술
+자연 풍경" required></textarea>
+                    </div>
+                    
+                    <button type="submit">일괄 생성</button>
+                </form>
+                
+                <div id="batch-results" class="gallery"></div>
+            </div>
+        </div>
+        
+        {% if user.is_authenticated and user_images %}
+        <div class="gallery">
+            <h2>내 갤러리</h2>
+            {% for image in user_images %}
+            <div class="gallery-item">
+                <img src="{{ image.image.url }}" alt="{{ image.prompt }}">
+                <div class="gallery-item-info">
+                    <p>{{ image.prompt|truncatechars:50 }}</p>
+                    <p>{{ image.created_at|date:"Y-m-d H:i" }}</p>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <script>
+        // CSRF 토큰 가져오기
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+        
+        // 탭 전환
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+        
+        // 이미지 생성 폼 제출
+        document.getElementById('generate-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            const data = Object.fromEntries(formData);
+            
+            // UI 상태 변경
+            document.querySelector('.loading').style.display = 'block';
+            document.querySelector('.error').style.display = 'none';
+            document.querySelector('.result').style.display = 'none';
+            e.target.querySelector('button').disabled = true;
+            
+            try {
+                const response = await fetch('{% url "image_gen:generate" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        ...data,
+                        save_to_db: {% if user.is_authenticated %}true{% else %}false{% endif %}
+                    })
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    // 결과 표시
+                    document.getElementById('generated-image').src = result.url;
+                    document.getElementById('original-prompt').textContent = result.prompt;
+                    document.getElementById('revised-prompt').textContent = result.revised_prompt || result.prompt;
+                    document.getElementById('image-size').textContent = result.size;
+                    
+                    document.querySelector('.result').style.display = 'block';
+                    
+                    // 전역 변수에 저장 (다운로드용)
+                    window.currentImageData = result;
+                } else {
+                    throw new Error(result.error || '이미지 생성 실패');
+                }
+            } catch (error) {
+                document.querySelector('.error').textContent = error.message;
+                document.querySelector('.error').style.display = 'block';
+            } finally {
+                document.querySelector('.loading').style.display = 'none';
+                e.target.querySelector('button').disabled = false;
+            }
+        });
+        
+        // 이미지 다운로드
+        async function downloadImage() {
+            if (!window.currentImageData) return;
+            
+            try {
+                const response = await fetch('{% url "image_gen:download" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        prompt: window.currentImageData.prompt
+                    })
+                });
+                
+                if (response.ok) {
+                    const blob = await response.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `dalle_${Date.now()}.png`;
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                }
+            } catch (error) {
+                alert('다운로드 실패: ' + error.message);
+            }
+        }
+        
+        // 이미지 변형 폼
+        document.getElementById('variation-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData();
+            formData.append('image', document.getElementById('upload-image').files[0]);
+            formData.append('type', document.getElementById('variation-type').value);
+            
+            try {
+                const response = await fetch('{% url "image_gen:variation" %}', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: formData
+                });
+                
+                const result = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('original-image').src = result.original_image;
+                    document.getElementById('varied-image').src = result.generated_image;
+                    
+                    const analysisHtml = `
+                        <p><strong>설명:</strong> ${result.analysis.description}</p>
+                        <p><strong>주요 피사체:</strong> ${result.analysis.main_subject}</p>
+                        <p><strong>스타일:</strong> ${result.analysis.style}</p>
+                        <p><strong>색상:</strong> ${result.analysis.colors.join(', ')}</p>
+                        <p><strong>분위기:</strong> ${result.analysis.mood}</p>
+                    `;
+                    document.getElementById('variation-analysis').innerHTML = analysisHtml;
+                    document.getElementById('variation-result').style.display = 'block';
+                }
+            } catch (error) {
+                alert('변형 실패: ' + error.message);
+            }
+        });
+        
+        // 일괄 생성 폼
+        document.getElementById('batch-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const prompts = document.getElementById('batch-prompts').value
+                .split('\n')
+                .filter(p => p.trim())
+                .slice(0, 5);
+            
+            if (prompts.length === 0) {
+                alert('최소 하나의 프롬프트를 입력하세요.');
+                return;
+            }
+            
+            try {
+                const response = await fetch('{% url "image_gen:batch" %}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ prompts })
+                });
+                
+                const data = await response.json();
+                const resultsDiv = document.getElementById('batch-results');
+                resultsDiv.innerHTML = '';
+                
+                data.results.forEach(result => {
+                    if (result.success) {
+                        const item = document.createElement('div');
+                        item.className = 'gallery-item';
+                        item.innerHTML = `
+                            <img src="${result.data}" alt="${result.prompt}">
+                            <div class="gallery-item-info">
+                                <p>${result.prompt}</p>
+                            </div>
+                        `;
+                        resultsDiv.appendChild(item);
+                    }
+                });
+            } catch (error) {
+                alert('일괄 생성 실패: ' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>
