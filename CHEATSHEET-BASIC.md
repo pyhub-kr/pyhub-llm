@@ -392,11 +392,51 @@ urlpatterns = [
 ]
 ```
 
+#### Django ImageField에 저장하기 (NEW!)
+
+v0.9.0부터는 `to_django_file()` 메서드로 더 간단하게 Django ImageField에 저장할 수 있습니다:
+
+```python
+# models.py
+from django.db import models
+
+class GeneratedImage(models.Model):
+    prompt = models.TextField()
+    image = models.ImageField(upload_to='generated/')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+# views.py
+def save_to_model(request):
+    prompt = request.POST.get('prompt')
+    
+    # 이미지 생성
+    dalle = OpenAILLM(model="dall-e-3")
+    reply = dalle.generate_image(prompt)
+    
+    # 방법 1: to_django_file() 사용 (v0.9.0+)
+    generated = GeneratedImage.objects.create(
+        prompt=prompt,
+        image=reply.to_django_file('generated.png')
+    )
+    
+    # 방법 2: BytesIO 사용 (이전 버전)
+    from io import BytesIO
+    from django.core.files.base import ContentFile
+    
+    buffer = BytesIO()
+    reply.save(buffer)
+    buffer.seek(0)
+    
+    generated = GeneratedImage()
+    generated.prompt = prompt
+    generated.image.save('generated.png', ContentFile(buffer.getvalue()))
+```
+
 > **팁**: 
 > - DALL-E 3는 프롬프트를 자동으로 개선합니다. `reply.revised_prompt`로 확인할 수 있습니다.
 > - 이미지 생성은 일반 텍스트 생성보다 비용이 높으니 주의하세요.
 > - 이미지 저장 시 인터넷 연결이 필요합니다 (URL에서 다운로드).
-> - Django에서는 `ImageField`와 함께 사용하려면 `BytesIO`와 `ContentFile`을 활용하세요.
+> - `to_django_file()`은 파일명이 없으면 자동으로 고유한 이름을 생성합니다.
 
 ## 대화 관리
 

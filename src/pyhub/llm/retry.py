@@ -244,7 +244,7 @@ class RetryWrapper:
                         f"All {self.config.max_retries + 1} attempts failed for {self.llm.model}. "
                         f"Last error: {type(error).__name__}: {error}",
                         attempt + 1,
-                        error
+                        error,
                     )
 
                 if not should_retry_error(error, self.config):
@@ -285,7 +285,7 @@ class RetryWrapper:
                         f"All {self.config.max_retries + 1} attempts failed for {self.llm.model}. "
                         f"Last error: {type(error).__name__}: {error}",
                         attempt + 1,
-                        error
+                        error,
                     )
 
                 if not should_retry_error(error, self.config):
@@ -349,8 +349,9 @@ class FallbackWrapper:
                     models = [llm.model for llm in self.llm_chain]
                     error_details = [f"{models[i]}: {type(e).__name__}: {e}" for i, e in enumerate(errors)]
                     raise FallbackError(
-                        f"All {len(self.llm_chain)} LLMs failed. Details:\n" + "\n".join(f"  - {detail}" for detail in error_details),
-                        errors
+                        f"All {len(self.llm_chain)} LLMs failed. Details:\n"
+                        + "\n".join(f"  - {detail}" for detail in error_details),
+                        errors,
                     )
 
                 if not should_fallback_error(error, self.config):
@@ -383,8 +384,9 @@ class FallbackWrapper:
                     models = [llm.model for llm in self.llm_chain]
                     error_details = [f"{models[i]}: {type(e).__name__}: {e}" for i, e in enumerate(errors)]
                     raise FallbackError(
-                        f"All {len(self.llm_chain)} LLMs failed. Details:\n" + "\n".join(f"  - {detail}" for detail in error_details),
-                        errors
+                        f"All {len(self.llm_chain)} LLMs failed. Details:\n"
+                        + "\n".join(f"  - {detail}" for detail in error_details),
+                        errors,
                     )
 
                 if not should_fallback_error(error, self.config):
