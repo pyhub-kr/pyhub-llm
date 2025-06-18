@@ -72,3 +72,6 @@ CLAUDE.md
 TODO*
 site/
 docs-build/
+
+# Temporary test files (Claude Code generated)
+async_test*.png
