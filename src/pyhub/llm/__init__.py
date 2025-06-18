@@ -242,6 +242,10 @@ def __getattr__(name):
         from pyhub.llm.upstage import UpstageLLM
 
         return UpstageLLM
+    elif name == "hub":
+        import pyhub.llm.hub as _hub
+
+        return _hub
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
 
 
@@ -257,4 +261,5 @@ __all__ = [
     "OllamaLLM",
     "OpenAILLM",
     "UpstageLLM",
+    "hub",
 ]
