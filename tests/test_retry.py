@@ -1,6 +1,7 @@
 """Tests for retry and fallback functionality."""
 
 import os
+import random
 import sys
 from unittest.mock import Mock, patch
 
@@ -118,7 +119,6 @@ class TestFallbackConfig:
         with pytest.raises(ValueError, match="At least one fallback LLM must be provided"):
             FallbackConfig(fallback_llms=[])
 
-
     def test_valid_config(self):
         """Test valid configuration."""
         llm1 = MockLLM(model="backup1")
@@ -169,11 +169,15 @@ class TestDelayCalculation:
 
     def test_jitter(self):
         """Test that jitter adds randomness."""
+        # Set seed to ensure deterministic test behavior
+        random.seed(42)
         config = RetryConfig(initial_delay=10.0, jitter=True)
         # Run multiple times to ensure we get different values
         delays = [calculate_delay(1, config) for _ in range(10)]
         assert len(set(delays)) > 1  # Should have different values
         assert all(9.0 <= d <= 11.0 for d in delays)  # Within ±10% jitter
+        # Reset seed to avoid affecting other tests
+        random.seed()
 
 
 class TestRetryConditions:
@@ -508,8 +512,6 @@ class TestFallbackWrapper:
         assert result.text == "Response from backup"
 
 
-
-
 class TestBaseLLMIntegration:
     """Test integration with BaseLLM class."""
 
@@ -644,29 +646,31 @@ class TestLogging:
         warning_calls = mock_logger.warning.call_args_list
         assert any("LLM 1/2 failed" in str(call) for call in warning_calls)
         assert any("Falling back to next LLM" in str(call) for call in warning_calls)
-    
+
     def test_isinstance_check(self):
         """Test that wrapped instances have proper attributes."""
         llm = MockLLM(model="test")
-        
+
         # Test RetryWrapper
         from pyhub.llm.retry import RetryWrapper
+
         retry_llm = llm.with_retry()
         assert isinstance(retry_llm, RetryWrapper)
-        assert hasattr(retry_llm, 'llm')
-        assert hasattr(retry_llm, 'config')
+        assert hasattr(retry_llm, "llm")
+        assert hasattr(retry_llm, "config")
         assert retry_llm.model == "test"
-        
+
         # Test FallbackWrapper
         from pyhub.llm.retry import FallbackWrapper
+
         fallback_llm = llm.with_fallbacks([MockLLM(model="backup")])
         assert isinstance(fallback_llm, FallbackWrapper)
-        assert hasattr(fallback_llm, 'llm')
-        assert hasattr(fallback_llm, 'config')
+        assert hasattr(fallback_llm, "llm")
+        assert hasattr(fallback_llm, "config")
         assert fallback_llm.model == "test"
-        
+
         # Test chained wrappers
         chained = llm.with_retry().with_fallbacks([MockLLM(model="backup")])
         assert isinstance(chained, FallbackWrapper)
-        assert hasattr(chained, 'llm')
-        assert hasattr(chained, 'config')
+        assert hasattr(chained, "llm")
+        assert hasattr(chained, "config")

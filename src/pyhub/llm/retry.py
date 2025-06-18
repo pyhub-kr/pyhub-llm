@@ -4,11 +4,9 @@ import asyncio
 import logging
 import random
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Callable, List, Optional, Union
-from functools import wraps
-import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -181,28 +179,28 @@ def should_fallback_error(error: Exception, config: FallbackConfig) -> bool:
 def create_dynamic_method(method_name: str, is_async: bool = False):
     """Create a dynamic method that applies retry/fallback logic."""
     if is_async:
+
         async def async_method(self, *args, **kwargs):
-            if hasattr(self, '_retry_async_call'):
+            if hasattr(self, "_retry_async_call"):
                 # This is a RetryWrapper
                 kwargs["raise_errors"] = True
-                return await self._retry_async_call(
-                    getattr(self.llm, method_name), *args, **kwargs
-                )
+                return await self._retry_async_call(getattr(self.llm, method_name), *args, **kwargs)
             else:
                 # This is a FallbackWrapper
                 return await self._fallback_async_call(method_name, *args, **kwargs)
+
         return async_method
     else:
+
         def sync_method(self, *args, **kwargs):
-            if hasattr(self, '_retry_sync_call'):
+            if hasattr(self, "_retry_sync_call"):
                 # This is a RetryWrapper
                 kwargs["raise_errors"] = True
-                return self._retry_sync_call(
-                    getattr(self.llm, method_name), *args, **kwargs
-                )
+                return self._retry_sync_call(getattr(self.llm, method_name), *args, **kwargs)
             else:
                 # This is a FallbackWrapper
                 return self._fallback_sync_call(method_name, *args, **kwargs)
+
         return sync_method
 
 
@@ -213,16 +211,16 @@ class RetryWrapper:
         # Don't call super().__init__() to avoid BaseLLM initialization
         self.llm = llm
         self.config = config
-        
+
         # Copy essential attributes from wrapped LLM
         self.model = llm.model
-        self.api_key = getattr(llm, 'api_key', None)
-        self.base_url = getattr(llm, 'base_url', None)
-        
+        self.api_key = getattr(llm, "api_key", None)
+        self.base_url = getattr(llm, "base_url", None)
+
         # Preserve LLM state
-        self._history = getattr(llm, '_history', [])
-        self._stateless = getattr(llm, '_stateless', False)
-        self._cache = getattr(llm, '_cache', None)
+        self._history = getattr(llm, "_history", [])
+        self._stateless = getattr(llm, "_stateless", False)
+        self._cache = getattr(llm, "_cache", None)
 
     def __getattr__(self, name):
         """Delegate attribute access to wrapped LLM."""
@@ -313,16 +311,16 @@ class FallbackWrapper:
         self.llm = llm
         self.config = config
         self.llm_chain = [llm] + config.fallback_llms
-        
+
         # Copy essential attributes from wrapped LLM
         self.model = llm.model
-        self.api_key = getattr(llm, 'api_key', None)
-        self.base_url = getattr(llm, 'base_url', None)
-        
+        self.api_key = getattr(llm, "api_key", None)
+        self.base_url = getattr(llm, "base_url", None)
+
         # Preserve LLM state
-        self._history = getattr(llm, '_history', [])
-        self._stateless = getattr(llm, '_stateless', False)
-        self._cache = getattr(llm, '_cache', None)
+        self._history = getattr(llm, "_history", [])
+        self._stateless = getattr(llm, "_stateless", False)
+        self._cache = getattr(llm, "_cache", None)
 
     def __getattr__(self, name):
         """Delegate attribute access to wrapped LLM."""
@@ -393,18 +391,18 @@ class FallbackWrapper:
 
 # Define method names to wrap dynamically
 WRAPPED_METHODS = {
-    'ask': False,
-    'ask_async': True,
-    'messages': False,
-    'messages_async': True,
-    'embed': False,
-    'embed_async': True,
-    'generate_image': False,
-    'generate_image_async': True,
-    'ask_with_json': False,
-    'ask_with_json_async': True,
-    'ask_with_tools': False,
-    'ask_with_tools_async': True,
+    "ask": False,
+    "ask_async": True,
+    "messages": False,
+    "messages_async": True,
+    "embed": False,
+    "embed_async": True,
+    "generate_image": False,
+    "generate_image_async": True,
+    "ask_with_json": False,
+    "ask_with_json_async": True,
+    "ask_with_tools": False,
+    "ask_with_tools_async": True,
 }
 
 # Add dynamic methods to wrappers
@@ -413,23 +411,28 @@ for method_name, is_async in WRAPPED_METHODS.items():
     setattr(RetryWrapper, method_name, dynamic_method)
     setattr(FallbackWrapper, method_name, dynamic_method)
 
+
 # Add with_retry and with_fallbacks methods to preserve chaining capability
 def with_retry(self, **kwargs):
     """Apply retry to this already-wrapped LLM."""
     # Get the with_retry method from the wrapped LLM
     from .base import BaseLLM
+
     # Create a new wrapper that wraps this one
     return BaseLLM.with_retry(self, **kwargs)
+
 
 def with_fallbacks(self, fallback_llms, **kwargs):
     """Apply fallback to this already-wrapped LLM."""
     # Get the with_fallbacks method from the wrapped LLM
     from .base import BaseLLM
+
     # Create a new wrapper that wraps this one
     return BaseLLM.with_fallbacks(self, fallback_llms, **kwargs)
 
+
 # Add these methods to both wrapper classes
-setattr(RetryWrapper, 'with_retry', with_retry)
-setattr(RetryWrapper, 'with_fallbacks', with_fallbacks)
-setattr(FallbackWrapper, 'with_retry', with_retry)
-setattr(FallbackWrapper, 'with_fallbacks', with_fallbacks)
+setattr(RetryWrapper, "with_retry", with_retry)
+setattr(RetryWrapper, "with_fallbacks", with_fallbacks)
+setattr(FallbackWrapper, "with_retry", with_retry)
+setattr(FallbackWrapper, "with_fallbacks", with_fallbacks)
