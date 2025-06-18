@@ -88,6 +88,7 @@ export GOOGLE_API_KEY="..."
 | 스트리밍 | 초급 | [BASIC - 스트리밍](./CHEATSHEET-BASIC.md#스트리밍) |
 | 출력 포맷팅 | 초급 | [BASIC - 출력 포맷팅](./CHEATSHEET-BASIC.md#출력-포맷팅) |
 | 이미지 생성 | 초급 | [BASIC - 이미지 생성](./CHEATSHEET-BASIC.md#이미지-생성) |
+| Django ImageField 저장 | 초급 | [BASIC - Django ImageField에 저장하기](./CHEATSHEET-BASIC.md#django-imagefield에-저장하기-new) |
 | 대화 관리 | 초급 | [BASIC - 대화 관리](./CHEATSHEET-BASIC.md#대화-관리) |
 | 파일 처리 | 초급 | [BASIC - 파일 처리](./CHEATSHEET-BASIC.md#파일-처리) |
 | 구조화된 출력 | 중급 | [INTERMEDIATE - 구조화된 출력](./CHEATSHEET-INTERMEDIATE.md#구조화된-출력) |
@@ -98,6 +99,7 @@ export GOOGLE_API_KEY="..."
 | History Backup | 중급 | [INTERMEDIATE - History Backup](./CHEATSHEET-INTERMEDIATE.md#history-backup) |
 | MCP 통합 | 고급 | [ADVANCED - MCP 통합](./CHEATSHEET-ADVANCED.md#mcp-통합) |
 | 체이닝 | 고급 | [ADVANCED - 체이닝](./CHEATSHEET-ADVANCED.md#체이닝) |
+| Django 통합 (고급) | 고급 | [ADVANCED - Django ImageField 활용 가이드](./CHEATSHEET-ADVANCED.md#django-imagefield-활용-가이드-v090) |
 | 웹 프레임워크 | 고급 | [ADVANCED - 웹 프레임워크 통합](./CHEATSHEET-ADVANCED.md#웹-프레임워크-통합) |
 | 임베딩 | 고급 | [ADVANCED - 임베딩](./CHEATSHEET-ADVANCED.md#임베딩) |
 | 고급 에러 처리 | 고급 | [ADVANCED - 에러 처리](./CHEATSHEET-ADVANCED.md#에러-처리) |

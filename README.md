@@ -314,6 +314,15 @@ buffer = BytesIO()
 reply.save(buffer)
 buffer.seek(0)  # 읽기 위해 처음으로
 
+# Django ImageField 통합 (v0.9.1+)
+from django.db import models
+class MyModel(models.Model):
+    image = models.ImageField(upload_to='generated/')
+
+# 간단하게 ImageField에 저장
+instance = MyModel(image=reply.to_django_file())
+instance.save()
+
 # 이미지 표시 (Jupyter)
 reply.display()
 

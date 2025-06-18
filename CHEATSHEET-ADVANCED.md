@@ -632,27 +632,25 @@ class ImageGenerationWithSaveView(View):
             dalle = OpenAILLM(model="dall-e-3")
             reply = dalle.generate_image(prompt, quality="hd")
             
-            # BytesIO에 저장
-            buffer = BytesIO()
-            reply.save(buffer)
-            buffer.seek(0)
-            
-            # Django 이미지 필드에 저장
-            from django.core.files.base import ContentFile
-            
+            # 방법 1: to_django_file() 사용 (v0.9.0+) - 권장
             generated = GeneratedImage.objects.create(
                 user=request.user if request.user.is_authenticated else None,
                 prompt=prompt,
                 revised_prompt=reply.revised_prompt or prompt,
-                size=reply.size
+                size=reply.size,
+                image=reply.to_django_file(f'dalle_{uuid.uuid4().hex[:8]}.png')
             )
             
-            # 이미지 파일 저장
-            generated.image.save(
-                f'dalle_{uuid.uuid4().hex[:8]}.png',
-                ContentFile(buffer.getvalue()),
-                save=True
-            )
+            # 방법 2: BytesIO 사용 (이전 버전 호환)
+            # buffer = BytesIO()
+            # reply.save(buffer)
+            # buffer.seek(0)
+            # from django.core.files.base import ContentFile
+            # generated.image.save(
+            #     f'dalle_{uuid.uuid4().hex[:8]}.png',
+            #     ContentFile(buffer.getvalue()),
+            #     save=True
+            # )
             
             return JsonResponse({
                 'id': generated.id,
@@ -822,6 +820,379 @@ document.getElementById('imageForm').addEventListener('submit', async (e) => {
 </script>
 """
 ```
+
+### Django ImageField 활용 가이드 (v0.9.1+)
+
+v0.9.1부터 `ImageReply.to_django_file()` 메서드가 추가되어 Django ImageField와의 통합이 더욱 간편해졌습니다.
+
+#### 기본 사용법
+
+```python
+from django.db import models
+from django.views import View
+from django.http import JsonResponse
+from pyhub.llm import OpenAILLM
+import json
+
+# 모델 정의
+class AIGeneratedImage(models.Model):
+    """AI로 생성된 이미지 관리"""
+    prompt = models.TextField()
+    image = models.ImageField(upload_to='ai_generated/%Y/%m/%d/')
+    created_at = models.DateTimeField(auto_now_add=True)
+    metadata = models.JSONField(default=dict, blank=True)
+
+# 뷰 정의
+class GenerateImageView(View):
+    def post(self, request):
+        prompt = json.loads(request.body).get('prompt')
+        
+        # 이미지 생성
+        dalle = OpenAILLM(model="dall-e-3")
+        reply = dalle.generate_image(prompt, quality="hd", size="1024x1792")
+        
+        # to_django_file()로 간단하게 저장
+        image_instance = AIGeneratedImage.objects.create(
+            prompt=prompt,
+            image=reply.to_django_file(),  # 자동으로 고유 파일명 생성
+            metadata={
+                'revised_prompt': reply.revised_prompt,
+                'size': reply.size,
+                'model': 'dall-e-3'
+            }
+        )
+        
+        return JsonResponse({
+            'id': image_instance.id,
+            'url': image_instance.image.url
+        })
+```
+
+#### 고급 활용 예제
+
+```python
+from django.contrib.auth.models import User
+from django.core.validators import FileExtensionValidator
+from PIL import Image as PILImage
+import hashlib
+
+class AdvancedImageModel(models.Model):
+    """고급 이미지 관리 모델"""
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    prompt = models.TextField()
+    original = models.ImageField(
+        upload_to='originals/%Y/%m/',
+        validators=[FileExtensionValidator(['png', 'jpg', 'jpeg'])]
+    )
+    thumbnail = models.ImageField(upload_to='thumbnails/%Y/%m/', blank=True)
+    hash = models.CharField(max_length=64, unique=True, editable=False)
+    
+    def save(self, *args, **kwargs):
+        # 이미지 해시 생성 (중복 방지)
+        if self.original and not self.hash:
+            self.original.seek(0)
+            self.hash = hashlib.sha256(self.original.read()).hexdigest()
+            self.original.seek(0)
+        super().save(*args, **kwargs)
+
+class SmartImageGenerationView(View):
+    """스마트 이미지 생성 및 처리"""
+    
+    def post(self, request):
+        data = json.loads(request.body)
+        prompt = data.get('prompt')
+        generate_thumbnail = data.get('thumbnail', True)
+        
+        # 1. 이미지 생성
+        dalle = OpenAILLM(model="dall-e-3")
+        reply = dalle.generate_image(prompt, quality="hd")
+        
+        # 2. 모델 인스턴스 생성
+        instance = AdvancedImageModel(
+            user=request.user,
+            prompt=prompt,
+            original=reply.to_django_file(f'original_{uuid.uuid4().hex[:8]}.png')
+        )
+        
+        # 3. 썸네일 생성 (선택사항)
+        if generate_thumbnail:
+            # to_pil()로 PIL 이미지로 변환
+            pil_image = reply.to_pil()
+            pil_image.thumbnail((256, 256), PILImage.Resampling.LANCZOS)
+            
+            # 썸네일을 BytesIO로 저장
+            from io import BytesIO
+            thumb_io = BytesIO()
+            pil_image.save(thumb_io, format='PNG', optimize=True)
+            thumb_io.seek(0)
+            
+            # Django 파일로 변환
+            from django.core.files.base import ContentFile
+            instance.thumbnail.save(
+                f'thumb_{uuid.uuid4().hex[:8]}.png',
+                ContentFile(thumb_io.getvalue()),
+                save=False
+            )
+        
+        instance.save()
+        
+        return JsonResponse({
+            'id': instance.id,
+            'original_url': instance.original.url,
+            'thumbnail_url': instance.thumbnail.url if instance.thumbnail else None,
+            'hash': instance.hash
+        })
+```
+
+#### 배치 처리 및 비동기 예제
+
+```python
+from django.db import transaction
+from asgiref.sync import sync_to_async
+import asyncio
+
+class BatchImageGeneration(models.Model):
+    """배치 이미지 생성 작업"""
+    name = models.CharField(max_length=200)
+    prompts = models.JSONField()  # 프롬프트 리스트
+    status = models.CharField(max_length=20, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+class BatchImage(models.Model):
+    """배치로 생성된 개별 이미지"""
+    batch = models.ForeignKey(BatchImageGeneration, on_delete=models.CASCADE, related_name='images')
+    prompt = models.TextField()
+    image = models.ImageField(upload_to='batch/%Y/%m/%d/')
+    order = models.IntegerField()
+
+class BatchGenerationView(View):
+    """비동기 배치 이미지 생성"""
+    
+    async def post(self, request):
+        data = json.loads(request.body)
+        prompts = data.get('prompts', [])
+        batch_name = data.get('name', 'Untitled Batch')
+        
+        # 배치 작업 생성
+        batch = await sync_to_async(BatchImageGeneration.objects.create)(
+            name=batch_name,
+            prompts=prompts
+        )
+        
+        # 비동기로 이미지 생성
+        dalle = OpenAILLM(model="dall-e-3")
+        
+        async def generate_and_save(prompt, order):
+            try:
+                # 이미지 생성
+                reply = await dalle.generate_image_async(prompt)
+                
+                # Django ORM은 동기식이므로 sync_to_async 사용
+                await sync_to_async(BatchImage.objects.create)(
+                    batch=batch,
+                    prompt=prompt,
+                    image=reply.to_django_file(f'batch_{batch.id}_{order}.png'),
+                    order=order
+                )
+                return True
+            except Exception as e:
+                print(f"Error generating image {order}: {e}")
+                return False
+        
+        # 모든 이미지 동시 생성 (최대 5개씩)
+        tasks = []
+        for i, prompt in enumerate(prompts):
+            if len(tasks) >= 5:
+                await asyncio.gather(*tasks)
+                tasks = []
+            tasks.append(generate_and_save(prompt, i))
+        
+        if tasks:
+            await asyncio.gather(*tasks)
+        
+        # 배치 상태 업데이트
+        batch.status = 'completed'
+        batch.completed_at = timezone.now()
+        await sync_to_async(batch.save)()
+        
+        # 결과 반환
+        images = await sync_to_async(list)(
+            batch.images.values('id', 'prompt', 'image', 'order')
+        )
+        
+        return JsonResponse({
+            'batch_id': batch.id,
+            'total': len(prompts),
+            'completed': len(images),
+            'images': images
+        })
+```
+
+#### 이미지 변형 파이프라인
+
+```python
+class ImageVariation(models.Model):
+    """원본과 변형 이미지 관리"""
+    original_prompt = models.TextField()
+    variation_prompt = models.TextField()
+    original = models.ImageField(upload_to='variations/original/')
+    variation = models.ImageField(upload_to='variations/generated/')
+    style = models.CharField(max_length=50)
+    
+class VariationPipelineView(View):
+    """이미지 분석 후 변형 생성"""
+    
+    def post(self, request):
+        uploaded_file = request.FILES.get('image')
+        style = request.POST.get('style', 'artistic')
+        
+        # 1. 업로드된 이미지 분석
+        analyzer = LLM.create("gpt-4o-mini")
+        
+        # 임시 파일로 저장
+        import tempfile
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.png') as tmp:
+            for chunk in uploaded_file.chunks():
+                tmp.write(chunk)
+            tmp_path = tmp.name
+        
+        # 이미지 분석하여 프롬프트 생성
+        analysis_reply = analyzer.ask(
+            f"이 이미지를 {style} 스타일로 재해석하기 위한 DALL-E 프롬프트를 만들어주세요",
+            files=[tmp_path]
+        )
+        
+        variation_prompt = analysis_reply.text
+        
+        # 2. 변형 이미지 생성
+        dalle = OpenAILLM(model="dall-e-3")
+        image_reply = dalle.generate_image(variation_prompt, quality="hd")
+        
+        # 3. 모델에 저장
+        with transaction.atomic():
+            variation = ImageVariation.objects.create(
+                original_prompt="Uploaded image",
+                variation_prompt=variation_prompt,
+                style=style
+            )
+            
+            # 원본 이미지 저장
+            variation.original.save(
+                f'original_{variation.id}.png',
+                uploaded_file,
+                save=False
+            )
+            
+            # 생성된 이미지 저장
+            variation.variation = image_reply.to_django_file(
+                f'variation_{variation.id}.png'
+            )
+            
+            variation.save()
+        
+        # 임시 파일 삭제
+        import os
+        os.unlink(tmp_path)
+        
+        return JsonResponse({
+            'id': variation.id,
+            'original_url': variation.original.url,
+            'variation_url': variation.variation.url,
+            'prompt': variation.variation_prompt
+        })
+```
+
+#### 모델 시그널과 후처리
+
+```python
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+import requests
+
+@receiver(post_save, sender=AIGeneratedImage)
+def process_generated_image(sender, instance, created, **kwargs):
+    """생성된 이미지 후처리"""
+    if created and instance.image:
+        # 예: 이미지 메타데이터 추가
+        try:
+            pil_img = PILImage.open(instance.image.path)
+            instance.metadata.update({
+                'width': pil_img.width,
+                'height': pil_img.height,
+                'format': pil_img.format,
+                'mode': pil_img.mode
+            })
+            instance.save(update_fields=['metadata'])
+        except Exception as e:
+            print(f"Error processing image metadata: {e}")
+
+# 커스텀 스토리지 백엔드
+from django.core.files.storage import Storage
+from storages.backends.s3boto3 import S3Boto3Storage
+
+class OptimizedS3Storage(S3Boto3Storage):
+    """최적화된 S3 스토리지"""
+    def __init__(self, *args, **kwargs):
+        kwargs['object_parameters'] = {
+            'CacheControl': 'max-age=86400',
+            'ContentDisposition': 'inline'
+        }
+        super().__init__(*args, **kwargs)
+
+# settings.py에서 사용
+# DEFAULT_FILE_STORAGE = 'myapp.storage.OptimizedS3Storage'
+```
+
+#### 관리자 인터페이스 커스터마이징
+
+```python
+from django.contrib import admin
+from django.utils.html import format_html
+
+@admin.register(AIGeneratedImage)
+class AIGeneratedImageAdmin(admin.ModelAdmin):
+    list_display = ['id', 'prompt_preview', 'image_preview', 'created_at']
+    list_filter = ['created_at']
+    search_fields = ['prompt']
+    readonly_fields = ['image_preview_large', 'metadata_display']
+    
+    def prompt_preview(self, obj):
+        return obj.prompt[:50] + '...' if len(obj.prompt) > 50 else obj.prompt
+    prompt_preview.short_description = 'Prompt'
+    
+    def image_preview(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="100" height="100" style="object-fit: cover;"/>',
+                obj.image.url
+            )
+        return '-'
+    image_preview.short_description = 'Preview'
+    
+    def image_preview_large(self, obj):
+        if obj.image:
+            return format_html(
+                '<img src="{}" width="400"/>',
+                obj.image.url
+            )
+        return '-'
+    image_preview_large.short_description = 'Image'
+    
+    def metadata_display(self, obj):
+        import json
+        return format_html(
+            '<pre>{}</pre>',
+            json.dumps(obj.metadata, indent=2)
+        )
+    metadata_display.short_description = 'Metadata'
+```
+
+> **팁**: 
+> - `to_django_file()`은 파일명을 지정하지 않으면 자동으로 타임스탬프 기반 고유 이름을 생성합니다
+> - ImageField의 `upload_to` 옵션과 함께 사용하면 체계적인 파일 관리가 가능합니다
+> - 대용량 이미지 처리 시 비동기 뷰를 활용하면 성능을 크게 개선할 수 있습니다
+> - S3 같은 외부 스토리지 사용 시 `django-storages` 패키지와 완벽하게 호환됩니다
 
 ### Streamlit 통합
 

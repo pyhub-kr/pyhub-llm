@@ -394,7 +394,7 @@ urlpatterns = [
 
 #### Django ImageField에 저장하기 (NEW!)
 
-v0.9.0부터는 `to_django_file()` 메서드로 더 간단하게 Django ImageField에 저장할 수 있습니다:
+v0.9.1부터는 `to_django_file()` 메서드로 더 간단하게 Django ImageField에 저장할 수 있습니다:
 
 ```python
 # models.py
@@ -413,7 +413,7 @@ def save_to_model(request):
     dalle = OpenAILLM(model="dall-e-3")
     reply = dalle.generate_image(prompt)
     
-    # 방법 1: to_django_file() 사용 (v0.9.0+)
+    # 방법 1: to_django_file() 사용 (v0.9.1+)
     generated = GeneratedImage.objects.create(
         prompt=prompt,
         image=reply.to_django_file('generated.png')

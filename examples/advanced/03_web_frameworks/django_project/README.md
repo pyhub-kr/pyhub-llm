@@ -9,6 +9,7 @@ Django를 사용한 AI 챗봇 웹 애플리케이션 예제입니다.
 - 🌊 스트리밍 채팅
 - 📊 텍스트 분석 (감정, 요약, 키워드)
 - 🖼️ 이미지 분석 및 저장
+- 🎨 AI 이미지 생성 (DALL-E 3)
 - 📈 사용 통계
 - 🔐 사용자 인증 지원
 
@@ -103,6 +104,27 @@ with open('image.jpg', 'rb') as f:
         data={'question': '이 이미지에 무엇이 있나요?'})
 print(response.json())
 ```
+
+### AI 이미지 생성 (v0.9.0+)
+```python
+# 텍스트로 이미지 생성
+response = requests.post('http://localhost:8000/api/generate-image/',
+    json={
+        'prompt': '파란 하늘 아래 아름다운 산과 호수',
+        'size': '1024x1792',
+        'quality': 'hd'
+    })
+print(response.json())  # {'id': 1, 'url': '/media/generated/...', ...}
+
+# 이미지 변형 생성
+with open('original.jpg', 'rb') as f:
+    response = requests.post('http://localhost:8000/api/generate-variation/',
+        files={'image': f},
+        data={'style': 'artistic'})
+print(response.json())
+```
+
+> **참고**: AI 이미지 생성 기능의 전체 구현은 `chat/image_generation_example.py`를 참조하세요.
 
 ## 관리자 페이지
 
