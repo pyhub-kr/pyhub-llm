@@ -803,6 +803,67 @@ class ImageReply:
 
         return Image.open(io.BytesIO(image_data))
 
+    def to_django_file(self, filename: Optional[str] = None) -> Any:
+        """Convert ImageReply to Django File object.
+
+        Args:
+            filename: Optional filename for the file. If not provided, generates a unique filename.
+
+        Returns:
+            Django ContentFile object that can be assigned to ImageField
+
+        Raises:
+            ImportError: Django not installed
+            ValueError: No image data available
+
+        Example:
+            >>> reply = llm.generate_image("A beautiful sunset")
+            >>> room.image_file = reply.to_django_file('sunset.png')
+            >>> room.save()
+        """
+        # Check if image data is available
+        if not self.url and not self.base64_data:
+            raise ValueError("No image data available to convert to Django file")
+
+        try:
+            from django.core.files.base import ContentFile
+        except ImportError:
+            raise ImportError("Django is required to use to_django_file(). " "Install Django with: pip install django")
+
+        from io import BytesIO
+
+        # Generate filename if not provided
+        if not filename:
+            import uuid
+
+            # Try to determine extension from image data
+            extension = "png"  # default
+            try:
+                buffer = BytesIO()
+                self.save(buffer)
+                buffer.seek(0)
+
+                from PIL import Image
+
+                img = Image.open(buffer)
+                if img.format:
+                    extension = img.format.lower()
+                buffer.seek(0)
+            except ImportError:
+                # Pillow not available, use default extension
+                buffer = BytesIO()
+                self.save(buffer)
+                buffer.seek(0)
+
+            filename = f"image_{uuid.uuid4().hex[:8]}.{extension}"
+        else:
+            # Use provided filename
+            buffer = BytesIO()
+            self.save(buffer)
+            buffer.seek(0)
+
+        return ContentFile(buffer.getvalue(), name=filename)
+
     async def to_pil_async(self) -> "PIL.Image.Image":
         """Asynchronously convert to PIL Image object.
 
