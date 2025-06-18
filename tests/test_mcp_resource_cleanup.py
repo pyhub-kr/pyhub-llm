@@ -133,7 +133,7 @@ class TestMCPResourceCleanup:
             assert hasattr(llm, "_finalizer"), "Finalizer not registered"
 
             # 명시적 종료 없이 객체 삭제
-            llm_id = id(llm)
+            _llm_id = id(llm)
             del llm
             gc.collect()
 
@@ -205,7 +205,7 @@ class TestMCPResourceCleanup:
 
             # Weak reference로만 LLM 추적
             llm_ref = weakref.ref(llm)
-            llm_id = id(llm)
+            _llm_id = id(llm)
 
             # 객체 삭제
             del llm

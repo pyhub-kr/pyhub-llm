@@ -11,6 +11,7 @@ from pyhub.llm.types import (
     AnthropicChatModelType,
     Embed,
     EmbedList,
+    ImageReply,
     Message,
     Reply,
     Usage,
@@ -482,10 +483,10 @@ class AnthropicLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Anthropic does not support image generation
         """
@@ -503,10 +504,10 @@ class AnthropicLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Asynchronously generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Anthropic does not support image generation
         """

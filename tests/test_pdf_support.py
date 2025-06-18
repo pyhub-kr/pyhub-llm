@@ -99,7 +99,7 @@ class TestPDFSupport:
 
         try:
             # PDF 미지원으로 처리
-            encoded = encode_files(
+            _encoded = encode_files(
                 [test_pdf_path],
                 allowed_types=[IOType.IMAGE],  # PDF 미허용
                 convert_mode="base64",
@@ -138,7 +138,7 @@ class TestProviderPDFHandling:
         try:
             llm = LLM.create("gpt-4o")
             # PDF 파일이 그대로 전달되어야 함
-            response = llm.ask("What's in this PDF?", files=[test_pdf_path])
+            _response = llm.ask("What's in this PDF?", files=[test_pdf_path])
 
             # _make_ask가 호출되었는지 확인
             mock_make_ask.assert_called_once()
@@ -161,7 +161,7 @@ class TestProviderPDFHandling:
             from pyhub.llm.utils.files import encode_files
 
             # Ollama처럼 PDF를 지원하지 않는 경우
-            encoded = encode_files(
+            _encoded = encode_files(
                 [test_pdf_path],
                 allowed_types=[IOType.IMAGE],  # PDF는 허용하지 않음
                 convert_mode="base64",

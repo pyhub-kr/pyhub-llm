@@ -152,7 +152,7 @@ class TestLLMWithHistoryBackup:
         llm = LLM.create("gpt-4o-mini", history_backup=backup)
 
         # 대화
-        reply = llm.ask("안녕하세요")
+        _reply = llm.ask("안녕하세요")
 
         # 백업 확인
         messages = backup.load_history()
@@ -218,7 +218,7 @@ class TestLLMWithHistoryBackup:
         llm = await LLM.create_async("gpt-4o-mini", history_backup=backup)
 
         # 비동기 대화
-        reply = await llm.ask_async("비동기 테스트")
+        _reply = await llm.ask_async("비동기 테스트")
 
         # 백업 확인
         messages = backup.load_history()

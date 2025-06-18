@@ -91,7 +91,7 @@ class TestAnthropicLLM:
         mock_client.messages.create.return_value = mock_response
 
         llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are a helpful assistant.")
-        reply = llm.ask("What's the best programming language?", choices=["Python", "JavaScript", "Go"])
+        _reply = llm.ask("What's the best programming language?", choices=["Python", "JavaScript", "Go"])
 
         # Verify system prompt includes choices
         call_args = mock_client.messages.create.call_args[1]
@@ -118,7 +118,7 @@ class TestAnthropicLLM:
         mock_client.messages.create.return_value = mock_response
 
         llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are Claude with vision capabilities.")
-        reply = llm.ask("What's in this image?", files=["test.png"])
+        _reply = llm.ask("What's in this image?", files=["test.png"])
 
         # Verify file encoding was called
         mock_encode_files.assert_called_once()
@@ -203,7 +203,7 @@ class TestAnthropicLLM:
         llm = AnthropicLLM(api_key="sk-ant-test-key", system_prompt="You are a helpful assistant.")
         # AnthropicLLM doesn't have a messages method, use ask with history
         llm.history = messages[:-1]  # Add all but last message to history
-        reply = llm.ask(messages[-1].content)
+        _reply = llm.ask(messages[-1].content)
 
         # Verify API call
         call_args = mock_client.messages.create.call_args[1]

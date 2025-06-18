@@ -13,6 +13,7 @@ from pyhub.llm.types import (
     EmbedList,
     GoogleChatModelType,
     GoogleEmbeddingModelType,
+    ImageReply,
     Message,
     Reply,
     Usage,
@@ -639,10 +640,10 @@ class GoogleLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Google does not support image generation
         """
@@ -660,10 +661,10 @@ class GoogleLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Asynchronously generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Google does not support image generation
         """

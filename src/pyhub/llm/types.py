@@ -1,7 +1,7 @@
 from dataclasses import asdict, dataclass, field
 from decimal import Decimal
 from pathlib import Path
-from typing import TYPE_CHECKING, IO, Any, Literal, TypeAlias, Union
+from typing import IO, TYPE_CHECKING, Any, Literal, TypeAlias, Union
 
 if TYPE_CHECKING:
     import PIL.Image
@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from typing_extensions import Optional
 
 if TYPE_CHECKING:
-    from PIL import Image as PILImage
+    pass
 
 from pyhub.llm.exceptions import ValidationError
 from pyhub.llm.utils.enums import TextChoices
@@ -549,8 +549,11 @@ class ImageReply:
             save_dir = Path.cwd()
             filename = self._extract_filename_from_url()
             filepath = self._get_unique_filepath(save_dir, filename)
-        elif hasattr(path, 'write') or hasattr(path, 'awrite'):
-            # File-like object, return None to indicate special handling needed
+        elif hasattr(path, "write"):
+            # Synchronous file-like object
+            return None
+        elif hasattr(path, "awrite"):
+            # Asynchronous file-like object
             return None
         else:
             path = Path(path)
@@ -603,9 +606,9 @@ class ImageReply:
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-        
+
         # Check if this is a file-like object
-        if hasattr(path, 'write'):
+        if hasattr(path, "write"):
             # Handle file-like object directly
             # Get image data
             if self.url:
@@ -618,11 +621,11 @@ class ImageReply:
                 import base64
 
                 image_data = base64.b64decode(self.base64_data)
-            
+
             # Write to file-like object
             path.write(image_data)
             return path
-        
+
         # Handle regular file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 
@@ -674,9 +677,9 @@ class ImageReply:
         """
         if not self.url and not self.base64_data:
             raise ValueError("No image data available to save")
-        
+
         # Check if this is a file-like object with async write
-        if hasattr(path, 'awrite'):
+        if hasattr(path, "awrite"):
             # Handle async file-like object
             # Get image data asynchronously
             if self.url:
@@ -690,13 +693,13 @@ class ImageReply:
                 import base64
 
                 image_data = base64.b64decode(self.base64_data)
-            
+
             # Write to async file-like object
             await path.awrite(image_data)
             return path
-        
+
         # Check if this is a regular file-like object
-        elif hasattr(path, 'write'):
+        elif hasattr(path, "write"):
             # Handle sync file-like object
             # Get image data asynchronously
             if self.url:
@@ -710,11 +713,11 @@ class ImageReply:
                 import base64
 
                 image_data = base64.b64decode(self.base64_data)
-            
+
             # Write to sync file-like object
             path.write(image_data)
             return path
-        
+
         # Handle regular file path
         filepath = self._prepare_filepath(path, overwrite, create_dirs)
 

@@ -159,7 +159,7 @@ class TestCacheInjection:
         llm = LLM.create("gpt-4o")  # No cache injected
 
         # Make request (no cache to use)
-        response = llm.ask("Test question")
+        _response = llm.ask("Test question")
 
         # No cache operations should occur
         assert llm.cache is None

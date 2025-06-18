@@ -10,15 +10,8 @@ IMAGE_GENERATION_SIZES: Dict[str, List[str]] = {
 
 # Image generation defaults
 IMAGE_GENERATION_DEFAULTS: Dict[str, Dict[str, str]] = {
-    "dall-e-3": {
-        "size": "1024x1024",
-        "quality": "standard",
-        "style": "vivid"
-    },
-    "dall-e-2": {
-        "size": "1024x1024",
-        "quality": "standard"
-    }
+    "dall-e-3": {"size": "1024x1024", "quality": "standard", "style": "vivid"},
+    "dall-e-2": {"size": "1024x1024", "quality": "standard"},
 }
 
 # Image generation quality options

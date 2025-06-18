@@ -11,6 +11,7 @@ from pyhub.llm.settings import llm_settings
 from pyhub.llm.types import (
     Embed,
     EmbedList,
+    ImageReply,
     Message,
     OllamaChatModelType,
     OllamaEmbeddingModelType,
@@ -516,10 +517,10 @@ class OllamaLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Ollama does not support image generation
         """
@@ -537,10 +538,10 @@ class OllamaLLM(BaseLLM):
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> "ImageReply":
         """Asynchronously generate images from text prompts.
-        
+
         Raises:
             NotImplementedError: Ollama does not support image generation
         """

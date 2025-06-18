@@ -138,9 +138,9 @@ class TestDescribeImage:
         llm.clear()
 
         # Call with use_history=False (default)
-        response1 = llm.describe_image("test1.jpg")
+        _response1 = llm.describe_image("test1.jpg")
         assert len(llm.history) == 0  # No history saved
 
         # Call with use_history=True
-        response2 = llm.describe_image("test2.jpg", use_history=True)
+        _response2 = llm.describe_image("test2.jpg", use_history=True)
         assert len(llm.history) == 2  # User and assistant messages

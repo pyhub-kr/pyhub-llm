@@ -4,12 +4,13 @@ Focused test for display module's handling of Reply objects in streams.
 This test verifies the fix in display.py lines 117-120 and 132-137.
 """
 
-import sys
 import os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), 'src'))
+import sys
 
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "src"))
+
+from pyhub.llm.display import _display_stream_markdown, _display_stream_plain, display
 from pyhub.llm.types import Reply
-from pyhub.llm.display import display, _display_stream_plain, _display_stream_markdown
 
 
 def mock_reply_generator():
@@ -48,28 +49,28 @@ def test_plain_stream_handling():
     print("=" * 60)
     print("Testing Plain Text Stream Handling")
     print("=" * 60)
-    
+
     # Test 1: Reply objects
     print("\n1. Testing with Reply objects:")
     print("   Output: ", end="")
     text1 = _display_stream_plain(mock_reply_generator())
     print(f"   Collected text: '{text1}'")
     print(f"   ✅ Length: {len(text1)} chars")
-    
+
     # Test 2: String objects (backward compatibility)
     print("\n2. Testing with string chunks:")
     print("   Output: ", end="")
     text2 = _display_stream_plain(mock_string_generator())
     print(f"   Collected text: '{text2}'")
     print(f"   ✅ Length: {len(text2)} chars")
-    
+
     # Test 3: Mixed objects
     print("\n3. Testing with mixed Reply/string chunks:")
     print("   Output: ", end="")
     text3 = _display_stream_plain(mock_mixed_generator())
     print(f"   Collected text: '{text3}'")
     print(f"   ✅ Length: {len(text3)} chars")
-    
+
     # Verify all produce same output
     if text1 == text2 == text3:
         print("\n✅ All stream types produce identical output!")
@@ -85,25 +86,23 @@ def test_markdown_stream_handling():
     print("\n" + "=" * 60)
     print("Testing Markdown Stream Handling")
     print("=" * 60)
-    
+
     try:
         from rich.console import Console
-        from rich.markdown import Markdown
-        from rich.live import Live
-        
+
         try:
             # Test with Reply objects
             print("\n1. Testing markdown with Reply objects:")
             # Create a new console for each test to avoid state issues
             console = Console(force_terminal=True, width=80)
             text1 = _display_stream_markdown(
-                mock_reply_generator(), 
+                mock_reply_generator(),
                 console=console,
                 style="",  # Use empty string instead of None
-                code_theme="monokai"
+                code_theme="monokai",
             )
             print(f"   ✅ Collected text: '{text1}' ({len(text1)} chars)")
-            
+
             # Test with strings
             print("\n2. Testing markdown with string chunks:")
             console = Console(force_terminal=True, width=80)
@@ -111,10 +110,10 @@ def test_markdown_stream_handling():
                 mock_string_generator(),
                 console=console,
                 style="",  # Use empty string instead of None
-                code_theme="monokai"
+                code_theme="monokai",
             )
             print(f"   ✅ Collected text: '{text2}' ({len(text2)} chars)")
-            
+
             # Test with mixed
             print("\n3. Testing markdown with mixed chunks:")
             console = Console(force_terminal=True, width=80)
@@ -122,20 +121,20 @@ def test_markdown_stream_handling():
                 mock_mixed_generator(),
                 console=console,
                 style="",  # Use empty string instead of None
-                code_theme="monokai"
+                code_theme="monokai",
             )
             print(f"   ✅ Collected text: '{text3}' ({len(text3)} chars)")
-            
+
             if text1 == text2 == text3:
                 print("\n✅ Markdown rendering handles all stream types correctly!")
             else:
                 print("\n❌ Different markdown outputs detected")
-                
+
         except Exception as e:
             print(f"\n⚠️  Error during markdown test: {type(e).__name__}: {e}")
             print("   This might be due to Rich library version compatibility.")
             print("   The core functionality (Reply object handling) is still verified in plain text tests.")
-            
+
     except ImportError:
         print("\n⚠️  Rich library not installed. Skipping markdown tests.")
         print("   Install with: pip install rich")
@@ -146,15 +145,16 @@ def test_display_function():
     print("\n" + "=" * 60)
     print("Testing Main display() Function")
     print("=" * 60)
-    
+
     # Test plain text display
     print("\n1. Plain text display with Reply stream:")
     text = display(mock_reply_generator(), markdown=False)
     print(f"   Result: '{text}'")
-    
+
     # Test markdown display if available
     try:
-        import rich
+        import rich  # noqa: F401
+
         print("\n2. Markdown display with Reply stream:")
         try:
             text = display(mock_reply_generator(), markdown=True)
@@ -164,7 +164,7 @@ def test_display_function():
             print("   (This is a Rich library compatibility issue, not a Reply handling issue)")
     except ImportError:
         print("\n2. Markdown display: Skipped (Rich not installed)")
-    
+
     # Test with non-streaming Reply
     print("\n3. Non-streaming Reply object:")
     single_reply = Reply(text="Single reply test")
@@ -177,25 +177,26 @@ def test_edge_cases():
     print("\n" + "=" * 60)
     print("Testing Edge Cases")
     print("=" * 60)
-    
+
     # Empty Reply text
     def empty_reply_generator():
         yield Reply(text="")
         yield Reply(text="Not empty")
         yield Reply(text="")
-    
+
     print("\n1. Stream with empty Reply texts:")
     print("   Output: ", end="")
     text = _display_stream_plain(empty_reply_generator())
     print(f"   Result: '{text}' ({len(text)} chars)")
-    
+
     # Reply with usage info
     def reply_with_usage():
         from pyhub.llm.types import Usage
+
         yield Reply(text="Hello ")
         yield Reply(text="world")
         yield Reply(text="", usage=Usage(input=10, output=2))
-    
+
     print("\n2. Stream with usage in last chunk:")
     print("   Output: ", end="")
     text = _display_stream_plain(reply_with_usage())
@@ -209,12 +210,12 @@ def main():
     print("=" * 60)
     print("\nThis test verifies that the display module correctly handles")
     print("Reply objects in streaming responses (not just strings).\n")
-    
+
     test_plain_stream_handling()
     test_markdown_stream_handling()
     test_display_function()
     test_edge_cases()
-    
+
     print("\n" + "=" * 60)
     print("✅ Display module test completed!")
     print("\nKey findings:")
