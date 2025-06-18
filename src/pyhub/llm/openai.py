@@ -50,7 +50,7 @@ class OpenAIMixin:
             )
             if input_context.get("allow_none"):
                 choices_instruction += "\nIf none of the options are suitable, you may select 'None of the above'."
-            
+
             # system_prompt가 없으면 새로 생성
             if system_prompt:
                 system_prompt += f"\n\n{choices_instruction}"
@@ -269,9 +269,32 @@ class OpenAIMixin:
         usage_input = 0 if is_cached else (response.usage.prompt_tokens or 0)
         usage_output = 0 if is_cached else (response.usage.completion_tokens or 0)
 
+        # raw_response 포함 여부 확인
+        raw_response = None
+        if input_context.get("include_raw_response", False):
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
+
         return Reply(
             text=response.choices[0].message.content,
             usage=Usage(input=usage_input, output=usage_output),
+            raw_response=raw_response,
         )
 
     async def _make_ask_async(
@@ -321,9 +344,32 @@ class OpenAIMixin:
         usage_input = 0 if is_cached else (response.usage.prompt_tokens or 0)
         usage_output = 0 if is_cached else (response.usage.completion_tokens or 0)
 
+        # raw_response 포함 여부 확인
+        raw_response = None
+        if input_context.get("include_raw_response", False):
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
+
         return Reply(
             text=response.choices[0].message.content,
             usage=Usage(input=usage_input, output=usage_output),
+            raw_response=raw_response,
         )
 
     def _make_ask_stream(
@@ -774,6 +820,7 @@ class OpenAIMixin:
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        include_raw_response: Optional[bool] = None,
     ) -> Union[Reply, Generator[Reply, None, None]]:
         return super().ask(
             input=input,
@@ -789,6 +836,7 @@ class OpenAIMixin:
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            include_raw_response=include_raw_response,
         )
 
     async def ask_async(
@@ -807,6 +855,7 @@ class OpenAIMixin:
         tools: Optional[list] = None,
         tool_choice: str = "auto",
         max_tool_calls: int = 5,
+        include_raw_response: Optional[bool] = None,
     ) -> Union[Reply, AsyncGenerator[Reply, None]]:
         return await super().ask_async(
             input=input,
@@ -822,6 +871,7 @@ class OpenAIMixin:
             tools=tools,
             tool_choice=tool_choice,
             max_tool_calls=max_tool_calls,
+            include_raw_response=include_raw_response,
         )
 
     def embed(
@@ -911,7 +961,7 @@ class OpenAIMixin:
         if isinstance(input, str):
             return Embed(response.data[0].embedding, usage=usage)
         return EmbedList([Embed(v.embedding) for v in response.data], usage=usage)
-    
+
     def generate_image(
         self,
         prompt: str,
@@ -921,37 +971,35 @@ class OpenAIMixin:
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> ImageReply:
         """Generate images using DALL-E models."""
         from pyhub.llm.constants import (
             IMAGE_GENERATION_DEFAULTS,
-            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_STYLES,
         )
-        
+
         # Check if current model supports image generation
         if not self.model.startswith(("dall-e-")):
             raise ValueError(
-                f"Model '{self.model}' does not support image generation. "
-                f"Use 'dall-e-3' or 'dall-e-2' instead."
+                f"Model '{self.model}' does not support image generation. " f"Use 'dall-e-3' or 'dall-e-2' instead."
             )
-        
+
         # Get defaults for the model
         model_defaults = IMAGE_GENERATION_DEFAULTS.get(self.model, {})
         size = size or model_defaults.get("size", "1024x1024")
         quality = quality or model_defaults.get("quality", "standard")
         style = style or model_defaults.get("style")
-        
+
         # Validate size
         valid_sizes = IMAGE_GENERATION_SIZES.get(self.model, [])
         if valid_sizes and size not in valid_sizes:
             raise ValueError(
-                f"Invalid size '{size}' for model '{self.model}'. "
-                f"Valid sizes are: {', '.join(valid_sizes)}"
+                f"Invalid size '{size}' for model '{self.model}'. " f"Valid sizes are: {', '.join(valid_sizes)}"
             )
-        
+
         # Validate quality
         valid_qualities = IMAGE_GENERATION_QUALITIES.get(self.model, [])
         if valid_qualities and quality not in valid_qualities:
@@ -959,18 +1007,17 @@ class OpenAIMixin:
                 f"Invalid quality '{quality}' for model '{self.model}'. "
                 f"Valid qualities are: {', '.join(valid_qualities)}"
             )
-        
+
         # Validate style (only for models that support it)
         valid_styles = IMAGE_GENERATION_STYLES.get(self.model, [])
         if style and valid_styles and style not in valid_styles:
             raise ValueError(
-                f"Invalid style '{style}' for model '{self.model}'. "
-                f"Valid styles are: {', '.join(valid_styles)}"
+                f"Invalid style '{style}' for model '{self.model}'. " f"Valid styles are: {', '.join(valid_styles)}"
             )
-        
+
         # Create client
         sync_client = self._SyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        
+
         # Build request parameters
         request_params = {
             "model": self.model,
@@ -980,17 +1027,39 @@ class OpenAIMixin:
             "n": n,
             "response_format": response_format,
         }
-        
+
         # Add style only if supported and provided
         if style and valid_styles:
             request_params["style"] = style
-        
+
         # Make API call
         response = sync_client.images.generate(**request_params)
-        
+
         # Extract first image data
         image_data = response.data[0]
-        
+
+        # raw_response 포함 여부 확인
+        raw_response = None
+        if self.include_raw_response:
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
+
         # Build ImageReply
         return ImageReply(
             url=image_data.url if response_format == "url" else None,
@@ -998,34 +1067,35 @@ class OpenAIMixin:
             revised_prompt=getattr(image_data, "revised_prompt", None),
             size=size,
             model=self.model,
-            usage=None  # OpenAI image generation doesn't provide usage info
+            usage=None,  # OpenAI image generation doesn't provide usage info
+            raw_response=raw_response,
         )
-    
+
     def supports(self, capability: str) -> bool:
         """Check if the current model supports a specific capability."""
         if capability == "image_generation":
             return self.model.startswith(("dall-e-"))
         return super().supports(capability)
-    
+
     def get_supported_image_sizes(self) -> list[str]:
         """Get the list of supported image sizes for the current model."""
         from pyhub.llm.constants import IMAGE_GENERATION_SIZES
-        
+
         if self.model.startswith(("dall-e-")):
             return IMAGE_GENERATION_SIZES.get(self.model, [])
         return []
-    
+
     @property
     def capabilities(self) -> dict[str, Any]:
         """Get the capabilities of the current model."""
         from pyhub.llm.constants import (
-            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_STYLES,
         )
-        
+
         caps = {}
-        
+
         # Image generation capabilities
         if self.model.startswith(("dall-e-")):
             caps["image_generation"] = {
@@ -1036,9 +1106,9 @@ class OpenAIMixin:
             }
         else:
             caps["image_generation"] = {"supported": False}
-        
+
         return caps
-    
+
     async def generate_image_async(
         self,
         prompt: str,
@@ -1048,37 +1118,35 @@ class OpenAIMixin:
         style: Optional[str] = None,
         n: int = 1,
         response_format: str = "url",
-        **kwargs
+        **kwargs,
     ) -> ImageReply:
         """Asynchronously generate images using DALL-E models."""
         from pyhub.llm.constants import (
             IMAGE_GENERATION_DEFAULTS,
-            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_QUALITIES,
+            IMAGE_GENERATION_SIZES,
             IMAGE_GENERATION_STYLES,
         )
-        
+
         # Check if current model supports image generation
         if not self.model.startswith(("dall-e-")):
             raise ValueError(
-                f"Model '{self.model}' does not support image generation. "
-                f"Use 'dall-e-3' or 'dall-e-2' instead."
+                f"Model '{self.model}' does not support image generation. " f"Use 'dall-e-3' or 'dall-e-2' instead."
             )
-        
+
         # Get defaults for the model
         model_defaults = IMAGE_GENERATION_DEFAULTS.get(self.model, {})
         size = size or model_defaults.get("size", "1024x1024")
         quality = quality or model_defaults.get("quality", "standard")
         style = style or model_defaults.get("style")
-        
+
         # Validate size
         valid_sizes = IMAGE_GENERATION_SIZES.get(self.model, [])
         if valid_sizes and size not in valid_sizes:
             raise ValueError(
-                f"Invalid size '{size}' for model '{self.model}'. "
-                f"Valid sizes are: {', '.join(valid_sizes)}"
+                f"Invalid size '{size}' for model '{self.model}'. " f"Valid sizes are: {', '.join(valid_sizes)}"
             )
-        
+
         # Validate quality
         valid_qualities = IMAGE_GENERATION_QUALITIES.get(self.model, [])
         if valid_qualities and quality not in valid_qualities:
@@ -1086,18 +1154,17 @@ class OpenAIMixin:
                 f"Invalid quality '{quality}' for model '{self.model}'. "
                 f"Valid qualities are: {', '.join(valid_qualities)}"
             )
-        
+
         # Validate style (only for models that support it)
         valid_styles = IMAGE_GENERATION_STYLES.get(self.model, [])
         if style and valid_styles and style not in valid_styles:
             raise ValueError(
-                f"Invalid style '{style}' for model '{self.model}'. "
-                f"Valid styles are: {', '.join(valid_styles)}"
+                f"Invalid style '{style}' for model '{self.model}'. " f"Valid styles are: {', '.join(valid_styles)}"
             )
-        
+
         # Create async client
         async_client = self._AsyncOpenAI(api_key=self.api_key, base_url=self.base_url)
-        
+
         # Build request parameters
         request_params = {
             "model": self.model,
@@ -1107,17 +1174,39 @@ class OpenAIMixin:
             "n": n,
             "response_format": response_format,
         }
-        
+
         # Add style only if supported and provided
         if style and valid_styles:
             request_params["style"] = style
-        
+
         # Make API call
         response = await async_client.images.generate(**request_params)
-        
+
         # Extract first image data
         image_data = response.data[0]
-        
+
+        # raw_response 포함 여부 확인
+        raw_response = None
+        if self.include_raw_response:
+            # model_dump()가 존재하는지 확인하고, 반환값이 dict인지 확인
+            if hasattr(response, "model_dump"):
+                try:
+                    raw = response.model_dump()
+                    if isinstance(raw, dict):
+                        raw_response = raw
+                    else:
+                        # dict가 아닌 경우 변환 시도
+                        raw_response = dict(raw) if hasattr(raw, '__iter__') else {"response": str(raw)}
+                except Exception:
+                    raw_response = {"error": "Failed to serialize response"}
+            else:
+                # model_dump()가 없으면 fallback: __dict__ 또는 str
+                raw = getattr(response, "__dict__", None)
+                if raw is not None and isinstance(raw, dict):
+                    raw_response = raw
+                else:
+                    raw_response = {"response": str(response)}
+
         # Build ImageReply
         return ImageReply(
             url=image_data.url if response_format == "url" else None,
@@ -1125,7 +1214,8 @@ class OpenAIMixin:
             revised_prompt=getattr(image_data, "revised_prompt", None),
             size=size,
             model=self.model,
-            usage=None  # OpenAI image generation doesn't provide usage info
+            usage=None,  # OpenAI image generation doesn't provide usage info
+            raw_response=raw_response,
         )
 
 
@@ -1152,6 +1242,7 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
         api_key: Optional[str] = None,
         base_url: Optional[str] = None,
         tools: Optional[list] = None,
+        include_raw_response: bool = False,
         **kwargs,
     ):
         # Lazy import openai
@@ -1181,6 +1272,7 @@ class OpenAILLM(OpenAIMixin, BaseLLM):
             initial_messages=initial_messages,
             api_key=api_key or llm_settings.openai_api_key,
             tools=tools,
+            include_raw_response=include_raw_response,
             **kwargs,
         )
         self.base_url = base_url or llm_settings.openai_base_url
