@@ -549,8 +549,11 @@ class ImageReply:
             save_dir = Path.cwd()
             filename = self._extract_filename_from_url()
             filepath = self._get_unique_filepath(save_dir, filename)
-        elif hasattr(path, "write") or hasattr(path, "awrite"):
-            # File-like object, return None to indicate special handling needed
+        elif hasattr(path, "write"):
+            # Synchronous file-like object
+            return None
+        elif hasattr(path, "awrite"):
+            # Asynchronous file-like object
             return None
         else:
             path = Path(path)

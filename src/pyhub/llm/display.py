@@ -56,11 +56,15 @@ def display(
         >>> display(response, console=console)
     """
     # Check if it's a generator (streaming response)
-    is_generator = hasattr(response, "__iter__") and not hasattr(response, "text")
+    import inspect
+    is_generator = inspect.isgenerator(response) or inspect.isasyncgen(response)
 
     if markdown and not HAS_RICH:
-        print("Warning: Rich library not installed. Falling back to plain text output.", file=sys.stderr)
-        print("Install with: pip install pyhub-llm[rich]", file=sys.stderr)
+        # Use a module-level variable to track if warning was shown
+        if not getattr(display, '_rich_warning_shown', False):
+            print("Warning: Rich library not installed. Falling back to plain text output.", file=sys.stderr)
+            print("Install with: pip install pyhub-llm[rich]", file=sys.stderr)
+            display._rich_warning_shown = True
         markdown = False
 
     if is_generator:

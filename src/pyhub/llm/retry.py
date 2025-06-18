@@ -110,8 +110,8 @@ def calculate_delay(attempt: int, config: RetryConfig) -> float:
     else:
         delay = config.initial_delay
 
-    # Apply jitter if enabled (except for JITTER strategy which already has it)
-    if config.jitter and config.backoff_strategy != BackoffStrategy.JITTER:
+    # Apply jitter if enabled (except for JITTER and FIXED strategies)
+    if config.jitter and config.backoff_strategy not in (BackoffStrategy.JITTER, BackoffStrategy.FIXED):
         jitter_factor = 0.1  # 10% jitter
         jitter = delay * jitter_factor * (2 * random.random() - 1)
         delay += jitter
@@ -241,7 +241,10 @@ class RetryWrapper:
                     if self.config.on_failure:
                         self.config.on_failure(error, attempt + 1)
                     raise RetryError(
-                        f"All {self.config.max_retries + 1} attempts failed. Last error: {error}", attempt + 1, error
+                        f"All {self.config.max_retries + 1} attempts failed for {self.llm.model}. "
+                        f"Last error: {type(error).__name__}: {error}",
+                        attempt + 1,
+                        error
                     )
 
                 if not should_retry_error(error, self.config):
@@ -279,7 +282,10 @@ class RetryWrapper:
                     if self.config.on_failure:
                         self.config.on_failure(error, attempt + 1)
                     raise RetryError(
-                        f"All {self.config.max_retries + 1} attempts failed. Last error: {error}", attempt + 1, error
+                        f"All {self.config.max_retries + 1} attempts failed for {self.llm.model}. "
+                        f"Last error: {type(error).__name__}: {error}",
+                        attempt + 1,
+                        error
                     )
 
                 if not should_retry_error(error, self.config):
@@ -340,8 +346,11 @@ class FallbackWrapper:
 
                 if i == len(self.llm_chain) - 1:
                     # All LLMs failed
+                    models = [llm.model for llm in self.llm_chain]
+                    error_details = [f"{models[i]}: {type(e).__name__}: {e}" for i, e in enumerate(errors)]
                     raise FallbackError(
-                        f"All {len(self.llm_chain)} LLMs failed. Errors: {[str(e) for e in errors]}", errors
+                        f"All {len(self.llm_chain)} LLMs failed. Details:\n" + "\n".join(f"  - {detail}" for detail in error_details),
+                        errors
                     )
 
                 if not should_fallback_error(error, self.config):
@@ -371,8 +380,11 @@ class FallbackWrapper:
 
                 if i == len(self.llm_chain) - 1:
                     # All LLMs failed
+                    models = [llm.model for llm in self.llm_chain]
+                    error_details = [f"{models[i]}: {type(e).__name__}: {e}" for i, e in enumerate(errors)]
                     raise FallbackError(
-                        f"All {len(self.llm_chain)} LLMs failed. Errors: {[str(e) for e in errors]}", errors
+                        f"All {len(self.llm_chain)} LLMs failed. Details:\n" + "\n".join(f"  - {detail}" for detail in error_details),
+                        errors
                     )
 
                 if not should_fallback_error(error, self.config):
