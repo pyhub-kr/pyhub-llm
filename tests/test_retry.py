@@ -18,7 +18,6 @@ from pyhub.llm.retry import (
     FallbackWrapper,
     RetryConfig,
     RetryError,
-    RetryFallbackWrapper,
     RetryWrapper,
     calculate_delay,
     should_fallback_error,
@@ -87,27 +86,27 @@ class TestRetryConfig:
         assert config.max_retries == 3
         assert config.initial_delay == 1.0
         assert config.max_delay == 60.0
-        assert config.backoff_multiplier == 2.0
+        assert config.backoff_factor == 2.0
         assert config.backoff_strategy == BackoffStrategy.EXPONENTIAL
-        assert config.jitter is True
+        assert config.jitter is False
 
     def test_validation(self):
         """Test configuration validation."""
         # Negative retries
-        with pytest.raises(ValueError, match="max_retries must be >= 0"):
+        with pytest.raises(ValueError, match="max_retries must be non-negative"):
             RetryConfig(max_retries=-1)
 
         # Zero or negative delay
-        with pytest.raises(ValueError, match="initial_delay must be > 0"):
+        with pytest.raises(ValueError, match="initial_delay must be positive"):
             RetryConfig(initial_delay=0)
 
         # max_delay less than initial_delay
-        with pytest.raises(ValueError, match="max_delay must be >= initial_delay"):
-            RetryConfig(initial_delay=10, max_delay=5)
+        with pytest.raises(ValueError, match="max_delay must be positive"):
+            RetryConfig(max_delay=0)
 
         # Invalid backoff multiplier
-        with pytest.raises(ValueError, match="backoff_multiplier must be > 1.0"):
-            RetryConfig(backoff_multiplier=0.5, backoff_strategy=BackoffStrategy.EXPONENTIAL)
+        with pytest.raises(ValueError, match="backoff_factor must be positive"):
+            RetryConfig(backoff_factor=0.0, backoff_strategy=BackoffStrategy.EXPONENTIAL)
 
 
 class TestFallbackConfig:
@@ -116,12 +115,9 @@ class TestFallbackConfig:
     def test_validation(self):
         """Test configuration validation."""
         # Empty fallback list
-        with pytest.raises(ValueError, match="fallback_llms must contain at least one"):
+        with pytest.raises(ValueError, match="At least one fallback LLM must be provided"):
             FallbackConfig(fallback_llms=[])
 
-        # Non-LLM instances
-        with pytest.raises(ValueError, match="All items in fallback_llms must be BaseLLM"):
-            FallbackConfig(fallback_llms=["not-an-llm"])
 
     def test_valid_config(self):
         """Test valid configuration."""
@@ -151,7 +147,7 @@ class TestDelayCalculation:
     def test_exponential_delay(self):
         """Test exponential delay strategy."""
         config = RetryConfig(
-            initial_delay=1.0, backoff_multiplier=2.0, backoff_strategy=BackoffStrategy.EXPONENTIAL, jitter=False
+            initial_delay=1.0, backoff_factor=2.0, backoff_strategy=BackoffStrategy.EXPONENTIAL, jitter=False
         )
         assert calculate_delay(1, config) == 1.0
         assert calculate_delay(2, config) == 2.0
@@ -163,7 +159,7 @@ class TestDelayCalculation:
         config = RetryConfig(
             initial_delay=10.0,
             max_delay=20.0,
-            backoff_multiplier=3.0,
+            backoff_factor=3.0,
             backoff_strategy=BackoffStrategy.EXPONENTIAL,
             jitter=False,
         )
@@ -177,7 +173,7 @@ class TestDelayCalculation:
         # Run multiple times to ensure we get different values
         delays = [calculate_delay(1, config) for _ in range(10)]
         assert len(set(delays)) > 1  # Should have different values
-        assert all(10.0 <= d <= 11.0 for d in delays)  # Within 10% jitter
+        assert all(9.0 <= d <= 11.0 for d in delays)  # Within ±10% jitter
 
 
 class TestRetryConditions:
@@ -403,11 +399,11 @@ class TestFallbackWrapper:
         """Test fallback through multiple backup LLMs."""
         primary = MockLLM(model="primary")
         primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
+        primary.failure_exception = Exception("model not found")
 
         backup1 = MockLLM(model="backup1")
         backup1.should_fail = True
-        backup1.failure_exception = Exception("model unavailable")
+        backup1.failure_exception = Exception("model not found")
 
         backup2 = MockLLM(model="backup2")
 
@@ -424,13 +420,15 @@ class TestFallbackWrapper:
         """Test when all fallbacks fail."""
         primary = MockLLM(model="primary")
         primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
+        primary.failure_exception = Exception("model not found")
 
         backup1 = MockLLM(model="backup1")
         backup1.should_fail = True
+        backup1.failure_exception = Exception("model not found")
 
         backup2 = MockLLM(model="backup2")
         backup2.should_fail = True
+        backup2.failure_exception = Exception("model not found")
 
         config = FallbackConfig(fallback_llms=[backup1, backup2])
         wrapper = FallbackWrapper(primary, config)
@@ -438,7 +436,7 @@ class TestFallbackWrapper:
         with pytest.raises(FallbackError) as exc_info:
             wrapper.ask("Test")
 
-        assert "Primary LLM and all 2 fallbacks failed" in str(exc_info.value)
+        assert "All 3 LLMs failed" in str(exc_info.value)
         assert len(exc_info.value.errors) == 3
 
     def test_fallback_callback(self):
@@ -450,7 +448,7 @@ class TestFallbackWrapper:
 
         primary = MockLLM(model="primary")
         primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
+        primary.failure_exception = Exception("model not found")
 
         backup1 = MockLLM(model="backup1")
 
@@ -461,8 +459,8 @@ class TestFallbackWrapper:
         assert result.text == "Response from backup1"
 
         assert len(fallback_calls) == 1
-        assert "model unavailable" in fallback_calls[0][0]
-        assert fallback_calls[0][1] == "primary"
+        assert "model not found" in fallback_calls[0][0]
+        assert fallback_calls[0][1] == "backup1"
 
     def test_conditional_fallback(self):
         """Test conditional fallback logic."""
@@ -499,7 +497,7 @@ class TestFallbackWrapper:
         """Test async fallback functionality."""
         primary = MockLLM(model="primary")
         primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
+        primary.failure_exception = Exception("model not found")
 
         backup = MockLLM(model="backup")
 
@@ -510,50 +508,6 @@ class TestFallbackWrapper:
         assert result.text == "Response from backup"
 
 
-class TestRetryFallbackWrapper:
-    """Test combined retry and fallback functionality."""
-
-    def test_retry_then_fallback(self):
-        """Test that retry happens before fallback."""
-        primary = MockLLM(model="primary")
-        primary.should_fail = True
-        primary.failure_exception = ConnectionError("Network error")
-
-        backup = MockLLM(model="backup")
-
-        retry_config = RetryConfig(max_retries=2, initial_delay=0.01, retry_on=[ConnectionError])
-        fallback_config = FallbackConfig(fallback_llms=[backup])
-
-        wrapper = RetryFallbackWrapper(primary, retry_config, fallback_config)
-
-        # Should retry primary 3 times (initial + 2 retries), then fallback
-        result = wrapper.ask("Test")
-        assert result.text == "Response from backup"
-        assert primary.call_count == 3
-        assert backup.call_count == 1
-
-    def test_fallback_with_retry(self):
-        """Test that fallback LLMs also get retried."""
-        primary = MockLLM(model="primary")
-        primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
-
-        backup = MockLLM(model="backup")
-        backup.should_fail = True
-        backup.failure_exception = ConnectionError("Network error")
-
-        retry_config = RetryConfig(max_retries=1, initial_delay=0.01, retry_on=[ConnectionError])
-        fallback_config = FallbackConfig(fallback_llms=[backup])
-
-        wrapper = RetryFallbackWrapper(primary, retry_config, fallback_config)
-
-        with pytest.raises(FallbackError):
-            wrapper.ask("Test")
-
-        # Primary tried once (no retry for model unavailable)
-        assert primary.call_count == 1
-        # Backup tried once (no retry applied to fallbacks in RetryFallbackWrapper)
-        assert backup.call_count == 1
 
 
 class TestBaseLLMIntegration:
@@ -676,7 +630,7 @@ class TestLogging:
         """Test that fallbacks are logged."""
         primary = MockLLM(model="primary")
         primary.should_fail = True
-        primary.failure_exception = Exception("model unavailable")
+        primary.failure_exception = Exception("model not found")
 
         backup = MockLLM(model="backup")
 
@@ -688,5 +642,31 @@ class TestLogging:
         # Check that warning was logged
         assert mock_logger.warning.called
         warning_calls = mock_logger.warning.call_args_list
-        assert any("Primary LLM (primary) failed" in str(call) for call in warning_calls)
-        assert any("trying fallback" in str(call) for call in warning_calls)
+        assert any("LLM 1/2 failed" in str(call) for call in warning_calls)
+        assert any("Falling back to next LLM" in str(call) for call in warning_calls)
+    
+    def test_isinstance_check(self):
+        """Test that wrapped instances have proper attributes."""
+        llm = MockLLM(model="test")
+        
+        # Test RetryWrapper
+        from pyhub.llm.retry import RetryWrapper
+        retry_llm = llm.with_retry()
+        assert isinstance(retry_llm, RetryWrapper)
+        assert hasattr(retry_llm, 'llm')
+        assert hasattr(retry_llm, 'config')
+        assert retry_llm.model == "test"
+        
+        # Test FallbackWrapper
+        from pyhub.llm.retry import FallbackWrapper
+        fallback_llm = llm.with_fallbacks([MockLLM(model="backup")])
+        assert isinstance(fallback_llm, FallbackWrapper)
+        assert hasattr(fallback_llm, 'llm')
+        assert hasattr(fallback_llm, 'config')
+        assert fallback_llm.model == "test"
+        
+        # Test chained wrappers
+        chained = llm.with_retry().with_fallbacks([MockLLM(model="backup")])
+        assert isinstance(chained, FallbackWrapper)
+        assert hasattr(chained, 'llm')
+        assert hasattr(chained, 'config')

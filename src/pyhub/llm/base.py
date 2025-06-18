@@ -1832,7 +1832,7 @@ class BaseLLM(abc.ABC):
             max_retries=max_retries,
             initial_delay=initial_delay,
             max_delay=max_delay,
-            backoff_multiplier=backoff_multiplier,
+            backoff_factor=backoff_multiplier,
             backoff_strategy=strategy,
             jitter=jitter,
             retry_on=retry_on,
