@@ -159,10 +159,51 @@ class TestPromptHub:
             )
             custom_hub.push("test/prompt", prompt)
             
-            # Check the file exists in custom location
-            cache_file = Path(tmpdir) / "test_prompt.json"
+            # Check the file exists in custom location with new structure
+            cache_file = Path(tmpdir) / "test" / "prompt.json"
             assert cache_file.exists()
             
             # Pull it back
             loaded = custom_hub.pull("test/prompt")
             assert loaded.template == prompt.template
+    
+    def test_prompt_name_validation(self):
+        """Test prompt name validation for security."""
+        # Test path traversal attempts
+        with pytest.raises(ValueError, match="Invalid prompt name"):
+            hub.pull("../etc/passwd")
+        
+        with pytest.raises(ValueError, match="Invalid prompt name"):
+            hub.push("../../secret", PromptTemplate(template="test"))
+        
+        # Test invalid characters
+        with pytest.raises(ValueError, match="Invalid prompt name format"):
+            hub.pull("test@prompt")
+        
+        # Test too long name
+        long_name = "a" * 101
+        with pytest.raises(ValueError, match="Prompt name too long"):
+            hub.pull(long_name)
+    
+    def test_escaped_braces_in_template(self):
+        """Test that escaped braces are not detected as variables."""
+        # Test with properly escaped braces in f-string format
+        # {{ becomes { and }} becomes } in the output
+        prompt = PromptTemplate(
+            template="Show literal braces: {{ and }}. Variable: {value}",
+        )
+        assert prompt.input_variables == ["value"]
+        
+        formatted = prompt.format(value="test")
+        assert formatted == "Show literal braces: { and }. Variable: test"
+        
+    def test_complex_json_template(self):
+        """Test template with JSON-like structure."""
+        # This shows {value} is a variable inside a JSON structure
+        prompt = PromptTemplate(
+            template='The JSON is: {{"key": "{value}", "number": {number}}}',
+        )
+        assert set(prompt.input_variables) == {"value", "number"}
+        
+        formatted = prompt.format(value="hello", number=42)
+        assert formatted == 'The JSON is: {"key": "hello", "number": 42}'

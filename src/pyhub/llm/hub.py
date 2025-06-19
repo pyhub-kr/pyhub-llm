@@ -2,6 +2,7 @@
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Optional, Union, Dict, List
 
@@ -153,19 +154,67 @@ Human: {input}
         # Create cache directory if it doesn't exist
         self.cache_dir.mkdir(parents=True, exist_ok=True)
     
+    def _validate_prompt_name(self, prompt_name: str) -> None:
+        """Validate prompt name for security.
+        
+        Args:
+            prompt_name: Name to validate
+            
+        Raises:
+            ValueError: If prompt name is invalid
+        """
+        # Check for path traversal attempts
+        if ".." in prompt_name or prompt_name.startswith("/"):
+            raise ValueError(f"Invalid prompt name: {prompt_name}")
+        
+        # Check for valid characters (alphanumeric, hyphen, underscore, slash)
+        if not re.match(r'^[a-zA-Z0-9_\-/]+$', prompt_name):
+            raise ValueError(f"Invalid prompt name format: {prompt_name}")
+        
+        # Check for reasonable length
+        if len(prompt_name) > 100:
+            raise ValueError(f"Prompt name too long: {prompt_name}")
+    
+    def _get_cache_path(self, prompt_name: str) -> Path:
+        """Get cache file path for a prompt, using subdirectories to prevent collisions.
+        
+        Args:
+            prompt_name: Name of the prompt (e.g., "owner/prompt-name")
+            
+        Returns:
+            Path to cache file
+        """
+        # Split by slash and create subdirectory structure
+        parts = prompt_name.split("/")
+        if len(parts) == 1:
+            # No owner, put in root
+            return self.cache_dir / f"{parts[0]}.json"
+        else:
+            # Create subdirectory for owner
+            subdir = self.cache_dir / parts[0]
+            subdir.mkdir(exist_ok=True)
+            return subdir / f"{'_'.join(parts[1:])}.json"
+    
     def pull(self, prompt_name: str, version: Optional[str] = None) -> PromptTemplate:
         """Pull a prompt from the hub.
         
         Args:
             prompt_name: Name of the prompt (e.g., "rlm/rag-prompt")
             version: Optional version to pull (default: latest)
+                TODO: Implement version support for versioned prompt retrieval
             
         Returns:
             PromptTemplate instance
             
         Raises:
-            ValueError: If prompt not found
+            ValueError: If prompt not found or invalid
         """
+        # Validate prompt name
+        self._validate_prompt_name(prompt_name)
+        
+        # TODO: When version support is implemented, modify built-in prompt lookup
+        # to consider version parameter (e.g., "rlm/rag-prompt:v1.0.0")
+        
         # Check built-in prompts first
         if prompt_name in self.BUILTIN_PROMPTS:
             prompt_data = self.BUILTIN_PROMPTS[prompt_name]
@@ -177,11 +226,11 @@ Human: {input}
             )
         
         # Check local cache
-        cache_file = self.cache_dir / f"{prompt_name.replace('/', '_')}.json"
+        cache_file = self._get_cache_path(prompt_name)
         if cache_file.exists():
             return PromptTemplate.load(cache_file)
         
-        # TODO: In the future, could fetch from remote hub
+        # TODO: In the future, could fetch from remote hub with version support
         raise ValueError(f"Prompt '{prompt_name}' not found in hub")
     
     def push(self, prompt_name: str, prompt: PromptTemplate) -> None:
@@ -190,9 +239,15 @@ Human: {input}
         Args:
             prompt_name: Name for the prompt
             prompt: PromptTemplate to save
+            
+        Raises:
+            ValueError: If prompt name is invalid
         """
+        # Validate prompt name
+        self._validate_prompt_name(prompt_name)
+        
         # Save to local cache
-        cache_file = self.cache_dir / f"{prompt_name.replace('/', '_')}.json"
+        cache_file = self._get_cache_path(prompt_name)
         prompt.save(cache_file)
     
     def list_prompts(self) -> List[str]:
@@ -203,11 +258,20 @@ Human: {input}
         """
         prompts = list(self.BUILTIN_PROMPTS.keys())
         
-        # Add locally cached prompts
+        # Add locally cached prompts (both root and subdirectories)
+        # Root level prompts
         for cache_file in self.cache_dir.glob("*.json"):
-            prompt_name = cache_file.stem.replace("_", "/")
+            prompt_name = cache_file.stem
             if prompt_name not in prompts:
                 prompts.append(prompt_name)
+        
+        # Subdirectory prompts (owner/prompt format)
+        for owner_dir in self.cache_dir.iterdir():
+            if owner_dir.is_dir():
+                for cache_file in owner_dir.glob("*.json"):
+                    prompt_name = f"{owner_dir.name}/{cache_file.stem}"
+                    if prompt_name not in prompts:
+                        prompts.append(prompt_name)
         
         return sorted(prompts)
 

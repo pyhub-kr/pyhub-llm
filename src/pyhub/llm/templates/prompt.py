@@ -43,16 +43,19 @@ class PromptTemplate:
     def _extract_variables(self) -> List[str]:
         """Extract variable names from the template string."""
         if self.template_format == "f-string":
-            # Match {variable_name} patterns
-            pattern = r'\{([^}]+)\}'
+            # Simple approach: find all {identifier} patterns
+            pattern = r'\{([a-zA-Z_][a-zA-Z0-9_]*)\}'
             matches = re.findall(pattern, self.template)
-            # Filter out partial variables
-            return [m for m in matches if m not in self.partial_variables]
+            # Remove duplicates and filter out partial variables
+            unique_vars = list(dict.fromkeys(matches))
+            return [m for m in unique_vars if m not in self.partial_variables]
         elif self.template_format == "jinja2":
             # Match {{ variable_name }} patterns
-            pattern = r'\{\{\s*(\w+)\s*\}\}'
+            pattern = r'\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}'
             matches = re.findall(pattern, self.template)
-            return [m for m in matches if m not in self.partial_variables]
+            # Remove duplicates and filter out partial variables
+            unique_vars = list(dict.fromkeys(matches))
+            return [m for m in unique_vars if m not in self.partial_variables]
         else:
             raise ValueError(f"Unsupported template format: {self.template_format}")
             
