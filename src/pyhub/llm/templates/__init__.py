@@ -1,5 +1,5 @@
-"""Template utilities for pyhub.llm."""
+"""Prompt template management for pyhub-llm."""
 
-from pyhub.llm.templates.engine import TemplateEngine
+from .prompt import PromptTemplate
 
-__all__ = ["TemplateEngine"]
+__all__ = ["PromptTemplate"]

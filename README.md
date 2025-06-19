@@ -412,6 +412,42 @@ llm_with_db = LLM.create("gpt-4o-mini", history_backup=db_backup)
 
 > 🔍 대화 히스토리 백업은 도구(Tool) 사용 내역도 자동으로 저장합니다. 자세한 사용법은 [중급 가이드](./CHEATSHEET-INTERMEDIATE.md#history-backup)를 참고하세요.
 
+### 6. 프롬프트 허브 (Hub) - LangChain Hub 호환 (NEW! 🎯)
+
+```python
+from pyhub.llm import hub, LLM
+
+# 인기 있는 프롬프트 가져오기
+rag_prompt = hub.pull("rlm/rag-prompt")
+react_prompt = hub.pull("hwchase17/react")
+
+# RAG 프롬프트 사용
+formatted = rag_prompt.format(
+    context="파이썬은 1991년에 출시된 프로그래밍 언어입니다.",
+    question="파이썬은 언제 출시되었나요?"
+)
+llm = LLM.create("gpt-4o-mini")
+answer = llm.ask(formatted)
+
+# 커스텀 프롬프트 생성 및 저장
+from pyhub.llm.templates import PromptTemplate
+
+custom_prompt = PromptTemplate(
+    template="당신은 {role} 전문가입니다. {task}를 수행해주세요.",
+    input_variables=["role", "task"]
+)
+hub.push("mycompany/expert-prompt", custom_prompt)
+
+# 나중에 다시 사용
+saved_prompt = hub.pull("mycompany/expert-prompt")
+```
+
+#### 지원하는 내장 프롬프트:
+- `rlm/rag-prompt` - RAG (Retrieval Augmented Generation) 질문-답변
+- `hwchase17/react` - ReAct 에이전트 (도구 사용)
+- `hwchase17/openai-functions-agent` - OpenAI 함수 호출 에이전트
+- `hwchase17/structured-chat-agent` - 구조화된 JSON 출력 에이전트
+
 ## API 키 설정
 
 ### 필요한 API 키
