@@ -269,7 +269,10 @@ llm = OllamaLLM(
 ### 1. 스트리밍 응답
 
 ```python
+from pyhub.llm import OpenAILLM
+
 # 실시간으로 응답 받기
+llm = OpenAILLM(model="gpt-4o-mini")
 for chunk in llm.ask("긴 이야기를 들려주세요", stream=True):
     print(chunk.text, end="", flush=True)
 ```
@@ -277,7 +280,9 @@ for chunk in llm.ask("긴 이야기를 들려주세요", stream=True):
 ### 2. 출력 포맷팅 (NEW! 🎨)
 
 ```python
-from pyhub.llm import LLM, display
+from pyhub.llm import OpenAILLM, display
+
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 마크다운 렌더링과 함께 스트리밍
 response = llm.ask("파이썬 함수 작성법을 알려주세요", stream=True)
@@ -349,6 +354,10 @@ async def generate_multiple():
 ### 4. 파일 처리 (이미지 및 PDF)
 
 ```python
+from pyhub.llm import OpenAILLM
+
+llm = OpenAILLM(model="gpt-4o-mini")
+
 # 이미지 설명
 reply = llm.ask("이 이미지를 설명해주세요", files=["photo.jpg"])
 
@@ -359,11 +368,14 @@ reply = llm.ask("이 문서를 요약해주세요", files=["document.pdf"])
 ### 5. 도구/함수 호출
 
 ```python
+from pyhub.llm import OpenAILLM
+
 # 간단한 함수를 도구로 사용
 def get_weather(city: str) -> str:
     """도시의 날씨 정보를 가져옵니다."""
     return f"{city}의 날씨는 맑음입니다."
 
+llm = OpenAILLM(model="gpt-4o-mini")
 reply = llm.ask("서울 날씨 알려줘", tools=[get_weather])
 ```
 
@@ -415,7 +427,7 @@ llm_with_db = LLM.create("gpt-4o-mini", history_backup=db_backup)
 ### 6. 프롬프트 허브 (Hub) - LangChain Hub 호환 (NEW! 🎯)
 
 ```python
-from pyhub.llm import hub, LLM
+from pyhub.llm import hub, OpenAILLM
 
 # 인기 있는 프롬프트 가져오기
 rag_prompt = hub.pull("rlm/rag-prompt")
@@ -426,7 +438,7 @@ formatted = rag_prompt.format(
     context="파이썬은 1991년에 출시된 프로그래밍 언어입니다.",
     question="파이썬은 언제 출시되었나요?"
 )
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 answer = llm.ask(formatted)
 
 # 커스텀 프롬프트 생성 및 저장

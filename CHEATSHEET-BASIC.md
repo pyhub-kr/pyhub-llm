@@ -67,10 +67,10 @@ $env:ANTHROPIC_API_KEY="sk-ant-..."
 ### OpenAI
 
 ```python
-from pyhub.llm import LLM, OpenAILLM
+from pyhub.llm import OpenAILLM, OpenAILLM
 
 # 팩토리 패턴 사용 (권장)
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 reply = llm.ask("안녕하세요!")
 print(reply.text)
 
@@ -83,7 +83,7 @@ print(reply.text)
 ### Anthropic
 
 ```python
-from pyhub.llm import LLM, AnthropicLLM
+from pyhub.llm import OpenAILLM, AnthropicLLM
 
 # Claude 사용
 llm = LLM.create("claude-3-haiku-20240307")
@@ -100,7 +100,7 @@ llm = AnthropicLLM(
 ### Google
 
 ```python
-from pyhub.llm import LLM, GoogleLLM
+from pyhub.llm import OpenAILLM, GoogleLLM
 
 # Gemini 사용
 llm = LLM.create("gemini-1.5-flash")
@@ -114,7 +114,7 @@ llm = GoogleLLM(model="gemini-1.5-pro", max_tokens=8192)
 ### Ollama (로컬)
 
 ```python
-from pyhub.llm import LLM, OllamaLLM
+from pyhub.llm import OpenAILLM, OllamaLLM
 
 # Ollama는 API 키 불필요
 llm = LLM.create("mistral")
@@ -145,9 +145,9 @@ print(reply.text)
 💻 [실행 가능한 예제](examples/basic/02_streaming.py)
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 기본 스트리밍
 for chunk in llm.ask("긴 이야기를 들려주세요", stream=True):
@@ -175,9 +175,9 @@ def process_stream(llm, prompt):
 ### display() 함수 사용
 
 ```python
-from pyhub.llm import LLM, display
+from pyhub.llm import OpenAILLM, display
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 스트리밍과 함께 마크다운 렌더링
 response = llm.ask("파이썬 함수 예제를 보여주세요", stream=True)
@@ -447,10 +447,10 @@ def save_to_model(request):
 pyhub-llm은 내부적으로 대화 히스토리를 자동 관리합니다. 별도의 히스토리 관리 없이도 연속적인 대화가 가능합니다.
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 # LLM 인스턴스 생성
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 자동으로 대화 컨텍스트가 유지됨
 print(llm.ask("안녕하세요! 저는 프로그래밍을 배우고 싶어요.").text)
@@ -467,7 +467,7 @@ llm.clear()  # 대화 히스토리 초기화
 반복적인 독립 작업에서는 대화 히스토리가 불필요합니다. Stateless 모드를 사용하면 각 요청이 완전히 독립적으로 처리됩니다.
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 # Stateless 모드로 생성 (히스토리 저장 안 함)
 classifier = LLM.create("gpt-4o-mini", stateless=True)
@@ -500,10 +500,10 @@ for text in texts:
 pyhub-llm은 내부적으로 컨텍스트 윈도우를 관리하지만, 필요에 따라 수동으로 제어할 수도 있습니다.
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 # 자동 컨텍스트 관리 (기본값)
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 긴 대화 진행 - LLM이 자동으로 컨텍스트 관리
 for i in range(20):
@@ -521,7 +521,7 @@ if len(llm.history) > 10:
 시스템 프롬프트를 설정하여 다양한 페르소나로 대화할 수 있습니다.
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 # 다양한 페르소나 설정
 teacher = LLM.create(
@@ -556,9 +556,9 @@ print(doctor.ask("두통이 자주 있어요").text)  # 주의: 실제 의료 �
 ### 이미지 분석
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
-llm = LLM.create("gpt-4o-mini")  # 비전 지원 모델
+llm = OpenAILLM(model="gpt-4o-mini")  # 비전 지원 모델
 
 # 단일 이미지 분석
 reply = llm.ask(
@@ -598,7 +598,7 @@ print(f"분위기: {analysis.mood}")
 
 ```python
 # PDF는 자동으로 이미지로 변환됨
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # PDF 요약
 reply = llm.ask(
@@ -631,7 +631,7 @@ class ImagePrompt(BaseModel):
     mood: str = Field(description="분위기")
     details: List[str] = Field(description="추가 세부사항")
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 이미지를 보고 유사한 이미지 생성을 위한 프롬프트 생성
 reply = llm.ask(
@@ -650,7 +650,7 @@ print(f"프롬프트: A {prompt_data.style} image of {prompt_data.subject} with 
 ### 기본 에러 처리
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pyhub.llm.exceptions import (
     LLMError,
     RateLimitError,
@@ -660,7 +660,7 @@ from pyhub.llm.exceptions import (
 
 def safe_llm_call(prompt: str, max_retries: int = 3):
     """재시도 로직이 포함된 안전한 LLM 호출"""
-    llm = LLM.create("gpt-4o-mini")
+    llm = OpenAILLM(model="gpt-4o-mini")
     
     for attempt in range(max_retries):
         try:
@@ -734,7 +734,7 @@ async def ask_with_timeout(llm, prompt: str, timeout: float = 30.0):
         return await llm.ask_async(simplified)
 
 # 사용
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout=10))
 ```
 
@@ -743,7 +743,7 @@ result = asyncio.run(ask_with_timeout(llm, "매우 복잡한 질문...", timeout
 ### 고객 문의 분류 시스템
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from typing import List, Dict
 
 def classify_customer_inquiries(inquiries: List[str]) -> List[Dict[str, str]]:
@@ -783,7 +783,7 @@ for r in results:
 ### 대량 텍스트 감정 분석
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pydantic import BaseModel
 from concurrent.futures import ThreadPoolExecutor
 import time
@@ -836,7 +836,7 @@ print(f"Analyzed {len(results)} reviews in {time.time() - start:.2f}s")
 ### 문서 요약 배치 처리
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pathlib import Path
 import json
 
