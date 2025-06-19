@@ -12,6 +12,7 @@ pyhub-llm의 고급 기능들을 활용하여 더 복잡하고 효율적인 LLM 
 - [캐싱](#캐싱)
 - [도구/함수 호출](#도구함수-호출)
 - [템플릿 활용](#템플릿-활용)
+- [프롬프트 허브 (Hub)](#프롬프트-허브-hub)
 - [History Backup](#history-backup)
 - [다음 단계](#다음-단계)
 ## 구조화된 출력
@@ -680,6 +681,170 @@ for style in ["technical", "simple", "business"]:
     prompt = builder.build(style, topic)
     reply = llm.ask(prompt)
     print(f"\n[{style.upper()}]\n{reply.text[:200]}...")
+```
+
+
+## 프롬프트 허브 (Hub)
+
+💻 [실행 가능한 예제](examples/advanced/15_hub_prompts.py)
+
+pyhub-llm은 LangChain Hub와 호환되는 프롬프트 관리 시스템을 제공합니다. 인기 있는 프롬프트를 쉽게 가져와 사용하고, 자신만의 프롬프트를 저장하고 공유할 수 있습니다.
+
+### 내장 프롬프트 사용
+
+```python
+from pyhub.llm import hub, LLM
+
+# RAG (Retrieval Augmented Generation) 프롬프트
+rag_prompt = hub.pull("rlm/rag-prompt")
+print(f"입력 변수: {rag_prompt.input_variables}")  # ['context', 'question']
+
+# 프롬프트 포맷팅
+formatted = rag_prompt.format(
+    context="에펠탑은 1889년 파리 만국박람회를 위해 건설된 철제 탑입니다. 높이는 330미터입니다.",
+    question="에펠탑의 높이는 얼마인가요?"
+)
+
+# LLM과 함께 사용
+llm = LLM.create("gpt-4o-mini")
+answer = llm.ask(formatted)
+print(answer.text)  # "에펠탑의 높이는 330미터입니다."
+```
+
+### ReAct 에이전트 프롬프트
+
+```python
+# ReAct (Reasoning + Acting) 프롬프트
+react_prompt = hub.pull("hwchase17/react")
+
+# 도구 정보와 함께 포맷팅
+formatted = react_prompt.format(
+    tools="Calculator: 수학 계산을 수행합니다.\nSearch: 인터넷에서 정보를 검색합니다.",
+    tool_names="Calculator, Search",
+    input="에펠탑이 완공된 연도의 제곱근은 얼마인가요?"
+)
+
+print(formatted[:200] + "...")  # 프롬프트 미리보기
+```
+
+### 커스텀 프롬프트 생성 및 저장
+
+```python
+from pyhub.llm.templates import PromptTemplate
+
+# 커스텀 프롬프트 생성
+custom_prompt = PromptTemplate(
+    template="""당신은 {language} 전문가입니다.
+    
+다음 코드를 검토하고 개선점을 제안해주세요:
+
+```{language}
+{code}
+```
+
+검토 기준:
+- 가독성
+- 성능
+- 보안
+- 모범 사례""",
+    input_variables=["language", "code"],
+    metadata={
+        "description": "코드 리뷰 프롬프트",
+        "author": "myteam",
+        "tags": ["code-review", "programming"],
+        "version": "1.0.0"
+    }
+)
+
+# 로컬에 저장
+hub.push("myteam/code-reviewer", custom_prompt)
+
+# 나중에 다시 사용
+saved_prompt = hub.pull("myteam/code-reviewer")
+```
+
+### Partial 프롬프트
+
+```python
+# 기본 프롬프트
+base_prompt = hub.pull("rlm/rag-prompt")
+
+# 컨텍스트를 미리 채운 partial 프롬프트 생성
+python_qa_prompt = base_prompt.partial(
+    context="""Python은 1991년 Guido van Rossum이 개발한 프로그래밍 언어입니다.
+    동적 타이핑, 자동 메모리 관리, 다양한 프로그래밍 패러다임을 지원합니다."""
+)
+
+# 이제 질문만 제공하면 됨
+questions = [
+    "Python은 누가 만들었나요?",
+    "Python의 특징은 무엇인가요?",
+    "Python은 언제 만들어졌나요?"
+]
+
+llm = LLM.create("gpt-4o-mini")
+for question in questions:
+    formatted = python_qa_prompt.format(question=question)
+    answer = llm.ask(formatted)
+    print(f"Q: {question}")
+    print(f"A: {answer.text}\n")
+```
+
+### 프롬프트 버전 관리 (향후 지원 예정)
+
+```python
+# 현재는 최신 버전만 지원
+prompt = hub.pull("rlm/rag-prompt")
+
+# 향후 버전 지정 지원 예정
+# prompt = hub.pull("rlm/rag-prompt", version="1.0.0")
+# prompt = hub.pull("rlm/rag-prompt:v1.0.0")
+```
+
+### 사용 가능한 내장 프롬프트
+
+| 프롬프트 이름 | 설명 | 입력 변수 |
+|-------------|------|----------|
+| `rlm/rag-prompt` | RAG 질문-답변 | `context`, `question` |
+| `hwchase17/react` | ReAct 에이전트 | `tools`, `tool_names`, `input` |
+| `hwchase17/openai-functions-agent` | OpenAI 함수 호출 | `tools`, `history`, `input` |
+| `hwchase17/structured-chat-agent` | JSON 출력 에이전트 | `tools`, `tool_names`, `history`, `input`, `agent_scratchpad` |
+
+### 프롬프트 목록 확인
+
+```python
+# 사용 가능한 모든 프롬프트 확인
+all_prompts = hub.list_prompts()
+for prompt_name in all_prompts:
+    print(f"- {prompt_name}")
+```
+
+### Jinja2 템플릿 형식
+
+```python
+# Jinja2 형식의 프롬프트
+jinja_prompt = PromptTemplate(
+    template="""
+{% for item in items %}
+{{ loop.index }}. {{ item.name }}: {{ item.description }}
+{% endfor %}
+
+위 항목 중에서 {{ criteria }}에 가장 적합한 것을 선택하세요.
+""",
+    input_variables=["items", "criteria"],
+    template_format="jinja2"
+)
+
+items = [
+    {"name": "Python", "description": "간결하고 읽기 쉬운 언어"},
+    {"name": "Java", "description": "엔터프라이즈급 애플리케이션에 적합"},
+    {"name": "JavaScript", "description": "웹 개발의 필수 언어"}
+]
+
+formatted = jinja_prompt.format(
+    items=items,
+    criteria="초보자가 배우기 쉬운 언어"
+)
 ```
 
 
