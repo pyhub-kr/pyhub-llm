@@ -24,7 +24,7 @@ pyhub-llm의 고급 기능들을 활용하여 더 복잡하고 효율적인 LLM 
 ```python
 from pydantic import BaseModel, Field
 from typing import List
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 class BookInfo(BaseModel):
     title: str = Field(description="책 제목")
@@ -33,7 +33,7 @@ class BookInfo(BaseModel):
     genres: List[str] = Field(description="장르 목록")
     summary: str = Field(description="간단한 줄거리")
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 reply = llm.ask(
     "해리포터와 마법사의 돌에 대해 알려주세요",
     schema=BookInfo
@@ -61,7 +61,7 @@ class ProductAnalysis(BaseModel):
     rating: float = Field(ge=0, le=5)
     recommendation: bool
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 reply = llm.ask(
     "iPhone 15 Pro에 대한 분석을 해주세요",
     schema=ProductAnalysis
@@ -81,7 +81,7 @@ class Translation(BaseModel):
     japanese: str
     chinese: str
 
-llm = LLM.create("gpt-4o-mini", system_prompt="다국어 번역 전문가")
+llm = OpenAILLM(model="gpt-4o-mini", system_prompt="다국어 번역 전문가")
 reply = llm.ask("'인공지능'을 4개 언어로 번역해주세요", schema=Translation)
 
 trans: Translation = reply.structured_data
@@ -97,9 +97,9 @@ print(f"중국어: {trans.chinese}")
 ### 감정 분석
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 단일 선택
 emotions = ["기쁨", "슬픔", "분노", "공포", "놀람", "혐오"]
@@ -124,7 +124,7 @@ for text in texts:
 ```python
 class IntentClassifier:
     def __init__(self):
-        self.llm = LLM.create("gpt-4o-mini")
+        self.llm = OpenAILLM(model="gpt-4o-mini")
         self.intents = [
             "질문",
             "요청",
@@ -152,7 +152,7 @@ from typing import List
 class TopicLabels(BaseModel):
     topics: List[str] = Field(description="해당하는 모든 주제")
 
-llm = LLM.create("gpt-4o-mini", system_prompt="텍스트의 주제를 분류하는 전문가")
+llm = OpenAILLM(model="gpt-4o-mini", system_prompt="텍스트의 주제를 분류하는 전문가")
 
 available_topics = ["정치", "경제", "사회", "문화", "스포츠", "IT", "과학", "건강"]
 
@@ -176,10 +176,10 @@ print(f"분류된 주제: {', '.join(reply.structured_data.topics)}")  # "IT, �
 
 ```python
 import asyncio
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 async def main():
-    llm = LLM.create("gpt-4o-mini")
+    llm = OpenAILLM(model="gpt-4o-mini")
     
     # 비동기 요청
     reply = await llm.ask_async("비동기 프로그래밍의 장점은?")
@@ -197,7 +197,7 @@ asyncio.run(main())
 
 ```python
 async def process_multiple_queries():
-    llm = LLM.create("gpt-4o-mini")
+    llm = OpenAILLM(model="gpt-4o-mini")
     
     queries = [
         "Python의 장점은?",
@@ -221,7 +221,7 @@ asyncio.run(process_multiple_queries())
 💻 [실행 가능한 예제](examples/mcp_integration_example.py)
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 
 async def main():
     # 간편한 문자열 설정으로 MCP 서버와 함께 LLM 생성
@@ -258,12 +258,12 @@ asyncio.run(main())
 ### 인메모리 캐싱
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pyhub.llm.cache import InMemoryCache
 
 # 캐시 설정
 cache = InMemoryCache(ttl=3600)  # 1시간 TTL
-llm = LLM.create("gpt-4o-mini", cache=cache)
+llm = OpenAILLM(model="gpt-4o-mini", cache=cache)
 
 # 첫 번째 요청 (API 호출)
 reply1 = llm.ask("파이썬의 역사를 간단히 설명해주세요")
@@ -284,7 +284,7 @@ from pathlib import Path
 cache_dir = Path("./llm_cache")
 cache = FileCache(cache_dir=cache_dir, ttl=86400)  # 24시간 TTL
 
-llm = LLM.create("gpt-4o-mini", cache=cache)
+llm = OpenAILLM(model="gpt-4o-mini", cache=cache)
 
 # 캐시 통계
 print(f"캐시 히트율: {cache.hit_rate:.2%}")
@@ -328,7 +328,7 @@ reply2 = smart_llm.ask("현재 시각은?")  # 캐시 안됨
 ### 기본 함수 정의
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from typing import Dict, Any
 import json
 
@@ -409,7 +409,7 @@ tools = [
 ]
 
 # LLM과 함께 사용
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 도구와 함께 질문
 response = llm.ask_with_tools(
@@ -504,7 +504,7 @@ def translate(text: str, target_lang: str) -> str:
     return translations.get(target_lang, {}).get(text, text)
 
 # LLM과 통합
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 response = llm.ask_with_tools(
     "Hello를 한국어와 일본어로 번역해주고, 5 더하기 3은 얼마인지 계산해줘",
     tools=handler.tools
@@ -576,7 +576,7 @@ async def get_page_title(url: str) -> str:
 
 # 비동기 실행
 async def main():
-    llm = LLM.create("gpt-4o-mini")
+    llm = OpenAILLM(model="gpt-4o-mini")
     response = await llm.ask_with_tools_async(
         "Python 공식 웹사이트의 제목을 알려줘",
         tools=async_handler.tools
@@ -595,7 +595,7 @@ asyncio.run(main())
 ### Jinja2 템플릿
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pyhub.llm.templates import PromptTemplate
 
 # 템플릿 정의
@@ -610,7 +610,7 @@ template = PromptTemplate("""
 {% endfor %}
 """)
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 템플릿 사용
 prompt = template.render(
@@ -673,7 +673,7 @@ class DynamicPromptBuilder:
         return template.render(topic=topic)
 
 builder = DynamicPromptBuilder()
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 
 # 같은 주제를 다른 스타일로
 topic = "블록체인 기술"
@@ -693,7 +693,7 @@ pyhub-llm은 LangChain Hub와 호환되는 프롬프트 관리 시스템을 제�
 ### 내장 프롬프트 사용
 
 ```python
-from pyhub.llm import hub, LLM
+from pyhub.llm import hub, OpenAILLM
 
 # RAG (Retrieval Augmented Generation) 프롬프트
 rag_prompt = hub.pull("rlm/rag-prompt")
@@ -706,7 +706,7 @@ formatted = rag_prompt.format(
 )
 
 # LLM과 함께 사용
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 answer = llm.ask(formatted)
 print(answer.text)  # "에펠탑의 높이는 330미터입니다."
 ```
@@ -782,7 +782,7 @@ questions = [
     "Python은 언제 만들어졌나요?"
 ]
 
-llm = LLM.create("gpt-4o-mini")
+llm = OpenAILLM(model="gpt-4o-mini")
 for question in questions:
     formatted = python_qa_prompt.format(question=question)
     answer = llm.ask(formatted)
@@ -857,7 +857,7 @@ formatted = jinja_prompt.format(
 ### 기본 사용법 (InMemoryHistoryBackup)
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pyhub.llm.history import InMemoryHistoryBackup
 
 # 메모리 기반 백업 (테스트용)
@@ -887,7 +887,7 @@ print(f"총 출력 토큰: {usage.output}")
 ### SQLAlchemy 백업 (영구 저장)
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 from pyhub.llm.history import SQLAlchemyHistoryBackup
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker

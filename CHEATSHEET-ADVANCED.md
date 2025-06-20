@@ -23,11 +23,11 @@
 ### 텍스트 임베딩 생성
 
 ```python
-from pyhub.llm import LLM
+from pyhub.llm import OpenAILLM
 import numpy as np
 
 # 임베딩 모델 사용
-llm = LLM.create("text-embedding-3-small")
+llm = OpenAILLM(embedding_model="text-embedding-3-small")
 
 # 단일 텍스트 임베딩
 text = "인공지능은 인간의 지능을 모방한 기술입니다."
@@ -47,11 +47,13 @@ print(f"생성된 임베딩 수: {len(embeddings.embeddings)}")
 ### 유사도 계산
 
 ```python
+from pyhub.llm import OpenAILLM
 from sklearn.metrics.pairwise import cosine_similarity
+import numpy as np
 
 def calculate_similarity(text1: str, text2: str) -> float:
     """두 텍스트의 유사도 계산"""
-    llm = LLM.create("text-embedding-3-small")
+    llm = OpenAILLM(embedding_model="text-embedding-3-small")
     
     embeddings = llm.embed([text1, text2])
     vec1 = np.array(embeddings.embeddings[0]).reshape(1, -1)

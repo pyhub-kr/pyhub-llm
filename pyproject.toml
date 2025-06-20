@@ -50,6 +50,17 @@ image = [
     "Pillow>=10.0.0",
     "aiofiles>=23.0.0",
 ]
+tracing = [
+    "opentelemetry-api>=1.20.0",
+]
+langsmith = [
+    "httpx>=0.24.0",
+    "orjson>=3.9.0",
+]
+observability = [
+    "pyhub-llm[tracing]",
+    "pyhub-llm[langsmith]",
+]
 all = [
     "pyhub-llm[openai]",
     "pyhub-llm[anthropic]",
@@ -59,6 +70,7 @@ all = [
     "pyhub-llm[pdf]",
     "pyhub-llm[mcp]",
     "pyhub-llm[image]",
+    "pyhub-llm[observability]",
 ]
 dev = [
     "pytest>=7.0.0",
