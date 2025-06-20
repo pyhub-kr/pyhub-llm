@@ -57,7 +57,10 @@ pip install "pyhub-llm[google]"
 # Ollama만
 pip install "pyhub-llm[ollama]"
 
-# 모든 제공업체
+# 관측성 기능 (LangSmith + OpenTelemetry)
+pip install "pyhub-llm[observability]"
+
+# 모든 기능 (제공업체 + 관측성 포함)
 pip install "pyhub-llm[all]"
 ```
 

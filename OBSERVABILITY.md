@@ -60,29 +60,41 @@ llm = OpenAILLM(model="gpt-4o-mini", enable_tracing=True)
 
 ## Installation
 
-### Base Dependencies
-
-The core tracing interface has no dependencies. Install providers as needed:
+### Recommended Installation
 
 ```bash
-# For LangSmith support
-pip install "pyhub-llm[langsmith]"
+# Install all observability features (LangSmith + OpenTelemetry)
+pip install "pyhub-llm[observability]"
 
-# For OpenTelemetry support  
+# Or install with all features including observability
+pip install "pyhub-llm[all]"
+```
+
+### Selective Installation
+
+The core tracing interface has no dependencies. Install specific providers as needed:
+
+```bash
+# For OpenTelemetry support only
 pip install "pyhub-llm[tracing]"
 
-# For both
-pip install "pyhub-llm[langsmith,tracing]"
+# For LangSmith support only
+pip install "pyhub-llm[langsmith]"
+
+# For both (equivalent to observability)
+pip install "pyhub-llm[tracing,langsmith]"
 ```
 
 ### Manual Dependencies
 
+If you prefer to install dependencies manually:
+
 ```bash
 # LangSmith minimal dependencies
-pip install httpx orjson
+pip install httpx>=0.24.0 orjson>=3.9.0
 
 # OpenTelemetry minimal dependencies
-pip install opentelemetry-api
+pip install opentelemetry-api>=1.20.0
 ```
 
 ## Usage Patterns

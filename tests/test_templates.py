@@ -3,7 +3,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from pyhub.llm.templates import TemplateEngine
+from pyhub.llm.templates.engine import TemplateEngine
 
 
 class TestTemplateEngine:

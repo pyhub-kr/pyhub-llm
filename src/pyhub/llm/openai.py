@@ -27,6 +27,28 @@ class OpenAIMixin:
     cache_alias = "openai"
     supports_stream_options = True  # Override in subclasses if not supported
 
+    def _add_additional_properties_false(self, schema: dict) -> None:
+        """
+        OpenAI strict mode를 위해 모든 object 타입에 additionalProperties: false를 재귀적으로 추가합니다.
+        """
+        if isinstance(schema, dict):
+            # 현재 객체가 object 타입이면 additionalProperties: false 추가
+            if schema.get("type") == "object":
+                schema["additionalProperties"] = False
+
+            # 모든 값에 대해 재귀적으로 처리
+            for key, value in schema.items():
+                if isinstance(value, dict):
+                    self._add_additional_properties_false(value)
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            self._add_additional_properties_false(item)
+        elif isinstance(schema, list):
+            for item in schema:
+                if isinstance(item, dict):
+                    self._add_additional_properties_false(item)
+
     def _make_request_params(
         self,
         input_context: dict[str, Any],
@@ -209,12 +231,17 @@ class OpenAIMixin:
                     f"\n\nYou must return a JSON response that conforms to this schema: {input_context['schema_json']}"
                 )
 
+            # OpenAI의 strict mode를 위해 additionalProperties: false를 모든 객체에 추가
+            schema_json = input_context["schema_json"].copy()
+            self._add_additional_properties_false(schema_json)
+            logger.debug(f"Schema after processing: {schema_json}")
+
             request_params["response_format"] = {
                 "type": "json_schema",
                 "json_schema": {
                     "name": schema.__name__,
                     "strict": True,
-                    "schema": input_context["schema_json"],
+                    "schema": schema_json,
                 },
             }
             # structured output을 위해 낮은 temperature 사용

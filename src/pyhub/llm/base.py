@@ -104,7 +104,7 @@ class BaseLLM(abc.ABC):
         self.history_backup = history_backup
         self.stateless = stateless
         self.include_raw_response = include_raw_response
-        
+
         # Tracing configuration
         self.enable_tracing = enable_tracing if enable_tracing is not None else llm_settings.trace_enabled
         self._last_usage = None  # Store last token usage for tracing
@@ -529,16 +529,17 @@ class BaseLLM(abc.ABC):
 
         current_messages = [*self.history] if use_history else []
         current_model: LLMChatModelType = cast(LLMChatModelType, model or self.model)
-        
+
         # Tracing setup
         tracer = None
         if self.enable_tracing:
             try:
-                from pyhub.llm.tracing import get_tracer, SpanKind
+                from pyhub.llm.tracing import SpanKind, get_tracer
+
                 tracer = get_tracer()
             except ImportError:
                 logger.debug("Tracing requested but pyhub.llm.tracing not available")
-        
+
         # Determine if we should trace this operation
         should_trace = tracer is not None and self.enable_tracing
 
@@ -685,18 +686,18 @@ class BaseLLM(abc.ABC):
                                 messages=current_messages,
                                 model=current_model,
                             )
-                            
+
                             # Capture token usage
-                            if hasattr(self, '_last_usage') and self._last_usage:
-                                span.prompt_tokens = self._last_usage.get('prompt_tokens')
-                                span.completion_tokens = self._last_usage.get('completion_tokens')
-                                span.total_tokens = self._last_usage.get('total_tokens')
-                            
+                            if hasattr(self, "_last_usage") and self._last_usage:
+                                span.prompt_tokens = self._last_usage.get("prompt_tokens")
+                                span.completion_tokens = self._last_usage.get("completion_tokens")
+                                span.total_tokens = self._last_usage.get("total_tokens")
+
                             # Capture output
-                            span.outputs['text'] = ask.text[:1000]
+                            span.outputs["text"] = ask.text[:1000]
                             if ask.raw_response:
-                                span.metadata['raw_response'] = str(ask.raw_response)[:500]
-                            
+                                span.metadata["raw_response"] = str(ask.raw_response)[:500]
+
                         except Exception as e:
                             span.error = e
                             if raise_errors:
@@ -775,18 +776,18 @@ class BaseLLM(abc.ABC):
                                 messages=current_messages,
                                 model=current_model,
                             )
-                            
+
                             # Capture token usage
-                            if hasattr(self, '_last_usage') and self._last_usage:
-                                span.prompt_tokens = self._last_usage.get('prompt_tokens')
-                                span.completion_tokens = self._last_usage.get('completion_tokens')
-                                span.total_tokens = self._last_usage.get('total_tokens')
-                            
+                            if hasattr(self, "_last_usage") and self._last_usage:
+                                span.prompt_tokens = self._last_usage.get("prompt_tokens")
+                                span.completion_tokens = self._last_usage.get("completion_tokens")
+                                span.total_tokens = self._last_usage.get("total_tokens")
+
                             # Capture output
-                            span.outputs['text'] = ask.text[:1000]
+                            span.outputs["text"] = ask.text[:1000]
                             if ask.raw_response:
-                                span.metadata['raw_response'] = str(ask.raw_response)[:500]
-                            
+                                span.metadata["raw_response"] = str(ask.raw_response)[:500]
+
                         except Exception as e:
                             span.error = e
                             if raise_errors:
