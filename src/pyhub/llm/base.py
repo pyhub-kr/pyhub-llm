@@ -92,6 +92,7 @@ class BaseLLM(abc.ABC):
         history_backup: Optional["HistoryBackup"] = None,
         stateless: bool = False,
         include_raw_response: bool = False,
+        enable_tracing: Optional[bool] = None,
     ):
         self.model = model
         self.embedding_model = embedding_model
@@ -103,6 +104,10 @@ class BaseLLM(abc.ABC):
         self.history_backup = history_backup
         self.stateless = stateless
         self.include_raw_response = include_raw_response
+        
+        # Tracing configuration
+        self.enable_tracing = enable_tracing if enable_tracing is not None else llm_settings.trace_enabled
+        self._last_usage = None  # Store last token usage for tracing
 
         # 백업이 있으면 히스토리 복원, 없으면 initial_messages 사용
         if self.history_backup:
@@ -524,6 +529,18 @@ class BaseLLM(abc.ABC):
 
         current_messages = [*self.history] if use_history else []
         current_model: LLMChatModelType = cast(LLMChatModelType, model or self.model)
+        
+        # Tracing setup
+        tracer = None
+        if self.enable_tracing:
+            try:
+                from pyhub.llm.tracing import get_tracer, SpanKind
+                tracer = get_tracer()
+            except ImportError:
+                logger.debug("Tracing requested but pyhub.llm.tracing not available")
+        
+        # Determine if we should trace this operation
+        should_trace = tracer is not None and self.enable_tracing
 
         if isinstance(input, dict):
             input_context = input
@@ -648,68 +665,184 @@ class BaseLLM(abc.ABC):
         else:
 
             async def async_handler() -> Reply:
-                try:
-                    ask = await self._make_ask_async(
-                        input_context=input_context,
-                        human_message=human_message,
-                        messages=current_messages,
-                        model=current_model,
-                    )
-                except Exception as e:
-                    if raise_errors:
-                        raise e
-                    return Reply(text=f"Error: {str(e)}")
+                if should_trace:
+                    # Async with tracing
+                    with tracer.trace(
+                        name=f"{self.__class__.__name__}.ask",
+                        kind=SpanKind.LLM,
+                        inputs={
+                            "prompt": str(input)[:1000],
+                            "temperature": self.temperature,
+                            "max_tokens": self.max_tokens,
+                        },
+                        model=str(current_model),
+                        tags=["llm", self.__class__.__name__.lower()],
+                    ) as span:
+                        try:
+                            ask = await self._make_ask_async(
+                                input_context=input_context,
+                                human_message=human_message,
+                                messages=current_messages,
+                                model=current_model,
+                            )
+                            
+                            # Capture token usage
+                            if hasattr(self, '_last_usage') and self._last_usage:
+                                span.prompt_tokens = self._last_usage.get('prompt_tokens')
+                                span.completion_tokens = self._last_usage.get('completion_tokens')
+                                span.total_tokens = self._last_usage.get('total_tokens')
+                            
+                            # Capture output
+                            span.outputs['text'] = ask.text[:1000]
+                            if ask.raw_response:
+                                span.metadata['raw_response'] = str(ask.raw_response)[:500]
+                            
+                        except Exception as e:
+                            span.error = e
+                            if raise_errors:
+                                raise e
+                            return Reply(text=f"Error: {str(e)}")
+                        else:
+                            # choices가 있으면 처리
+                            if choices:
+                                choice, index, confidence = self._process_choice_response(
+                                    ask.text, input_context["choices"], choices_optional
+                                )
+                                ask.choice = choice
+                                ask.choice_index = index
+                                ask.confidence = confidence
+
+                            # schema가 있으면 처리
+                            if schema:
+                                structured_data, validation_errors = self._process_schema_response(ask.text, schema)
+                                ask.structured_data = structured_data
+                                ask.validation_errors = validation_errors
+
+                            if use_history:
+                                self._update_history(human_message=human_message, ai_message=ask.text)
+                            return ask
                 else:
-                    # choices가 있으면 처리
-                    if choices:
-                        choice, index, confidence = self._process_choice_response(
-                            ask.text, input_context["choices"], choices_optional
+                    # Async without tracing (original implementation)
+                    try:
+                        ask = await self._make_ask_async(
+                            input_context=input_context,
+                            human_message=human_message,
+                            messages=current_messages,
+                            model=current_model,
                         )
-                        ask.choice = choice
-                        ask.choice_index = index
-                        ask.confidence = confidence
+                    except Exception as e:
+                        if raise_errors:
+                            raise e
+                        return Reply(text=f"Error: {str(e)}")
+                    else:
+                        # choices가 있으면 처리
+                        if choices:
+                            choice, index, confidence = self._process_choice_response(
+                                ask.text, input_context["choices"], choices_optional
+                            )
+                            ask.choice = choice
+                            ask.choice_index = index
+                            ask.confidence = confidence
 
-                    # schema가 있으면 처리
-                    if schema:
-                        structured_data, validation_errors = self._process_schema_response(ask.text, schema)
-                        ask.structured_data = structured_data
-                        ask.validation_errors = validation_errors
+                        # schema가 있으면 처리
+                        if schema:
+                            structured_data, validation_errors = self._process_schema_response(ask.text, schema)
+                            ask.structured_data = structured_data
+                            ask.validation_errors = validation_errors
 
-                    if use_history:
-                        self._update_history(human_message=human_message, ai_message=ask.text)
-                    return ask
+                        if use_history:
+                            self._update_history(human_message=human_message, ai_message=ask.text)
+                        return ask
 
             def sync_handler() -> Reply:
-                try:
-                    ask = self._make_ask(
-                        input_context=input_context,
-                        human_message=human_message,
-                        messages=current_messages,
-                        model=current_model,
-                    )
-                except Exception as e:
-                    if raise_errors:
-                        raise e
-                    return Reply(text=f"Error: {str(e)}")
+                if should_trace:
+                    # Sync with tracing
+                    with tracer.trace(
+                        name=f"{self.__class__.__name__}.ask",
+                        kind=SpanKind.LLM,
+                        inputs={
+                            "prompt": str(input)[:1000],
+                            "temperature": self.temperature,
+                            "max_tokens": self.max_tokens,
+                        },
+                        model=str(current_model),
+                        tags=["llm", self.__class__.__name__.lower()],
+                    ) as span:
+                        try:
+                            ask = self._make_ask(
+                                input_context=input_context,
+                                human_message=human_message,
+                                messages=current_messages,
+                                model=current_model,
+                            )
+                            
+                            # Capture token usage
+                            if hasattr(self, '_last_usage') and self._last_usage:
+                                span.prompt_tokens = self._last_usage.get('prompt_tokens')
+                                span.completion_tokens = self._last_usage.get('completion_tokens')
+                                span.total_tokens = self._last_usage.get('total_tokens')
+                            
+                            # Capture output
+                            span.outputs['text'] = ask.text[:1000]
+                            if ask.raw_response:
+                                span.metadata['raw_response'] = str(ask.raw_response)[:500]
+                            
+                        except Exception as e:
+                            span.error = e
+                            if raise_errors:
+                                raise e
+                            return Reply(text=f"Error: {str(e)}")
+                        else:
+                            # choices가 있으면 처리
+                            if choices:
+                                choice, index, confidence = self._process_choice_response(
+                                    ask.text, input_context["choices"], choices_optional
+                                )
+                                ask.choice = choice
+                                ask.choice_index = index
+                                ask.confidence = confidence
+
+                            # schema가 있으면 처리
+                            if schema:
+                                structured_data, validation_errors = self._process_schema_response(ask.text, schema)
+                                ask.structured_data = structured_data
+                                ask.validation_errors = validation_errors
+
+                            if use_history:
+                                self._update_history(human_message=human_message, ai_message=ask.text)
+                            return ask
                 else:
-                    # choices가 있으면 처리
-                    if choices:
-                        choice, index, confidence = self._process_choice_response(
-                            ask.text, input_context["choices"], choices_optional
+                    # Sync without tracing (original implementation)
+                    try:
+                        ask = self._make_ask(
+                            input_context=input_context,
+                            human_message=human_message,
+                            messages=current_messages,
+                            model=current_model,
                         )
-                        ask.choice = choice
-                        ask.choice_index = index
-                        ask.confidence = confidence
+                    except Exception as e:
+                        if raise_errors:
+                            raise e
+                        return Reply(text=f"Error: {str(e)}")
+                    else:
+                        # choices가 있으면 처리
+                        if choices:
+                            choice, index, confidence = self._process_choice_response(
+                                ask.text, input_context["choices"], choices_optional
+                            )
+                            ask.choice = choice
+                            ask.choice_index = index
+                            ask.confidence = confidence
 
-                    # schema가 있으면 처리
-                    if schema:
-                        structured_data, validation_errors = self._process_schema_response(ask.text, schema)
-                        ask.structured_data = structured_data
-                        ask.validation_errors = validation_errors
+                        # schema가 있으면 처리
+                        if schema:
+                            structured_data, validation_errors = self._process_schema_response(ask.text, schema)
+                            ask.structured_data = structured_data
+                            ask.validation_errors = validation_errors
 
-                    if use_history:
-                        self._update_history(human_message=human_message, ai_message=ask.text)
-                    return ask
+                        if use_history:
+                            self._update_history(human_message=human_message, ai_message=ask.text)
+                        return ask
 
             return async_handler() if is_async else sync_handler()
 
