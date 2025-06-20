@@ -60,8 +60,8 @@ class OpenTelemetryProvider(TracingProvider):
         global _tracer
         if _tracer is None:
             _tracer = trace.get_tracer(
-                self.tracer_name,
-                version=self.version,
+                instrumenting_module_name=self.tracer_name,
+                instrumenting_library_version=self.version,
                 schema_url=None,
             )
         self.tracer = _tracer
