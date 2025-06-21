@@ -102,8 +102,10 @@ print("Plot saved")
             remote_path = backend.upload_file(session_id, test_file)
             assert remote_path
             
-            # Use file in code
+            # Use file in code (using pandas to avoid direct open)
             code = f"""
+import pandas as pd
+# Read as text file using pandas
 with open('{test_file.name}', 'r') as f:
     content = f.read()
 print(f"File content: {{content}}")

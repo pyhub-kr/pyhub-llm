@@ -22,7 +22,7 @@ class CodeSecurityValidator:
     
     # Allowed safe imports for data analysis
     ALLOWED_IMPORTS = {
-        "pandas", "numpy", "matplotlib", "seaborn", "plotly",
+        "pandas", "numpy", "matplotlib", "matplotlib.pyplot", "seaborn", "plotly",
         "scipy", "sklearn", "datetime", "json", "math", "random",
         "collections", "itertools", "functools", "re", "typing",
         "dataclasses", "enum", "decimal", "fractions", "statistics"
@@ -35,9 +35,10 @@ class CodeSecurityValidator:
         (r"sys\s*\.", "Direct system access is not allowed"),
         (r"subprocess\s*\.", "Subprocess execution is not allowed"),
         
-        # File operations (except pandas read functions)
+        # File operations (we'll handle this through safe_open in backend)
         (r"open\s*\(", "Direct file operations are not allowed"),
         (r"file\s*\(", "Direct file operations are not allowed"),
+        (r"__builtins__\s*\[", "Access to builtins is not allowed"),
         
         # Network access
         (r"socket\s*\.", "Network access is not allowed"),

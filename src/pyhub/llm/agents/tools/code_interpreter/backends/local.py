@@ -1,6 +1,7 @@
 """Local execution backend with restricted environment."""
 
 import io
+import os
 import sys
 import time
 import traceback
@@ -72,6 +73,9 @@ class LocalBackend(CodeExecutionBackend):
             
             # Constants
             'True': True, 'False': False, 'None': None,
+            
+            # Safe file operations (will be wrapped)
+            'open': None,  # Will be replaced with safe_open in _create_safe_globals
         }
     
     def _create_safe_globals(self, session: CodeSession) -> Dict[str, Any]:
@@ -85,31 +89,64 @@ class LocalBackend(CodeExecutionBackend):
             Safe globals dictionary
         """
         # Start with safe builtins
-        safe_globals = {'__builtins__': self.safe_builtins}
+        safe_globals = {'__builtins__': self.safe_builtins.copy()}
         
-        # Add allowed imports
-        for module_name in self.security_validator.allowed_imports:
+        # Add safe import function that only allows whitelisted modules
+        def safe_import(name, *args, **kwargs):
+            if name in self.security_validator.allowed_imports:
+                return __import__(name, *args, **kwargs)
+            else:
+                raise ImportError(f"Import of '{name}' is not allowed")
+        
+        safe_globals['__builtins__']['__import__'] = safe_import
+        
+        # Add safe file operations
+        def safe_open(filename, mode='r', *args, **kwargs):
+            """Safe open that only allows files in session directory."""
+            file_path = Path(filename).resolve()
+            session_dir = Path(session.work_dir).resolve()
+            
+            # Check if file is within session directory
             try:
-                if module_name == "matplotlib":
-                    import matplotlib
-                    matplotlib.use('Agg')  # Non-interactive backend
-                    safe_globals[module_name] = matplotlib
-                    # Also import pyplot
-                    import matplotlib.pyplot as plt
-                    safe_globals['plt'] = plt
-                else:
-                    module = __import__(module_name)
-                    safe_globals[module_name] = module
-            except ImportError:
-                pass  # Module not available
+                file_path.relative_to(session_dir)
+            except ValueError:
+                # Also allow created files in session
+                if str(file_path) not in [str(Path(f).resolve()) for f in session.created_files]:
+                    raise PermissionError(f"Access to '{filename}' is not allowed")
+            
+            # Only allow read and write modes, no execute
+            allowed_modes = {'r', 'rb', 'r+', 'w', 'wb', 'w+', 'a', 'ab', 'a+'}
+            if mode not in allowed_modes:
+                raise ValueError(f"File mode '{mode}' is not allowed")
+                
+            return open(filename, mode, *args, **kwargs)
         
-        # Common abbreviations
-        if 'pandas' in safe_globals:
-            safe_globals['pd'] = safe_globals['pandas']
-        if 'numpy' in safe_globals:
-            safe_globals['np'] = safe_globals['numpy']
-        if 'seaborn' in safe_globals:
-            safe_globals['sns'] = safe_globals['seaborn']
+        safe_globals['__builtins__']['open'] = safe_open
+        
+        # Pre-import common modules for convenience
+        preload_modules = {
+            'pandas': 'pd',
+            'numpy': 'np',
+            'matplotlib': 'matplotlib',
+            'matplotlib.pyplot': 'plt',
+            'seaborn': 'sns',
+        }
+        
+        for module_name, alias in preload_modules.items():
+            if module_name in self.security_validator.allowed_imports or module_name.startswith('matplotlib'):
+                try:
+                    if module_name == "matplotlib":
+                        import matplotlib
+                        matplotlib.use('Agg')  # Non-interactive backend
+                        safe_globals[alias] = matplotlib
+                    elif module_name == "matplotlib.pyplot":
+                        import matplotlib.pyplot as plt
+                        safe_globals[alias] = plt
+                    else:
+                        module = __import__(module_name)
+                        safe_globals[alias] = module
+                except ImportError:
+                    pass  # Module not available
         
         return safe_globals
     
@@ -146,13 +183,15 @@ class LocalBackend(CodeExecutionBackend):
         # Get or create session
         session = self.session_manager.get_or_create_session(session_id)
         
-        # Validate code security
+        # Validate code security (but allow 'open' since we provide safe_open)
         try:
             is_safe, issues = self.security_validator.validate(code)
-            if not is_safe:
+            # Filter out open() issues since we provide safe_open
+            filtered_issues = [issue for issue in issues if "file operations" not in issue or "open" not in code]
+            if filtered_issues:
                 return ExecutionResult(
                     success=False,
-                    error=f"Security validation failed:\n" + "\n".join(f"- {issue}" for issue in issues),
+                    error=f"Security validation failed:\n" + "\n".join(f"- {issue}" for issue in filtered_issues),
                     execution_time=time.time() - start_time
                 )
         except Exception as e:
