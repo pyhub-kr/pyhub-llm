@@ -67,8 +67,14 @@ class CodeInterpreter(BaseTool):
                 **self.backend_config
             )
         elif self.backend_name == "docker":
-            # TODO: Implement Docker backend
-            raise NotImplementedError("Docker backend not yet implemented")
+            try:
+                from .backends import DockerBackend
+                self.backend = DockerBackend(
+                    session_manager=self.session_manager,
+                    **self.backend_config
+                )
+            except ImportError:
+                raise ImportError("Docker backend requires 'docker' package. Install with: pip install docker")
         elif self.backend_name == "remote":
             # TODO: Implement remote Docker backend
             raise NotImplementedError("Remote Docker backend not yet implemented")

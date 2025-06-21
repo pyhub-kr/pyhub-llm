@@ -51,6 +51,12 @@ response = llm.ask_with_tools(
 - 컨텍스트 기반 분석
 - 실무 시나리오 (CSV 분석)
 
+### 5. `05_docker_backend.py` - Docker 백엔드 사용
+- 완전히 격리된 Docker 컨테이너에서 코드 실행
+- 보안 강화 및 리소스 제한
+- 로컬/원격 Docker 지원
+- Local vs Docker 백엔드 비교
+
 ## 사용법
 
 ### 기본 사용
@@ -123,11 +129,46 @@ Code Interpreter는 다음과 같은 보안 제한이 있습니다:
 
 ## 실행 환경
 
-현재는 Local 백엔드만 지원하며, Docker 백엔드는 개발 중입니다:
+### Local 백엔드
+제한된 로컬 Python 환경에서 실행합니다. 기본값이며 추가 설정이 필요 없습니다.
 
-- **Local**: 제한된 로컬 Python 환경에서 실행
-- **Docker** (개발 중): 완전히 격리된 컨테이너에서 실행
-- **Remote** (계획 중): 원격 서버에서 실행
+```python
+code_tool = CodeInterpreter(backend="local")
+```
+
+### Docker 백엔드
+완전히 격리된 Docker 컨테이너에서 실행합니다. Docker가 설치되어 있어야 합니다.
+
+```bash
+# Docker 패키지 설치
+pip install pyhub-llm[docker]
+
+# Docker Desktop이 실행 중이어야 함
+```
+
+```python
+code_tool = CodeInterpreter(
+    backend="docker",
+    backend_config={
+        "image_name": "python:3.9-slim",
+        "memory_limit": "512m",
+        "cpu_quota": 50000,  # 50% CPU
+        "network_mode": "none"  # 네트워크 차단
+    }
+)
+```
+
+### Remote Docker 백엔드
+원격 Docker 데몬에 연결하여 실행합니다.
+
+```python
+code_tool = CodeInterpreter(
+    backend="docker",
+    backend_config={
+        "remote_docker_url": "tcp://remote-host:2376"
+    }
+)
+```
 
 ## 문제 해결
 
