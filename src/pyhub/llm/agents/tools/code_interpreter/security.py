@@ -89,18 +89,33 @@ class CodeSecurityValidator:
             if re.search(pattern, code, re.IGNORECASE):
                 issues.append(message)
         
-        # Check imports
-        import_pattern = r'(?:from\s+(\S+)\s+import|import\s+(\S+))'
-        for match in re.finditer(import_pattern, code):
-            module = match.group(1) or match.group(2)
-            base_module = module.split('.')[0]
-            
-            if base_module in self.DANGEROUS_IMPORTS:
-                issues.append(f"Import of '{base_module}' is not allowed")
-            elif base_module not in self.allowed_imports:
-                # Check if it's a relative import or standard safe module
-                if not module.startswith('.'):
-                    issues.append(f"Import of '{base_module}' is not in the allowed list")
+        # Check imports (including multiline and aliased imports)
+        # First, normalize multiline imports by joining lines that end with backslash
+        normalized_code = re.sub(r'\\\s*\n', ' ', code)
+        
+        # Check various import patterns
+        import_patterns = [
+            r'(?:from\s+(\S+)\s+import|import\s+(\S+))',  # Basic import
+            r'from\s+(\S+)\s+import\s+\([^)]+\)',  # Multiline from import
+            r'import\s+(\S+)\s+as\s+\w+',  # Import with alias
+            r'from\s+(\S+)\s+import\s+\S+\s+as\s+\w+',  # From import with alias
+        ]
+        
+        for pattern in import_patterns:
+            for match in re.finditer(pattern, normalized_code, re.MULTILINE | re.DOTALL):
+                module = match.group(1) or match.group(2) or ''
+                base_module = module.split('.')[0]
+                
+                if base_module in self.DANGEROUS_IMPORTS:
+                    issues.append(f"Import of '{base_module}' is not allowed")
+                elif base_module and base_module not in self.allowed_imports:
+                    # Check if it's a relative import or standard safe module
+                    if not module.startswith('.'):
+                        issues.append(f"Import of '{base_module}' is not in the allowed list")
+        
+        # Check for obfuscated imports using __import__
+        if '__import__' in code:
+            issues.append("Use of __import__ is not allowed (possible obfuscation)")
         
         # Check for attempts to access file system through pandas
         # (pandas file operations are allowed but with restrictions)

@@ -56,6 +56,13 @@ class DockerBackend(CodeExecutionBackend):
         # Ensure base image exists
         self._ensure_image()
         
+    def __del__(self):
+        """Cleanup on deletion."""
+        try:
+            self.cleanup()
+        except:
+            pass
+        
     def _ensure_image(self):
         """Ensure the Docker image exists, pull if necessary."""
         try:
@@ -135,20 +142,19 @@ class DockerBackend(CodeExecutionBackend):
         # Create a temporary file with the code
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False) as f:
             f.write(code)
+            f.flush()  # Ensure content is written to disk
             temp_path = f.name
             
         try:
-            # Copy file to container
-            with open(temp_path, 'rb') as f:
-                tar_stream = io.BytesIO()
-                tar = tarfile.open(fileobj=tar_stream, mode='w')
+            # Create tar archive with the code directly (no need to read temp file)
+            tar_stream = io.BytesIO()
+            with tarfile.open(fileobj=tar_stream, mode='w') as tar:
                 tarinfo = tarfile.TarInfo(name='script.py')
                 tarinfo.size = len(code.encode())
                 tar.addfile(tarinfo, io.BytesIO(code.encode()))
-                tar.close()
-                tar_stream.seek(0)
-                
-                container.put_archive('/tmp', tar_stream)
+            
+            tar_stream.seek(0)
+            container.put_archive('/tmp', tar_stream)
                 
             # Execute the script
             exec_result = container.exec_run(
@@ -279,11 +285,12 @@ finally:
                 fig_path = f"/tmp/figure_{i}.png"
                 try:
                     tar_stream = container.get_archive(fig_path)[0]
-                    tar = tarfile.open(fileobj=io.BytesIO(b''.join(tar_stream)))
-                    for member in tar.getmembers():
-                        f = tar.extractfile(member)
-                        if f:
-                            files[f"figure_{i}.png"] = f.read()
+                    with tarfile.open(fileobj=io.BytesIO(b''.join(tar_stream))) as tar:
+                        for member in tar.getmembers():
+                            f = tar.extractfile(member)
+                            if f:
+                                files[f"figure_{i}.png"] = f.read()
+                                f.close()
                 except:
                     break
                     
@@ -321,9 +328,14 @@ finally:
             # Clean up container
             if container:
                 try:
-                    container.stop()
-                    container.remove()
-                except:
+                    container.stop(timeout=5)
+                except Exception:
+                    # Container might already be stopped
+                    pass
+                try:
+                    container.remove(force=True)
+                except Exception:
+                    # Container might already be removed
                     pass
                     
     def _indent_code(self, code: str, indent: int = 4) -> str:
@@ -357,9 +369,8 @@ finally:
                 
             # Create tar archive
             tar_stream = io.BytesIO()
-            tar = tarfile.open(fileobj=tar_stream, mode='w')
-            tar.add(str(local_path), arcname=local_path.name)
-            tar.close()
+            with tarfile.open(fileobj=tar_stream, mode='w') as tar:
+                tar.add(str(local_path), arcname=local_path.name)
             tar_stream.seek(0)
             
             # Upload to container
