@@ -1213,7 +1213,7 @@ class BaseLLM(abc.ABC):
                 input_context={},
                 human_message=final_human_message,
                 messages=final_messages,
-                model=model,
+                model=model or self.model,
             )
 
             # 최종 응답에 tool_interactions 추가
@@ -1327,7 +1327,7 @@ class BaseLLM(abc.ABC):
                 input_context={},
                 human_message=final_human_message,
                 messages=final_messages,
-                model=model,
+                model=model or self.model,
             )
 
             # 최종 응답에 tool_interactions 추가
