@@ -7,7 +7,7 @@ advanced.py의 고급 FastAPI 애플리케이션을 테스트합니다.
 import pytest
 import os
 from unittest.mock import patch, AsyncMock, MagicMock
-from fastapi.testclient import TestClient
+from starlette.testclient import TestClient
 
 # 환경변수 설정 (테스트 전에 필요)
 os.environ["OPENAI_API_KEY"] = "test-key"
@@ -73,7 +73,7 @@ def test_protected_endpoint_with_invalid_auth(client):
     assert "Invalid API key" in response.json()["detail"]
 
 
-@patch('advanced.get_llm_instance')
+@patch('advanced.chat_service.get_llm')
 def test_protected_endpoint_with_valid_auth(mock_get_llm, client, mock_llm, auth_headers):
     """올바른 인증으로 보호된 엔드포인트 접근 테스트"""
     mock_get_llm.return_value = mock_llm
@@ -92,7 +92,7 @@ def test_protected_endpoint_with_valid_auth(mock_get_llm, client, mock_llm, auth
 # 속도 제한 테스트
 # =============================================================================
 
-@patch('advanced.get_llm_instance')
+@patch('advanced.chat_service.get_llm')
 def test_rate_limiting(mock_get_llm, client, mock_llm, auth_headers):
     """속도 제한 테스트"""
     mock_get_llm.return_value = mock_llm
@@ -257,11 +257,11 @@ def test_admin_health_endpoint(client, auth_headers):
 # 백그라운드 작업 테스트
 # =============================================================================
 
-@patch('advanced.get_llm_instance')
+@patch('advanced.chat_service.get_llm')
 def test_background_batch_endpoint(mock_get_llm, client, mock_llm, auth_headers):
     """백그라운드 배치 처리 엔드포인트 테스트"""
     mock_get_llm.return_value = mock_llm
-    mock_llm.batch.return_value = [
+    mock_llm.batch_sync.return_value = [
         Reply(text="Response 1", usage=Usage(input=5, output=10))
     ]
     
@@ -294,7 +294,7 @@ def test_translate_service_error(mock_translate, client, auth_headers):
     
     assert response.status_code == 500
     data = response.json()
-    assert "번역 처리 중 오류가 발생했습니다" in data["detail"]
+    assert "Error during translation" in data["detail"]
 
 
 @patch('advanced.translation_service.summarize')
@@ -309,14 +309,14 @@ def test_summarize_service_error(mock_summarize, client, auth_headers):
     
     assert response.status_code == 500
     data = response.json()
-    assert "요약 처리 중 오류가 발생했습니다" in data["detail"]
+    assert "Error during summarization" in data["detail"]
 
 
 # =============================================================================
 # 성능 테스트
 # =============================================================================
 
-@patch('advanced.get_llm_instance')
+@patch('advanced.chat_service.get_llm')
 def test_concurrent_requests(mock_get_llm, client, mock_llm, auth_headers):
     """동시 요청 처리 테스트"""
     import concurrent.futures

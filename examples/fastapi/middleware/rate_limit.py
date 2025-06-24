@@ -77,7 +77,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             reset_time = self.limiter.get_reset_time(client_ip)
             raise HTTPException(
                 status_code=429,
-                detail="너무 많은 요청입니다. 잠시 후 다시 시도해주세요.",
+                detail="Rate limit exceeded. Please try again later.",
                 headers={
                     "X-RateLimit-Limit": str(self.limiter.requests_per_minute),
                     "X-RateLimit-Remaining": "0",

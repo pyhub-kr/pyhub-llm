@@ -271,7 +271,7 @@ async def protected_stream(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"스트리밍 처리 중 오류가 발생했습니다: {str(e)}"
+            detail=f"Error during streaming: {str(e)}"
         )
 
 
@@ -294,7 +294,7 @@ async def translate_text(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"번역 처리 중 오류가 발생했습니다: {str(e)}"
+            detail=f"Error during translation: {str(e)}"
         )
 
 
@@ -313,7 +313,7 @@ async def summarize_text(
     except Exception as e:
         raise HTTPException(
             status_code=500,
-            detail=f"요약 처리 중 오류가 발생했습니다: {str(e)}"
+            detail=f"Error during summarization: {str(e)}"
         )
 
 

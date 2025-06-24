@@ -7,7 +7,7 @@ from pyhub.llm import LLM
 
 class TranslationRequest(BaseModel):
     """번역 요청"""
-    text: str = Field(..., description="번역할 텍스트", min_length=1)
+    text: str = Field(..., description="번역할 텍스트", min_length=1, max_length=5000)
     target_language: str = Field(..., description="목표 언어 (예: ko, en, ja, zh)")
     source_language: Optional[str] = Field(None, description="원본 언어 (자동 감지)")
     model: str = Field(default="gpt-4o-mini", description="사용할 LLM 모델")
@@ -24,7 +24,7 @@ class TranslationResponse(BaseModel):
 
 class SummarizeRequest(BaseModel):
     """요약 요청"""
-    text: str = Field(..., description="요약할 텍스트", min_length=10)
+    text: str = Field(..., description="요약할 텍스트", min_length=50, max_length=10000)
     max_length: int = Field(default=200, ge=50, le=1000, description="최대 요약 길이")
     language: str = Field(default="ko", description="요약 언어")
     model: str = Field(default="gpt-4o-mini", description="사용할 LLM 모델")

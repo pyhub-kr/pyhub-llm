@@ -30,13 +30,13 @@ class APIKeyAuth:
         if not credentials:
             raise HTTPException(
                 status_code=401,
-                detail="API 키가 필요합니다. Authorization: Bearer <api_key> 헤더를 포함해주세요."
+                detail="Authentication required. Please include Authorization: Bearer <api_key> header."
             )
         
         if credentials.credentials not in self.allowed_keys:
             raise HTTPException(
                 status_code=401,
-                detail="유효하지 않은 API 키입니다."
+                detail="Invalid API key."
             )
         
         return credentials.credentials
@@ -61,7 +61,7 @@ class OptionalAPIKeyAuth:
         if self.allowed_keys and credentials.credentials not in self.allowed_keys:
             raise HTTPException(
                 status_code=401,
-                detail="유효하지 않은 API 키입니다."
+                detail="Invalid API key."
             )
         
         return credentials.credentials
