@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # FastAPI + pyhub-llm 서비스
+  fastapi-app:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ALLOWED_API_KEYS=${ALLOWED_API_KEYS:-demo-key-12345}
+      - RATE_LIMIT_REQUESTS=${RATE_LIMIT_REQUESTS:-100}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      - redis
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    networks:
+      - pyhub-network
+
+  # Redis (세션 관리 및 캐싱용)
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    restart: unless-stopped
+    networks:
+      - pyhub-network
+
+  # Nginx 리버스 프록시 (선택적)
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - fastapi-app
+    restart: unless-stopped
+    networks:
+      - pyhub-network
+    profiles:
+      - production  # docker-compose --profile production up
+
+volumes:
+  redis_data:
+
+networks:
+  pyhub-network:
+    driver: bridge
