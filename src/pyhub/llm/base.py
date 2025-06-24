@@ -11,6 +11,7 @@ from typing import (
     Callable,
     Generator,
     List,
+    Literal,
     Optional,
     Type,
     Union,
@@ -1760,6 +1761,233 @@ class BaseLLM(abc.ABC):
 
         # 단일 이미지였으면 Reply 반환, 여러 이미지였으면 list[Reply] 반환
         return reply_list[0] if is_single else reply_list
+
+    async def batch(
+        self,
+        prompts: List[str],
+        *,
+        system_prompt: Optional[str] = None,
+        temperature: Optional[float] = None,
+        max_tokens: Optional[int] = None,
+        max_parallel: int = 5,
+        use_history: bool = False,
+        history_mode: Literal["independent", "sequential", "shared"] = "independent",
+        fail_fast: bool = False,
+        **kwargs
+    ) -> List[Reply]:
+        """
+        Process multiple prompts with configurable history management.
+        
+        Args:
+            prompts: List of prompts to process
+            system_prompt: System prompt to use (optional)
+            temperature: Generation temperature (optional)
+            max_tokens: Maximum tokens per response (optional)
+            max_parallel: Maximum number of parallel requests (only for "independent" mode)
+            use_history: Whether to use conversation history
+            history_mode:
+                - "independent": Each prompt runs independently (default, allows parallel)
+                - "sequential": Each response becomes context for next prompt
+                - "shared": All prompts share the same initial history
+            fail_fast: If True, stop on first error. If False, continue processing
+            **kwargs: Additional parameters passed to ask()
+            
+        Returns:
+            List[Reply]: List of responses for each prompt
+            
+        Examples:
+            # Independent queries (parallel)
+            replies = await llm.batch([
+                "What is Python?",
+                "What is JavaScript?",
+                "What is Go?"
+            ])
+            
+            # Sequential conversation
+            replies = await llm.batch([
+                "Explain fibonacci sequence",
+                "Implement it in Python",
+                "What's the time complexity?"
+            ], history_mode="sequential", use_history=True)
+            
+            # Shared context
+            llm.ask("Our products are A, B, C", use_history=True)
+            replies = await llm.batch([
+                "Benefits of product A?",
+                "Benefits of product B?",
+                "Benefits of product C?"
+            ], history_mode="shared", use_history=True)
+        """
+        if not prompts:
+            return []
+            
+        # 기존 설정 저장
+        original_system_prompt = self.system_prompt
+        original_temperature = self.temperature
+        original_max_tokens = self.max_tokens
+        original_history = self.history.copy() if use_history else []
+        
+        # 제공된 경우 설정 업데이트
+        if system_prompt is not None:
+            self.system_prompt = system_prompt
+        if temperature is not None:
+            self.temperature = temperature
+        if max_tokens is not None:
+            self.max_tokens = max_tokens
+            
+        try:
+            if history_mode == "independent":
+                # 독립 실행 - 병렬 처리 가능
+                # 현재 히스토리 상태 저장 (shared 모드를 위해)
+                if use_history:
+                    current_history = self.history.copy()
+                
+                async def process_single_prompt(prompt: str, idx: int) -> Reply:
+                    try:
+                        # 독립 모드에서는 각 프롬프트가 자체 히스토리 사용
+                        if use_history:
+                            # 원본 히스토리를 복사하여 독립적으로 실행
+                            saved_history = self.history.copy()
+                            self.history = current_history.copy()
+                            
+                        reply = await self.ask_async(
+                            input=prompt,
+                            use_history=use_history,
+                            **kwargs
+                        )
+                        
+                        if use_history:
+                            # 독립 모드에서는 히스토리 복원
+                            self.history = saved_history
+                            
+                        return reply
+                    except Exception as e:
+                        if fail_fast:
+                            raise
+                        return Reply(text=f"Error processing prompt {idx + 1}: {str(e)}")
+                
+                # Semaphore를 사용한 동시성 제한
+                semaphore = asyncio.Semaphore(max_parallel)
+                
+                async def process_with_semaphore(prompt: str, idx: int) -> Reply:
+                    async with semaphore:
+                        return await process_single_prompt(prompt, idx)
+                
+                # 병렬로 모든 프롬프트 처리
+                tasks = [
+                    process_with_semaphore(prompt, idx) 
+                    for idx, prompt in enumerate(prompts)
+                ]
+                replies = await asyncio.gather(*tasks)
+                
+            elif history_mode == "sequential":
+                # 순차 실행 - 이전 응답이 다음 질문의 컨텍스트가 됨
+                replies = []
+                
+                for idx, prompt in enumerate(prompts):
+                    try:
+                        reply = await self.ask_async(
+                            input=prompt,
+                            use_history=use_history,
+                            **kwargs
+                        )
+                        replies.append(reply)
+                    except Exception as e:
+                        if fail_fast:
+                            raise
+                        replies.append(Reply(text=f"Error processing prompt {idx + 1}: {str(e)}"))
+                        
+            elif history_mode == "shared":
+                # 공유 컨텍스트 - 초기 히스토리만 공유
+                # 현재 히스토리 상태 저장
+                initial_history = self.history.copy() if use_history else []
+                
+                async def process_shared_prompt(prompt: str, idx: int) -> Reply:
+                    try:
+                        # 각 프롬프트는 초기 히스토리에서 시작
+                        if use_history:
+                            saved_history = self.history.copy()
+                            self.history = initial_history.copy()
+                            
+                        reply = await self.ask_async(
+                            input=prompt,
+                            use_history=use_history,
+                            **kwargs
+                        )
+                        
+                        if use_history:
+                            # 공유 모드에서는 원본 히스토리 복원
+                            self.history = saved_history
+                            
+                        return reply
+                    except Exception as e:
+                        if fail_fast:
+                            raise
+                        return Reply(text=f"Error processing prompt {idx + 1}: {str(e)}")
+                
+                # Semaphore를 사용한 동시성 제한
+                semaphore = asyncio.Semaphore(max_parallel)
+                
+                async def process_with_semaphore(prompt: str, idx: int) -> Reply:
+                    async with semaphore:
+                        return await process_shared_prompt(prompt, idx)
+                
+                # 병렬로 모든 프롬프트 처리
+                tasks = [
+                    process_with_semaphore(prompt, idx) 
+                    for idx, prompt in enumerate(prompts)
+                ]
+                replies = await asyncio.gather(*tasks)
+                
+            else:
+                raise ValueError(f"Invalid history_mode: {history_mode}")
+                
+            return replies
+            
+        finally:
+            # 원래 설정 복원
+            self.system_prompt = original_system_prompt
+            if temperature is not None:
+                self.temperature = original_temperature
+            if max_tokens is not None:
+                self.max_tokens = original_max_tokens
+            if use_history:
+                self.history = original_history
+    
+    def batch_sync(
+        self,
+        prompts: List[str],
+        **kwargs
+    ) -> List[Reply]:
+        """
+        Synchronous version of batch method.
+        
+        See batch() for full documentation.
+        
+        Examples:
+            # Synchronous batch processing
+            replies = llm.batch_sync([
+                "What is Python?",
+                "What is JavaScript?",
+                "What is Go?"
+            ])
+        
+        Note:
+            This method cannot be called from within an async context.
+            Use await batch() instead in async environments.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                raise RuntimeError(
+                    "batch_sync() cannot be called from a running event loop. "
+                    "Use 'await batch()' instead in async contexts."
+                )
+        except RuntimeError:
+            # No running loop, safe to use asyncio.run()
+            pass
+        
+        return asyncio.run(self.batch(prompts, **kwargs))
 
     def describe_image(
         self,
