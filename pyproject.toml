@@ -130,6 +130,9 @@ python_files = ["test_*.py", "*_test.py"]
 addopts = "-ra --disable-warnings"
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+# Exclude examples from test discovery
+norecursedirs = ["examples", "*.egg", ".eggs", "dist", "build", "docs", ".tox", ".git", "__pycache__"]
 
 [tool.black]
 line-length = 120

@@ -12,6 +12,10 @@ from fastapi.testclient import TestClient
 # 환경변수 설정 (테스트 전에 필요)
 os.environ["OPENAI_API_KEY"] = "test-key"
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from main import app
 from pyhub.llm.types import Reply, Usage
 

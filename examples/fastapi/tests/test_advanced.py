@@ -13,6 +13,10 @@ from fastapi.testclient import TestClient
 os.environ["OPENAI_API_KEY"] = "test-key"
 os.environ["ALLOWED_API_KEYS"] = "test-key-1,test-key-2,demo-key-12345"
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from advanced import app
 from pyhub.llm.types import Reply, Usage
 
