@@ -121,11 +121,8 @@ class TestBatchProcessing:
             Reply(text="Answer 2")
         ]
         
-        # Mock the async batch method
-        async def mock_batch(*args, **kwargs):
-            return responses
-        
-        mock_llm.batch = mock_batch
+        # Mock the ask_async method, so real batch and batch_sync logic is exercised
+        mock_llm.ask_async = AsyncMock(side_effect=responses)
         
         prompts = ["Question 1", "Question 2"]
         results = mock_llm.batch_sync(prompts)
@@ -133,6 +130,12 @@ class TestBatchProcessing:
         assert len(results) == 2
         assert results[0].text == "Answer 1"
         assert results[1].text == "Answer 2"
+    
+    @pytest.mark.asyncio
+    async def test_batch_sync_in_async_context(self, mock_llm):
+        """Test that batch_sync raises error when called from async context."""
+        with pytest.raises(RuntimeError, match="cannot be called from a running event loop"):
+            mock_llm.batch_sync(["Question"])
     
     @pytest.mark.asyncio
     async def test_batch_with_max_parallel(self, mock_llm):

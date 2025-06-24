@@ -1825,6 +1825,7 @@ class BaseLLM(abc.ABC):
         original_system_prompt = self.system_prompt
         original_temperature = self.temperature
         original_max_tokens = self.max_tokens
+        original_history = self.history.copy() if use_history else []
         
         # 제공된 경우 설정 업데이트
         if system_prompt is not None:
@@ -1950,6 +1951,8 @@ class BaseLLM(abc.ABC):
                 self.temperature = original_temperature
             if max_tokens is not None:
                 self.max_tokens = original_max_tokens
+            if use_history:
+                self.history = original_history
     
     def batch_sync(
         self,
@@ -1968,7 +1971,22 @@ class BaseLLM(abc.ABC):
                 "What is JavaScript?",
                 "What is Go?"
             ])
+        
+        Note:
+            This method cannot be called from within an async context.
+            Use await batch() instead in async environments.
         """
+        try:
+            loop = asyncio.get_running_loop()
+            if loop.is_running():
+                raise RuntimeError(
+                    "batch_sync() cannot be called from a running event loop. "
+                    "Use 'await batch()' instead in async contexts."
+                )
+        except RuntimeError:
+            # No running loop, safe to use asyncio.run()
+            pass
+        
         return asyncio.run(self.batch(prompts, **kwargs))
 
     def describe_image(
